@@ -1,4 +1,5 @@
 #include "hth_engine.h"
+#include "hth_camera.h"
 #include "hth_input.h"
 #include "hth_timing.h"
 #include "hth_version.h"
@@ -40,6 +41,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     engine->renderer = NULL;
     engine->input = NULL;
     engine->timing = NULL;
+    hth_camera_init_default(&engine->camera);
 
     window_title = config->window_title != NULL
         ? config->window_title
@@ -58,7 +60,8 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     }
 
     if (!config->headless) {
-        engine->renderer = hth_renderer_create(engine->platform);
+        engine->renderer = hth_renderer_create(engine->platform,
+                                               &engine->camera);
         if (engine->renderer == NULL) {
             hth_platform_shutdown(engine->platform);
             engine->platform = NULL;

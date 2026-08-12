@@ -26,6 +26,8 @@ typedef struct {
     PFNGLGETPROGRAMINFOLOGPROC get_program_info_log;
     PFNGLUSEPROGRAMPROC use_program;
     PFNGLDELETEPROGRAMPROC delete_program;
+    PFNGLGETUNIFORMLOCATIONPROC get_uniform_location;
+    PFNGLUNIFORMMATRIX4FVPROC uniform_matrix_4fv;
     PFNGLGENVERTEXARRAYSPROC gen_vertex_arrays;
     PFNGLBINDVERTEXARRAYPROC bind_vertex_array;
     PFNGLDELETEVERTEXARRAYSPROC delete_vertex_arrays;
@@ -39,7 +41,7 @@ typedef struct {
 } HTHOpenGLFunctions;
 
 typedef struct {
-    GLfloat position[2];
+    GLfloat position[3];
 } HTHBootstrapVertex;
 
 struct HTHOpenGLBackend {
@@ -49,16 +51,23 @@ struct HTHOpenGLBackend {
     GLuint program;
     GLuint vao;
     GLuint vbo;
+    GLint model_location;
+    GLint view_location;
+    GLint projection_location;
     uint32_t framebuffer_width;
     uint32_t framebuffer_height;
 };
 
 static const GLchar vertex_shader_source[] =
     "#version 330 core\n"
-    "layout(location = 0) in vec2 position;\n"
+    "layout(location = 0) in vec3 a_position;\n"
+    "uniform mat4 u_model;\n"
+    "uniform mat4 u_view;\n"
+    "uniform mat4 u_projection;\n"
     "void main()\n"
     "{\n"
-    "    gl_Position = vec4(position, 0.0, 1.0);\n"
+    "    gl_Position = u_projection * u_view * u_model *\n"
+    "                  vec4(a_position, 1.0);\n"
     "}\n";
 
 static const GLchar fragment_shader_source[] =
@@ -70,9 +79,9 @@ static const GLchar fragment_shader_source[] =
     "}\n";
 
 static const HTHBootstrapVertex bootstrap_vertices[] = {
-    {{ 0.0F,  0.6F}},
-    {{-0.6F, -0.5F}},
-    {{ 0.6F, -0.5F}},
+    {{ 0.0F,  0.7F, 0.0F}},
+    {{-0.7F, -0.5F, 0.0F}},
+    {{ 0.7F, -0.5F, 0.0F}},
 };
 
 #define HTH_LOAD_GL_FUNCTION(backend, member, type, name)                   \
@@ -122,6 +131,10 @@ static bool load_gl_functions(HTHOpenGLBackend *backend)
                          PFNGLUSEPROGRAMPROC, "glUseProgram");
     HTH_LOAD_GL_FUNCTION(backend, delete_program,
                          PFNGLDELETEPROGRAMPROC, "glDeleteProgram");
+    HTH_LOAD_GL_FUNCTION(backend, get_uniform_location,
+                         PFNGLGETUNIFORMLOCATIONPROC, "glGetUniformLocation");
+    HTH_LOAD_GL_FUNCTION(backend, uniform_matrix_4fv,
+                         PFNGLUNIFORMMATRIX4FVPROC, "glUniformMatrix4fv");
     HTH_LOAD_GL_FUNCTION(backend, gen_vertex_arrays,
                          PFNGLGENVERTEXARRAYSPROC, "glGenVertexArrays");
     HTH_LOAD_GL_FUNCTION(backend, bind_vertex_array,
@@ -269,7 +282,7 @@ static bool create_geometry(HTHOpenGLBackend *backend)
                             bootstrap_vertices, GL_STATIC_DRAW);
     backend->gl.enable_vertex_attrib_array(0);
     backend->gl.vertex_attrib_pointer(
-        0, 2, GL_FLOAT, GL_FALSE, (GLsizei)sizeof(HTHBootstrapVertex),
+        0, 3, GL_FLOAT, GL_FALSE, (GLsizei)sizeof(HTHBootstrapVertex),
         (const void *)offsetof(HTHBootstrapVertex, position));
     backend->gl.bind_buffer(GL_ARRAY_BUFFER, 0);
     backend->gl.bind_vertex_array(0);
@@ -310,6 +323,26 @@ static bool validate_context(void)
     return true;
 }
 
+static bool cache_uniform_locations(HTHOpenGLBackend *backend)
+{
+    backend->model_location =
+        backend->gl.get_uniform_location(backend->program, "u_model");
+    backend->view_location =
+        backend->gl.get_uniform_location(backend->program, "u_view");
+    backend->projection_location =
+        backend->gl.get_uniform_location(backend->program, "u_projection");
+    if (backend->model_location < 0 || backend->view_location < 0 ||
+        backend->projection_location < 0) {
+        fprintf(stderr,
+                "Renderer initialization failed: required MVP uniform "
+                "missing (model=%d, view=%d, projection=%d).\n",
+                backend->model_location, backend->view_location,
+                backend->projection_location);
+        return false;
+    }
+    return true;
+}
+
 HTHOpenGLBackend *hth_renderer_opengl_create(HTHPlatform *platform)
 {
     HTHOpenGLBackend *backend = calloc(1, sizeof(*backend));
@@ -337,18 +370,14 @@ HTHOpenGLBackend *hth_renderer_opengl_create(HTHPlatform *platform)
         fputs("Warning: could not disable OpenGL VSync; continuing with "
               "engine frame pacing.\n", stderr);
     }
-    if (!hth_renderer_opengl_resize(backend)) {
-        fputs("Renderer initialization failed: invalid framebuffer size.\n",
-              stderr);
-        hth_renderer_opengl_destroy(backend);
-        return NULL;
-    }
-
     glClearColor(0.05F, 0.02F, 0.08F, 1.0F);
     glClearDepth(1.0);
     glClearStencil(0);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
     backend->program = create_program(backend);
-    if (backend->program == 0 || !create_geometry(backend) ||
+    if (backend->program == 0 || !cache_uniform_locations(backend) ||
+        !create_geometry(backend) ||
         glGetError() != GL_NO_ERROR) {
         fputs("Renderer initialization failed: graphics pipeline setup "
               "failed.\n", stderr);
@@ -389,19 +418,37 @@ void hth_renderer_opengl_destroy(HTHOpenGLBackend *backend)
     free(backend);
 }
 
-bool hth_renderer_opengl_resize(HTHOpenGLBackend *backend)
+bool hth_renderer_opengl_resize(HTHOpenGLBackend *backend,
+                                uint32_t width, uint32_t height)
 {
-    uint32_t height;
-    uint32_t width;
-
-    if (backend == NULL ||
-        !hth_platform_framebuffer_size(backend->platform, &width, &height) ||
+    if (backend == NULL || width == 0 || height == 0 ||
         width > INT_MAX || height > INT_MAX) {
         return false;
     }
     backend->framebuffer_width = width;
     backend->framebuffer_height = height;
     glViewport(0, 0, (GLsizei)width, (GLsizei)height);
+    return glGetError() == GL_NO_ERROR;
+}
+
+bool hth_renderer_opengl_set_matrices(HTHOpenGLBackend *backend,
+                                      const HTHMat4 *model,
+                                      const HTHMat4 *view,
+                                      const HTHMat4 *projection)
+{
+    if (backend == NULL || model == NULL || view == NULL ||
+        projection == NULL) {
+        return false;
+    }
+
+    backend->gl.use_program(backend->program);
+    backend->gl.uniform_matrix_4fv(backend->model_location, 1, GL_FALSE,
+                                   model->elements);
+    backend->gl.uniform_matrix_4fv(backend->view_location, 1, GL_FALSE,
+                                   view->elements);
+    backend->gl.uniform_matrix_4fv(backend->projection_location, 1, GL_FALSE,
+                                   projection->elements);
+    backend->gl.use_program(0);
     return glGetError() == GL_NO_ERROR;
 }
 

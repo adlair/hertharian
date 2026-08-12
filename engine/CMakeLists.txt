@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.1.4 LANGUAGES C)
+project(hertharian-engine VERSION 0.1.5 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -14,6 +14,8 @@ configure_file(
 add_executable(hertharian-engine
     src/main.c
     src/common/engine.c
+    src/common/math.c
+    src/common/camera.c
     src/common/timing.c
     src/input/input.c
     src/platform/platform_sdl3.c
@@ -30,6 +32,9 @@ target_include_directories(hertharian-engine PRIVATE
     "${PROJECT_BINARY_DIR}/generated"
 )
 target_link_libraries(hertharian-engine PRIVATE SDL3::SDL3 OpenGL::GL)
+if(NOT WIN32)
+    target_link_libraries(hertharian-engine PRIVATE m)
+endif()
 target_compile_features(hertharian-engine PRIVATE c_std_11)
 set_target_properties(hertharian-engine PROPERTIES
     C_EXTENSIONS OFF
@@ -78,6 +83,28 @@ if(BUILD_TESTING)
     target_compile_features(timing_tests PRIVATE c_std_11)
     set_target_properties(timing_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(math_tests
+        tests/math_tests.c
+        src/common/math.c
+    )
+    target_include_directories(math_tests PRIVATE include)
+    target_compile_features(math_tests PRIVATE c_std_11)
+    set_target_properties(math_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(camera_tests
+        tests/camera_tests.c
+        src/common/camera.c
+        src/common/math.c
+    )
+    target_include_directories(camera_tests PRIVATE include)
+    target_compile_features(camera_tests PRIVATE c_std_11)
+    set_target_properties(camera_tests PROPERTIES C_EXTENSIONS OFF)
+
+    if(NOT WIN32)
+        target_link_libraries(math_tests PRIVATE m)
+        target_link_libraries(camera_tests PRIVATE m)
+    endif()
+
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(input_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
@@ -85,8 +112,16 @@ if(BUILD_TESTING)
         target_compile_options(timing_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(math_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(camera_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
     add_test(NAME timing_state COMMAND timing_tests)
+    add_test(NAME math_foundation COMMAND math_tests)
+    add_test(NAME camera_foundation COMMAND camera_tests)
 endif()

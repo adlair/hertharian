@@ -1,99 +1,61 @@
 # Renderer Architecture
 
-Renderer Bootstrap introduces the first graphical frame path:
+The graphical frame path remains:
 
 ```text
 Engine → Renderer frontend → OpenGL backend → Platform presentation → SDL3
 ```
 
-## Boundary and Ownership
+Platform owns the SDL window and opaque graphics-context services. The renderer
+frontend owns a backend and consumes an engine camera. It obtains framebuffer
+pixel dimensions, builds HTH Model/View/Projection matrices, and gives those
+matrices to the backend. The OpenGL backend owns context, pipeline, geometry,
+uniform locations, and draw state. Public headers expose neither SDL nor
+OpenGL.
 
-The Renderer frontend owns its backend and delegates resize and frame work.
-The OpenGL backend owns the graphics context and render state. Platform remains
-the owner of the SDL window and SDL lifecycle; its private graphics services
-configure the window, manage the opaque native context handle, report pixel
-dimensions, and swap buffers. Public headers expose neither SDL nor OpenGL.
+## 3D Bootstrap Frame
 
-Platform must configure graphics attributes before creating the window. In
-graphical mode it requests an OpenGL-capable, resizable, double-buffered window
-with 24 depth bits and 8 stencil bits. Renderer then requests and validates an
-OpenGL 3.3 Core context. Higher compatible versions are accepted.
+Each drawable frame clears color, depth, and stencil, submits one static local-
+space triangle through the MVP shader path, and presents. The clear color
+`(0.05, 0.02, 0.08, 1.0)` and pink-red triangle are diagnostics rather than art
+direction. Depth testing uses `GL_LESS` as the baseline 3D semantic.
 
-## Bootstrap Frame
+Rendering and presentation happen before work timing is measured, so both are
+included in `frame_work_seconds`.
 
-Each graphical engine frame sets the current pixel-sized viewport, clears
-color, depth, and stencil buffers, and presents the double-buffered result. The
-clear color `(0.05, 0.02, 0.08, 1.0)` is a renderer-bootstrap diagnostic, not
-final art direction. No shaders, triangle, geometry, textures, or scene exist.
+## Resize, HiDPI, and Minimization
 
-Rendering and buffer presentation happen before work timing is measured, so
-both are included in `frame_work_seconds`.
+Logical window and framebuffer pixel-size events both trigger a framebuffer
+query. The pixel dimensions update the viewport and camera projection, keeping
+aspect correct when logical and pixel sizes differ. A 0×0 framebuffer is
+treated as temporarily non-drawable; render and present are skipped without
+division by zero, then resume on a valid resize.
 
-## Resize and HiDPI
+## Context and Function Loading
 
-Logical window resize updates engine window state. Logical resize and separate
-framebuffer pixel-size events both cause Renderer to query the current pixel
-dimensions from Platform and update the OpenGL viewport. The context is not
-recreated, and logical size is never assumed to equal framebuffer size.
-
-## VSync and Pacing
+Graphical mode requests OpenGL 3.3 Core, double buffering, 24 depth bits, and
+8 stencil bits. Programmable-pipeline entry points plus the two required matrix
+uniform functions are resolved after the context is current and stored per
+backend instance. Bootstrap calls exported by the system OpenGL library remain
+linked through `OpenGL::GL`; no external loader is added.
 
 Renderer requests swap interval zero because engine timing owns the current
-60 FPS pacing policy. Failure to disable VSync is reported as a warning and is
-not fatal while the context remains usable. A future policy may coordinate
-display synchronization and engine pacing explicitly.
+60 FPS pacing policy. Failure is a warning, not a fatal error.
 
-## Headless Mode
+## Headless and Graphical Validation
 
-`--headless` is known before Platform initialization. Platform initializes the
-event foundation without a visible or OpenGL-capable window, and Renderer is
-disabled. This supports CI and logic tests without pretending that a failed GL
-context is headless operation:
+`--headless` creates no window or graphics context and disables Renderer, while
+math and camera remain usable without a GPU:
 
 ```bash
 ./build/engine/hertharian-engine --headless --frames 3
 ```
 
-This is only a headless lifecycle foundation, not a dedicated server.
-
-## Graphical Validation
-
-The SDL-selected backend and explicit native backends can be exercised with:
-
-```bash
-./build/engine/hertharian-engine
-SDL_VIDEODRIVER=wayland ./build/engine/hertharian-engine
-SDL_VIDEODRIVER=x11 ./build/engine/hertharian-engine
-```
-
-Each compatible graphical run should show the resizable `Hertharian` window
-filled by the dark-purple diagnostic framebuffer and should close cleanly. No
-automatic X11 fallback or Wayland-specific rendering workaround exists.
-
-## Function Loading
-
-v0.1.4 explicitly loads the programmable-pipeline entry points after the
-OpenGL context is current. Renderer asks Platform for a generic graphics
-procedure by name; Platform performs SDL3 lookup internally without exposing
-SDL. The resulting calling-convention-aware pointers are stored in the OpenGL
-backend instance and live exactly as long as its context.
-
-Only the subset required for shader/program lifecycle, one VAO, one VBO,
-vertex layout, and one draw is loaded. Bootstrap calls already exported by the
-system OpenGL library remain directly linked through `OpenGL::GL`. No external
-loader dependency or general-purpose loader is introduced.
-
-## Programmable Pipeline
-
-The backend compiles embedded GLSL 330 Core vertex and fragment shaders, links
-one program, uploads three clip-space positions to one static VBO, and records
-attribute location zero in one VAO. Each frame clears the existing diagnostic
-framebuffer, submits one static triangle, and presents it. The embedded source
-and bootstrap geometry are temporary and do not define future public resource
-or asset APIs. See `GRAPHICS-PIPELINE.md`.
+Graphical validation may use the naturally selected SDL backend or explicitly
+request Wayland/X11. No backend is hardcoded and no fallback is implemented.
 
 ## Deliberately Excluded
 
-The current renderer excludes textures, indices, public mesh/buffer/shader
-resources, uniforms, matrices, models, cameras, materials, lighting, world/BSP
-rendering, postprocessing, animation, gameplay, and fixed simulation timing.
+The renderer still excludes public mesh/shader/buffer resources, textures,
+materials, lighting, world/BSP rendering, scene graphs, animation, gameplay,
+and camera input or movement.

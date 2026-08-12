@@ -1,6 +1,7 @@
 #ifndef HTH_ENGINE_H
 #define HTH_ENGINE_H
 
+#include "hth_camera.h"
 #include "hth_input.h"
 #include "hth_timing.h"
 
@@ -28,6 +29,7 @@ typedef struct {
     bool headless;
     struct HTHPlatform *platform;
     struct HTHRenderer *renderer;
+    HTHCamera camera;
     HTHInput *input;
     HTHTiming *timing;
 } HTHEngine;

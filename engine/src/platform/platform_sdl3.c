@@ -374,7 +374,7 @@ bool hth_platform_framebuffer_size(HTHPlatform *platform,
                 SDL_GetError());
         return false;
     }
-    if (pixel_width <= 0 || pixel_height <= 0) {
+    if (pixel_width < 0 || pixel_height < 0) {
         return false;
     }
 

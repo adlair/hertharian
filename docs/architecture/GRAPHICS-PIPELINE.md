@@ -1,38 +1,32 @@
-# Graphics Pipeline Foundation v0.1.4
+# Graphics Pipeline Foundation v0.1.5
 
-The first programmable pipeline remains private to the OpenGL backend:
+The private OpenGL backend now exercises a real 3D transform chain:
 
 ```text
-clip-space vertices
-        ↓
-static vertex buffer
-        ↓
-vertex array / position attribute 0
-        ↓
-GLSL 330 vertex shader
-        ↓
-rasterization
-        ↓
-GLSL 330 fragment shader
-        ↓
-framebuffer
-        ↓
-Platform presentation
+local vec3 position
+        ↓ Model (identity)
+world position
+        ↓ View (bootstrap camera)
+camera position
+        ↓ Perspective projection
+clip space → rasterization → framebuffer → Platform presentation
 ```
 
-Three vertices contain only two-component positions expressed directly in
-normalized device coordinates. A single static VBO uploads them during
-Renderer initialization. A single VAO records the location-zero attribute
-layout. Each frame binds one program and VAO and submits one triangle draw.
+One static VBO contains three-component local-space positions. A GLSL 330 Core
+vertex shader applies `u_projection * u_view * u_model`; the fragment shader
+retains the bootstrap pink-red color over the dark-purple clear. The frontend
+builds HTH matrices, while the backend only caches uniform locations and uploads
+them. Locations are resolved once during initialization and are required.
 
-The fragment shader produces a constant pink-red color over the existing dark
-purple diagnostic clear. Both shader sources are embedded static strings for
-bootstrap only; they do not establish the future asset/shader architecture.
+Column-major HTH matrices match GLSL storage, so `glUniformMatrix4fv` uses
+`GL_FALSE` rather than compensating with a transpose. The projection aspect is
+recomputed from framebuffer pixels on resize. A zero-sized framebuffer skips
+drawing and presentation until dimensions become valid again.
 
-Shader compilation and program linking validate status and report complete
-driver logs when available. Shader objects are deleted after link. The backend
-owns the remaining program, VAO, and VBO and deletes them before destroying the
-graphics context.
+Depth testing is enabled with `GL_DEPTH_TEST` and `GL_LESS` from this milestone
+because depth is part of the renderer's 3D semantics, even though the bootstrap
+contains only one triangle.
 
-No indices, textures, uniforms, matrices, camera, materials, mesh abstraction,
-lighting, animation, or filesystem shader loading are part of v0.1.4.
+Shader compilation/link diagnostics and per-context function ownership remain
+unchanged. No indices, textures, materials, mesh abstraction, lighting,
+animation, filesystem shader loading, or scene API are introduced.
