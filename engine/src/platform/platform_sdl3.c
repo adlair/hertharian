@@ -382,3 +382,12 @@ bool hth_platform_framebuffer_size(HTHPlatform *platform,
     *height = (uint32_t)pixel_height;
     return true;
 }
+
+HTHGraphicsProcedure hth_platform_graphics_get_proc_address(
+    HTHPlatform *platform, const char *name)
+{
+    if (platform == NULL || platform->window == NULL || name == NULL) {
+        return NULL;
+    }
+    return SDL_GL_GetProcAddress(name);
+}

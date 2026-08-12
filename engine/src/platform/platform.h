@@ -8,6 +8,7 @@
 
 typedef struct HTHPlatform HTHPlatform;
 typedef struct HTHPlatformGraphicsContext HTHPlatformGraphicsContext;
+typedef void (*HTHGraphicsProcedure)(void);
 
 typedef struct {
     const char *window_title;
@@ -36,5 +37,7 @@ bool hth_platform_graphics_context_info(int *major, int *minor,
                                         int *depth_bits, int *stencil_bits);
 bool hth_platform_framebuffer_size(HTHPlatform *platform,
                                    uint32_t *width, uint32_t *height);
+HTHGraphicsProcedure hth_platform_graphics_get_proc_address(
+    HTHPlatform *platform, const char *name);
 
 #endif

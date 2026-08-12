@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.1.3 LANGUAGES C)
+project(hertharian-engine VERSION 0.1.4 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)

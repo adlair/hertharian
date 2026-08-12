@@ -1,4 +1,4 @@
-# Renderer Bootstrap v0.1.3
+# Renderer Architecture
 
 Renderer Bootstrap introduces the first graphical frame path:
 
@@ -72,14 +72,28 @@ automatic X11 fallback or Wayland-specific rendering workaround exists.
 
 ## Function Loading
 
-The bootstrap uses only OpenGL functions exported by the system OpenGL library
-and links through CMake's `OpenGL::GL` imported target. No extension loader is
-needed for viewport, clear state, buffer clear, error query, or driver strings.
-Later milestones that need modern extension entry points can use Platform's
-private context boundary without exposing native types.
+v0.1.4 explicitly loads the programmable-pipeline entry points after the
+OpenGL context is current. Renderer asks Platform for a generic graphics
+procedure by name; Platform performs SDL3 lookup internally without exposing
+SDL. The resulting calling-convention-aware pointers are stored in the OpenGL
+backend instance and live exactly as long as its context.
+
+Only the subset required for shader/program lifecycle, one VAO, one VBO,
+vertex layout, and one draw is loaded. Bootstrap calls already exported by the
+system OpenGL library remain directly linked through `OpenGL::GL`. No external
+loader dependency or general-purpose loader is introduced.
+
+## Programmable Pipeline
+
+The backend compiles embedded GLSL 330 Core vertex and fragment shaders, links
+one program, uploads three clip-space positions to one static VBO, and records
+attribute location zero in one VAO. Each frame clears the existing diagnostic
+framebuffer, submits one static triangle, and presents it. The embedded source
+and bootstrap geometry are temporary and do not define future public resource
+or asset APIs. See `GRAPHICS-PIPELINE.md`.
 
 ## Deliberately Excluded
 
-v0.1.3 excludes shaders, triangles, buffers, textures, models, cameras,
-materials, lighting, world/BSP rendering, postprocessing, Vulkan, SDL Renderer,
-gameplay, and fixed simulation timing.
+The current renderer excludes textures, indices, public mesh/buffer/shader
+resources, uniforms, matrices, models, cameras, materials, lighting, world/BSP
+rendering, postprocessing, animation, gameplay, and fixed simulation timing.
