@@ -1,0 +1,19 @@
+# Upstream references
+/upstream/
+
+# Builds
+/build/
+/dist/
+/maps/compiled/
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+
+# Runtime
+*.log

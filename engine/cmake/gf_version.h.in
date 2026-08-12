@@ -1,0 +1,6 @@
+#ifndef GF_VERSION_H
+#define GF_VERSION_H
+
+#define GF_ENGINE_VERSION "@PROJECT_VERSION@"
+
+#endif
