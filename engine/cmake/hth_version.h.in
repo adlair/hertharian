@@ -1,0 +1,6 @@
+#ifndef HTH_VERSION_H
+#define HTH_VERSION_H
+
+#define HTH_ENGINE_VERSION "@PROJECT_VERSION@"
+
+#endif

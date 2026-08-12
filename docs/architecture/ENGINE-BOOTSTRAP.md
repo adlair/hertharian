@@ -1,13 +1,13 @@
-# Engine Bootstrap v0.1.0
+# Hertharian Engine Bootstrap v0.1.0
 
 The first engine version establishes a small, deterministic lifecycle without
 introducing runtime subsystems prematurely.
 
 ## Lifecycle
 
-The executable prints its version, initializes a caller-owned `GFEngine`, runs
-frames through `gf_engine_run`, and shuts the engine down. `gf_engine_run` owns
-the loop and delegates each iteration to `gf_engine_frame`.
+The executable prints its version, initializes a caller-owned `HTHEngine`, runs
+frames through `hth_engine_run`, and shuts the engine down. `hth_engine_run`
+owns the loop and delegates each iteration to `hth_engine_frame`.
 
 The configuration carries a frame limit so development runs and tests always
 terminate. Internally, a limit of zero represents a future unlimited mode; the
@@ -20,7 +20,7 @@ handling has not been implemented yet.
 engine/
 ├── CMakeLists.txt
 ├── include/
-│   └── gf_engine.h
+│   └── hth_engine.h
 ├── src/
 │   ├── main.c
 │   └── common/
@@ -28,7 +28,7 @@ engine/
 └── tests/
 ```
 
-`gf_engine.h` is the single declaration point for the bootstrap API and its
+`hth_engine.h` is the single declaration point for the bootstrap API and its
 small explicit state object. There is no implementation-private `engine.h` yet,
 because v0.1.0 has no private declarations to put in it.
 
@@ -46,7 +46,7 @@ cmake --build build/engine -j$(nproc)
 Run exactly three frames with:
 
 ```bash
-./build/engine/gf-engine --frames 3
+./build/engine/hertharian-engine --frames 3
 ```
 
 The minimal command-line interface accepts only `--frames N`, where `N` is a

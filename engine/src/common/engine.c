@@ -1,15 +1,15 @@
-#include "gf_engine.h"
-#include "gf_version.h"
+#include "hth_engine.h"
+#include "hth_version.h"
 
 #include <inttypes.h>
 #include <stdio.h>
 
-const char *gf_engine_version(void)
+const char *hth_engine_version(void)
 {
-    return GF_ENGINE_VERSION;
+    return HTH_ENGINE_VERSION;
 }
 
-bool gf_engine_init(GFEngine *engine, const GFEngineConfig *config)
+bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
 {
     if (engine == NULL || config == NULL) {
         return false;
@@ -26,14 +26,14 @@ bool gf_engine_init(GFEngine *engine, const GFEngineConfig *config)
     return true;
 }
 
-void gf_engine_run(GFEngine *engine)
+void hth_engine_run(HTHEngine *engine)
 {
     if (engine == NULL || !engine->initialized) {
         return;
     }
 
     while (engine->running) {
-        gf_engine_frame(engine);
+        hth_engine_frame(engine);
 
         if (engine->frame_limit > 0 &&
             engine->frame_number >= engine->frame_limit) {
@@ -42,7 +42,7 @@ void gf_engine_run(GFEngine *engine)
     }
 }
 
-void gf_engine_frame(GFEngine *engine)
+void hth_engine_frame(HTHEngine *engine)
 {
     if (engine == NULL || !engine->initialized || !engine->running) {
         return;
@@ -52,7 +52,7 @@ void gf_engine_frame(GFEngine *engine)
     engine->frame_number++;
 }
 
-void gf_engine_shutdown(GFEngine *engine)
+void hth_engine_shutdown(HTHEngine *engine)
 {
     if (engine == NULL || !engine->initialized) {
         return;
