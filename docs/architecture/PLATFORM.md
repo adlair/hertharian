@@ -19,16 +19,16 @@ SDL headers or stores an `SDL_Window`. Public headers use an opaque
 
 `hth_engine_init` supplies window configuration and creates one platform
 instance. That instance owns the SDL window. Each `hth_engine_frame` pumps
-events; a quit or window-close event sets `engine.running` to false through the
-engine layer. `hth_engine_shutdown` then destroys the window and shuts SDL down.
-Failed initialization releases any resources acquired before the failure.
+events and translates them into engine-owned event types. A quit event sets
+`engine.running` to false through the engine layer. `hth_engine_shutdown` then
+destroys the window and shuts SDL down. Failed initialization releases any
+resources acquired before the failure.
 
 ## Timing Foundation
 
 The platform API exposes SDL's monotonic performance counter and counter
-frequency, plus millisecond sleep. A 16-millisecond sleep currently prevents
-the bootstrap loop from busy-spinning. This is a temporary bootstrap throttle,
-replaced by real frame timing in v0.1.2; it is not a definitive frame limiter.
+frequency, plus millisecond sleep. v0.1.2 uses these primitives through the
+engine-owned timing system documented in `TIMING.md`.
 
 Frames are printed only for finite `--frames N` runs. Unlimited runs remain
 quiet instead of continuously filling standard output.
@@ -74,9 +74,9 @@ Bootstrap supplies the first buffer. No X11 fallback is selected in code.
 
 ## Deliberately Excluded
 
-v0.1.1 does not add a renderer, OpenGL context, shaders, world or BSP support,
-audio, playable input, bindings, mouse capture, gamepad support, networking,
-filesystem, console, cvars, game code, gameplay, or sophisticated frame timing.
+The platform foundation does not add a renderer, OpenGL context, shaders,
+world or BSP support, audio, bindings, mouse capture, gamepad support,
+networking, filesystem, console, cvars, game code, or gameplay.
 
 The implementation is original project code. ioquake3 was studied only as an
 architectural reference; no source implementation was copied.

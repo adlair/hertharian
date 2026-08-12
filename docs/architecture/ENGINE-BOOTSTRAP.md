@@ -68,8 +68,9 @@ v0.1.0 did not include SDL, OpenGL, rendering, audio, networking, a filesystem,
 BSP loading, collision, real input, QVM/VM support, game logic, assets, or maps.
 The SDL3 platform foundation introduced in v0.1.1 is documented separately in
 `PLATFORM.md` and ADR-0004.
-The wait, input, event/command, server, client, and network-flush frame stages
-documented in ADR-0003 are architectural targets, not implemented placeholders.
+Timing, platform event translation, and physical input were introduced in
+v0.1.2. Server, client, command, and network-flush stages documented in
+ADR-0003 remain architectural targets.
 
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.

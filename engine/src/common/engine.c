@@ -1,6 +1,10 @@
 #include "hth_engine.h"
+#include "hth_input.h"
+#include "hth_timing.h"
 #include "hth_version.h"
+#include "input_internal.h"
 #include "platform.h"
+#include "timing_internal.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -15,6 +19,8 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     const char *window_title;
     uint32_t window_width;
     uint32_t window_height;
+    uint64_t counter;
+    uint64_t frequency;
     HTHPlatformConfig platform_config;
 
     if (engine == NULL || config == NULL) {
@@ -23,11 +29,14 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
 
     puts("Initializing engine...");
 
-    engine->frame_number = 0;
     engine->frame_limit = config->frame_limit;
+    engine->window_width = 0;
+    engine->window_height = 0;
     engine->initialized = false;
     engine->running = false;
     engine->platform = NULL;
+    engine->input = NULL;
+    engine->timing = NULL;
 
     window_title = config->window_title != NULL
         ? config->window_title
@@ -43,6 +52,28 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         return false;
     }
 
+    engine->input = hth_input_create();
+    if (engine->input == NULL) {
+        fputs("Failed to initialize input state.\n", stderr);
+        hth_platform_shutdown(engine->platform);
+        engine->platform = NULL;
+        return false;
+    }
+
+    frequency = hth_platform_time_frequency();
+    counter = hth_platform_time_counter();
+    engine->timing = hth_timing_create(config->target_fps, counter, frequency);
+    if (engine->timing == NULL) {
+        fputs("Failed to initialize timing state.\n", stderr);
+        hth_input_destroy(engine->input);
+        engine->input = NULL;
+        hth_platform_shutdown(engine->platform);
+        engine->platform = NULL;
+        return false;
+    }
+
+    engine->window_width = window_width;
+    engine->window_height = window_height;
     engine->initialized = true;
     engine->running = true;
     puts("Engine initialized.");
@@ -59,7 +90,7 @@ void hth_engine_run(HTHEngine *engine)
         hth_engine_frame(engine);
 
         if (engine->frame_limit > 0 &&
-            engine->frame_number >= engine->frame_limit) {
+            hth_timing_frame_number(engine->timing) >= engine->frame_limit) {
             engine->running = false;
         }
     }
@@ -67,22 +98,45 @@ void hth_engine_run(HTHEngine *engine)
 
 void hth_engine_frame(HTHEngine *engine)
 {
+    HTHPlatformEvent event;
+    uint64_t counter;
+    uint64_t sleep_ns;
+
     if (engine == NULL || !engine->initialized || !engine->running) {
         return;
     }
 
-    if (!hth_platform_pump_events(engine->platform)) {
-        engine->running = false;
+    counter = hth_platform_time_counter();
+    hth_timing_begin_frame(engine->timing, counter);
+    hth_input_begin_frame(engine->input);
+
+    while (hth_platform_poll_event(engine->platform, &event)) {
+        if (event.type == HTH_PLATFORM_EVENT_QUIT) {
+            engine->running = false;
+        } else if (event.type == HTH_PLATFORM_EVENT_WINDOW_RESIZED) {
+            engine->window_width = event.data.window.width;
+            engine->window_height = event.data.window.height;
+        }
+
+        hth_input_handle_event(engine->input, &event);
+    }
+
+    if (!engine->running) {
         return;
     }
 
-    /* Temporary bootstrap throttle. Replaced by real frame timing in v0.1.2. */
-    hth_platform_sleep_ms(16);
-
     if (engine->frame_limit > 0) {
-        printf("Frame %" PRIu64 "\n", engine->frame_number);
+        printf("Frame %" PRIu64 "\n",
+               hth_timing_frame_number(engine->timing));
     }
-    engine->frame_number++;
+
+    counter = hth_platform_time_counter();
+    hth_timing_measure_work(engine->timing, counter);
+    sleep_ns = hth_timing_remaining_ns(engine->timing);
+    if (sleep_ns > 0) {
+        hth_platform_sleep_ns(sleep_ns);
+    }
+    hth_timing_finish_frame(engine->timing, hth_platform_time_counter());
 }
 
 void hth_engine_shutdown(HTHEngine *engine)
@@ -93,8 +147,22 @@ void hth_engine_shutdown(HTHEngine *engine)
 
     puts("Shutting down...");
     engine->running = false;
+    hth_timing_destroy(engine->timing);
+    engine->timing = NULL;
+    hth_input_destroy(engine->input);
+    engine->input = NULL;
     hth_platform_shutdown(engine->platform);
     engine->platform = NULL;
     engine->initialized = false;
     puts("Engine shutdown complete.");
+}
+
+const HTHInput *hth_engine_input(const HTHEngine *engine)
+{
+    return engine != NULL ? engine->input : NULL;
+}
+
+const HTHTiming *hth_engine_timing(const HTHEngine *engine)
+{
+    return engine != NULL ? engine->timing : NULL;
 }

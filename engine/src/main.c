@@ -45,6 +45,7 @@ int main(int argc, char **argv)
         .window_title = "Hertharian",
         .window_width = 1280,
         .window_height = 720,
+        .target_fps = 60,
     };
     HTHEngine engine = {0};
 
