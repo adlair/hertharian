@@ -9,10 +9,9 @@ The executable prints its version, initializes a caller-owned `HTHEngine`, runs
 frames through `hth_engine_run`, and shuts the engine down. `hth_engine_run`
 owns the loop and delegates each iteration to `hth_engine_frame`.
 
-The configuration carries a frame limit so development runs and tests always
-terminate. Internally, a limit of zero represents a future unlimited mode; the
-v0.1.0 command line intentionally requires a positive value because exit-signal
-handling has not been implemented yet.
+The configuration carries a frame limit so development runs and tests can
+terminate deterministically. As of v0.1.1, a limit of zero runs until the
+platform reports a window-close event.
 
 ## Initial Structure
 
@@ -49,8 +48,8 @@ Run exactly three frames with:
 ./build/engine/hertharian-engine --frames 3
 ```
 
-The minimal command-line interface accepts only `--frames N`, where `N` is a
-positive integer.
+The minimal command-line interface accepts optional `--frames N`, where `N` is
+a positive integer. Running without arguments continues until window close.
 
 ## Tests
 
@@ -65,8 +64,10 @@ and verifies the expected lifecycle output.
 
 ## Deliberately Excluded
 
-v0.1.0 does not include SDL, OpenGL, rendering, audio, networking, a filesystem,
+v0.1.0 did not include SDL, OpenGL, rendering, audio, networking, a filesystem,
 BSP loading, collision, real input, QVM/VM support, game logic, assets, or maps.
+The SDL3 platform foundation introduced in v0.1.1 is documented separately in
+`PLATFORM.md` and ADR-0004.
 The wait, input, event/command, server, client, and network-flush frame stages
 documented in ADR-0003 are architectural targets, not implemented placeholders.
 

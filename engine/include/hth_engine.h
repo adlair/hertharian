@@ -4,8 +4,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+struct HTHPlatform;
+
 typedef struct {
     uint64_t frame_limit;
+    const char *window_title;
+    uint32_t window_width;
+    uint32_t window_height;
 } HTHEngineConfig;
 
 typedef struct {
@@ -13,6 +18,7 @@ typedef struct {
     uint64_t frame_limit;
     bool initialized;
     bool running;
+    struct HTHPlatform *platform;
 } HTHEngine;
 
 const char *hth_engine_version(void);

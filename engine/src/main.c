@@ -27,6 +27,10 @@ static bool parse_frame_limit(const char *text, uint64_t *frame_limit)
 
 static bool parse_arguments(int argc, char **argv, HTHEngineConfig *config)
 {
+    if (argc == 1) {
+        return true;
+    }
+
     if (argc == 3 && strcmp(argv[1], "--frames") == 0) {
         return parse_frame_limit(argv[2], &config->frame_limit);
     }
@@ -36,11 +40,16 @@ static bool parse_arguments(int argc, char **argv, HTHEngineConfig *config)
 
 int main(int argc, char **argv)
 {
-    HTHEngineConfig config = {0};
+    HTHEngineConfig config = {
+        .frame_limit = 0,
+        .window_title = "Hertharian",
+        .window_width = 1280,
+        .window_height = 720,
+    };
     HTHEngine engine = {0};
 
     if (!parse_arguments(argc, argv, &config)) {
-        fprintf(stderr, "Usage: %s --frames N\n", argv[0]);
+        fprintf(stderr, "Usage: %s [--frames N]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
