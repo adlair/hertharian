@@ -20,7 +20,7 @@ the public engine API.
 The private `src/platform/platform.h` defines the engine-owned platform
 interface and an opaque `HTHPlatform` state. The initial SDL3 backend owns the
 SDL window and provides initialization, event pumping, shutdown, monotonic
-counter and frequency queries, and millisecond sleep.
+counter and frequency queries, and nanosecond sleep.
 
 The engine owns one platform instance. Initialization failure is returned to
 the engine after partial resources are released. A quit or window-close event

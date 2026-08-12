@@ -4,6 +4,7 @@
 #include "hth_version.h"
 #include "input_internal.h"
 #include "platform.h"
+#include "renderer.h"
 #include "timing_internal.h"
 
 #include <inttypes.h>
@@ -34,7 +35,9 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     engine->window_height = 0;
     engine->initialized = false;
     engine->running = false;
+    engine->headless = config->headless;
     engine->platform = NULL;
+    engine->renderer = NULL;
     engine->input = NULL;
     engine->timing = NULL;
 
@@ -47,14 +50,29 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     platform_config.window_title = window_title;
     platform_config.window_width = window_width;
     platform_config.window_height = window_height;
+    platform_config.headless = config->headless;
+    platform_config.graphics_enabled = !config->headless;
 
     if (!hth_platform_init(&engine->platform, &platform_config)) {
         return false;
     }
 
+    if (!config->headless) {
+        engine->renderer = hth_renderer_create(engine->platform);
+        if (engine->renderer == NULL) {
+            hth_platform_shutdown(engine->platform);
+            engine->platform = NULL;
+            return false;
+        }
+    } else {
+        puts("Renderer disabled.");
+    }
+
     engine->input = hth_input_create();
     if (engine->input == NULL) {
         fputs("Failed to initialize input state.\n", stderr);
+        hth_renderer_destroy(engine->renderer);
+        engine->renderer = NULL;
         hth_platform_shutdown(engine->platform);
         engine->platform = NULL;
         return false;
@@ -67,6 +85,8 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         fputs("Failed to initialize timing state.\n", stderr);
         hth_input_destroy(engine->input);
         engine->input = NULL;
+        hth_renderer_destroy(engine->renderer);
+        engine->renderer = NULL;
         hth_platform_shutdown(engine->platform);
         engine->platform = NULL;
         return false;
@@ -116,6 +136,16 @@ void hth_engine_frame(HTHEngine *engine)
         } else if (event.type == HTH_PLATFORM_EVENT_WINDOW_RESIZED) {
             engine->window_width = event.data.window.width;
             engine->window_height = event.data.window.height;
+            if (engine->renderer != NULL &&
+                !hth_renderer_resize(engine->renderer)) {
+                fputs("Renderer resize failed.\n", stderr);
+                engine->running = false;
+            }
+        } else if (event.type == HTH_PLATFORM_EVENT_FRAMEBUFFER_RESIZED &&
+                   engine->renderer != NULL &&
+                   !hth_renderer_resize(engine->renderer)) {
+            fputs("Renderer framebuffer resize failed.\n", stderr);
+            engine->running = false;
         }
 
         hth_input_handle_event(engine->input, &event);
@@ -128,6 +158,11 @@ void hth_engine_frame(HTHEngine *engine)
     if (engine->frame_limit > 0) {
         printf("Frame %" PRIu64 "\n",
                hth_timing_frame_number(engine->timing));
+    }
+
+    if (engine->renderer != NULL && !hth_renderer_frame(engine->renderer)) {
+        engine->running = false;
+        return;
     }
 
     counter = hth_platform_time_counter();
@@ -151,6 +186,8 @@ void hth_engine_shutdown(HTHEngine *engine)
     engine->timing = NULL;
     hth_input_destroy(engine->input);
     engine->input = NULL;
+    hth_renderer_destroy(engine->renderer);
+    engine->renderer = NULL;
     hth_platform_shutdown(engine->platform);
     engine->platform = NULL;
     engine->initialized = false;

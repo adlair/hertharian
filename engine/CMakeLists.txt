@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.1.2 LANGUAGES C)
+project(hertharian-engine VERSION 0.1.3 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
+find_package(OpenGL REQUIRED)
 
 configure_file(
     cmake/hth_version.h.in
@@ -16,6 +17,8 @@ add_executable(hertharian-engine
     src/common/timing.c
     src/input/input.c
     src/platform/platform_sdl3.c
+    src/renderer/renderer.c
+    src/renderer/renderer_opengl.c
 )
 
 target_include_directories(hertharian-engine PRIVATE
@@ -23,9 +26,10 @@ target_include_directories(hertharian-engine PRIVATE
     src/common
     src/input
     src/platform
+    src/renderer
     "${PROJECT_BINARY_DIR}/generated"
 )
-target_link_libraries(hertharian-engine PRIVATE SDL3::SDL3)
+target_link_libraries(hertharian-engine PRIVATE SDL3::SDL3 OpenGL::GL)
 target_compile_features(hertharian-engine PRIVATE c_std_11)
 set_target_properties(hertharian-engine PROPERTIES
     C_EXTENSIONS OFF
@@ -45,11 +49,10 @@ include(CTest)
 
 if(BUILD_TESTING)
     add_test(NAME platform_lifecycle_frames_3
-        COMMAND hertharian-engine --frames 3
+        COMMAND hertharian-engine --headless --frames 3
     )
     set_tests_properties(platform_lifecycle_frames_3 PROPERTIES
-        ENVIRONMENT "SDL_VIDEODRIVER=dummy"
-        PASS_REGULAR_EXPRESSION "Initializing platform.*Platform initialized\..*Frame 0.*Frame 1.*Frame 2.*Platform shutdown complete\..*Engine shutdown complete\."
+        PASS_REGULAR_EXPRESSION "Headless mode\..*Renderer disabled\..*Frame 0.*Frame 1.*Frame 2.*Platform shutdown complete\..*Engine shutdown complete\."
     )
 
     add_executable(input_tests

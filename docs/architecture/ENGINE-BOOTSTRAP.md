@@ -69,8 +69,9 @@ BSP loading, collision, real input, QVM/VM support, game logic, assets, or maps.
 The SDL3 platform foundation introduced in v0.1.1 is documented separately in
 `PLATFORM.md` and ADR-0004.
 Timing, platform event translation, and physical input were introduced in
-v0.1.2. Server, client, command, and network-flush stages documented in
-ADR-0003 remain architectural targets.
+v0.1.2. Renderer Bootstrap introduced graphical clear and presentation in
+v0.1.3. Server, client, command, and network-flush stages documented in ADR-0003
+remain architectural targets.
 
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.

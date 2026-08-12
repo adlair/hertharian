@@ -11,6 +11,9 @@ therefore excludes pacing sleep. Work completion and full frame completion are
 separate timing phases: the frame counter advances only after pacing has
 finished.
 
+As of v0.1.3, graphical rendering and buffer presentation occur before work is
+measured and are therefore included in `frame_work_seconds`.
+
 ## Frame Pacing
 
 The default `target_fps` is 60. A positive target enables pacing; zero means

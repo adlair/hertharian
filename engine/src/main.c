@@ -27,15 +27,21 @@ static bool parse_frame_limit(const char *text, uint64_t *frame_limit)
 
 static bool parse_arguments(int argc, char **argv, HTHEngineConfig *config)
 {
-    if (argc == 1) {
-        return true;
-    }
+    int index = 1;
 
-    if (argc == 3 && strcmp(argv[1], "--frames") == 0) {
-        return parse_frame_limit(argv[2], &config->frame_limit);
+    while (index < argc) {
+        if (strcmp(argv[index], "--headless") == 0 && !config->headless) {
+            config->headless = true;
+            index++;
+        } else if (strcmp(argv[index], "--frames") == 0 &&
+                   index + 1 < argc && config->frame_limit == 0 &&
+                   parse_frame_limit(argv[index + 1], &config->frame_limit)) {
+            index += 2;
+        } else {
+            return false;
+        }
     }
-
-    return false;
+    return true;
 }
 
 int main(int argc, char **argv)
@@ -46,11 +52,12 @@ int main(int argc, char **argv)
         .window_width = 1280,
         .window_height = 720,
         .target_fps = 60,
+        .headless = false,
     };
     HTHEngine engine = {0};
 
     if (!parse_arguments(argc, argv, &config)) {
-        fprintf(stderr, "Usage: %s [--frames N]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [--headless] [--frames N]\n", argv[0]);
         return EXIT_FAILURE;
     }
 

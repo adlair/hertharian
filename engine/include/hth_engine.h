@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 struct HTHPlatform;
+struct HTHRenderer;
 
 typedef struct {
     uint64_t frame_limit;
@@ -15,6 +16,7 @@ typedef struct {
     uint32_t window_width;
     uint32_t window_height;
     uint32_t target_fps;
+    bool headless;
 } HTHEngineConfig;
 
 typedef struct {
@@ -23,7 +25,9 @@ typedef struct {
     uint32_t window_height;
     bool initialized;
     bool running;
+    bool headless;
     struct HTHPlatform *platform;
+    struct HTHRenderer *renderer;
     HTHInput *input;
     HTHTiming *timing;
 } HTHEngine;

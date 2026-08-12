@@ -8,8 +8,12 @@ integration. Its initial backend uses SDL3 and is implemented entirely under
 
 The layer initializes SDL video, creates the `Hertharian` window at 1280x720 by
 default, pumps system events, reports quit requests, exposes a monotonic
-high-resolution counter and its frequency, provides millisecond sleep, and
+high-resolution counter and its frequency, provides nanosecond sleep, and
 releases its resources.
+
+As of v0.1.3, graphical mode creates a resizable OpenGL-capable window. Platform
+owns that SDL window and provides private context/presentation services, while
+Renderer owns graphics context lifetime and all rendering decisions.
 
 `platform.h` is private to the engine target. Only `platform_sdl3.c` includes
 SDL headers or stores an `SDL_Window`. Public headers use an opaque
@@ -27,7 +31,7 @@ resources acquired before the failure.
 ## Timing Foundation
 
 The platform API exposes SDL's monotonic performance counter and counter
-frequency, plus millisecond sleep. v0.1.2 uses these primitives through the
+frequency, plus nanosecond sleep. v0.1.2 uses these primitives through the
 engine-owned timing system documented in `TIMING.md`.
 
 Frames are printed only for finite `--frames N` runs. Unlimited runs remain
@@ -65,12 +69,13 @@ Native Wayland requires a client to present an initial buffer before the
 compositor can map a window visually. Platform Foundation creates and
 explicitly shows the SDL window, but deliberately does not create a renderer,
 OpenGL context, or temporary software surface merely to present that buffer.
-Initial presentation belongs to Renderer Bootstrap.
+Renderer Bootstrap now presents a real double-buffered OpenGL framebuffer,
+allowing SDL3 to commit the buffer required for native Wayland mapping.
 
 The v0.1.1 window was visually validated through X11/XWayland. Native Wayland
 was validated for SDL initialization, window creation, event-loop operation,
-and clean shutdown; its visual presentation will be validated when Renderer
-Bootstrap supplies the first buffer. No X11 fallback is selected in code.
+and clean shutdown. v0.1.3 is prepared to validate native Wayland presentation
+through its first real framebuffer. No X11 fallback is selected in code.
 
 ## Deliberately Excluded
 
