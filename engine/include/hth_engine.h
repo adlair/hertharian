@@ -10,6 +10,7 @@
 
 struct HTHPlatform;
 struct HTHRenderer;
+struct HTHFPSCameraController;
 
 typedef struct {
     uint64_t frame_limit;
@@ -18,6 +19,7 @@ typedef struct {
     uint32_t window_height;
     uint32_t target_fps;
     bool headless;
+    bool debug_fps_input;
 } HTHEngineConfig;
 
 typedef struct {
@@ -27,8 +29,10 @@ typedef struct {
     bool initialized;
     bool running;
     bool headless;
+    bool debug_fps_input;
     struct HTHPlatform *platform;
     struct HTHRenderer *renderer;
+    struct HTHFPSCameraController *camera_controller;
     HTHCamera camera;
     HTHInput *input;
     HTHTiming *timing;

@@ -1,4 +1,4 @@
-# Input v0.1.2
+# Input
 
 Input consumes engine-owned physical events produced by the private platform
 backend:
@@ -26,10 +26,32 @@ When keyboard focus is lost, all held keys and mouse buttons are released and
 mouse delta is cleared. This prevents input released outside the window from
 remaining virtually stuck.
 
-Relative mouse mode, cursor capture, semantic actions, and binding UI are
-deliberately excluded until a later FPS/gameplay milestone.
+## FPS Camera Consumption
+
+v0.1.6 uses the existing accumulated `mouse_delta_x` and `mouse_delta_y` for
+FPS look. Relative mode changes only how Platform supplies motion; the
+controller still reads HTH Input and never SDL. Mouse delta is displacement
+that occurred during the frame, not a rate, and therefore is intentionally not
+multiplied by frame delta time. WASD movement does use Timing delta.
+
+The engine coordinates a temporary bootstrap capture policy: left click
+enables relative mode and Escape disables it. Capture transitions clear Input's
+current mouse delta and discard relative-motion events for the remainder of the
+transition frame plus the next complete frame. This deterministic transition
+window prevents backend-generated relative motion from reaching the controller
+without inspecting delta magnitude or video-driver identity. Focus transitions
+also clear frame mouse delta. Escape is not quit, no keyboard grab is enabled,
+and a released pointer can be captured again.
+
+Platform may validate an explicit SDL relative-motion source before producing
+an HTH mouse event. That source selection is dynamic and backend-private; Input
+still receives the same device-independent `HTHPlatformEvent` and knows no SDL
+device IDs or names. This filtering is distinct from Input's short capture-
+transition guard: filtering chooses the valid relative stream, while the guard
+suppresses asynchronous residue around any successful mode change.
+
+These physical controls are not a semantic binding system. Rebinding, action
+maps, menus, attack semantics, and final gameplay bindings remain excluded.
 
 Quit, focus, and resize remain engine-control events rather than gameplay
-actions. Resize updates the engine's current logical window width and height so
-Renderer Bootstrap can consume correct dimensions later; no viewport work is
-performed in v0.1.2.
+actions. Application close continues to come from the window/QUIT event.

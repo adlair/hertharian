@@ -3,6 +3,7 @@
 #include "hth_input.h"
 #include "hth_timing.h"
 #include "hth_version.h"
+#include "fps_camera_controller.h"
 #include "input_internal.h"
 #include "platform.h"
 #include "renderer.h"
@@ -10,6 +11,48 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+
+static void clear_debugged_mouse_delta(HTHEngine *engine, const char *reason)
+{
+    double delta_x;
+    double delta_y;
+
+    if (engine->debug_fps_input) {
+        hth_input_mouse_delta(engine->input, &delta_x, &delta_y);
+        printf("FPS input: mouse delta clear (%s) dx=%.17g dy=%.17g\n",
+               reason, delta_x, delta_y);
+    }
+    hth_input_clear_mouse_delta(engine->input);
+}
+
+static void update_mouse_capture(HTHEngine *engine)
+{
+    HTHFPSCaptureAction action = hth_fps_camera_controller_capture_action(
+        engine->camera_controller, engine->input);
+    bool enable;
+
+    if (action == HTH_FPS_CAPTURE_NONE || engine->headless) {
+        return;
+    }
+    enable = action == HTH_FPS_CAPTURE_ENABLE;
+    if (engine->debug_fps_input) {
+        printf("FPS input: capture request: %s\n",
+               enable ? "enable" : "disable");
+    }
+    if (!hth_platform_set_relative_mouse_mode(engine->platform, enable)) {
+        return;
+    }
+    hth_fps_camera_controller_set_capture(engine->camera_controller, enable);
+    clear_debugged_mouse_delta(engine, enable ? "capture enable"
+                                              : "capture disable");
+    hth_input_begin_capture_transition_discard(engine->input);
+    if (engine->debug_fps_input) {
+        printf("FPS input: capture confirmed: %s\n",
+               enable ? "enabled" : "disabled");
+    }
+    puts(enable ? "FPS mouse capture enabled."
+                : "FPS mouse capture disabled.");
+}
 
 const char *hth_engine_version(void)
 {
@@ -37,11 +80,19 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     engine->initialized = false;
     engine->running = false;
     engine->headless = config->headless;
+    engine->debug_fps_input = config->debug_fps_input;
     engine->platform = NULL;
     engine->renderer = NULL;
+    engine->camera_controller = NULL;
     engine->input = NULL;
     engine->timing = NULL;
     hth_camera_init_default(&engine->camera);
+    engine->camera_controller =
+        hth_fps_camera_controller_create(&engine->camera);
+    if (engine->camera_controller == NULL) {
+        fputs("Failed to initialize FPS camera controller.\n", stderr);
+        return false;
+    }
 
     window_title = config->window_title != NULL
         ? config->window_title
@@ -54,8 +105,11 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     platform_config.window_height = window_height;
     platform_config.headless = config->headless;
     platform_config.graphics_enabled = !config->headless;
+    platform_config.debug_fps_input = config->debug_fps_input;
 
     if (!hth_platform_init(&engine->platform, &platform_config)) {
+        hth_fps_camera_controller_destroy(engine->camera_controller);
+        engine->camera_controller = NULL;
         return false;
     }
 
@@ -65,6 +119,8 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         if (engine->renderer == NULL) {
             hth_platform_shutdown(engine->platform);
             engine->platform = NULL;
+            hth_fps_camera_controller_destroy(engine->camera_controller);
+            engine->camera_controller = NULL;
             return false;
         }
     } else {
@@ -78,6 +134,8 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         engine->renderer = NULL;
         hth_platform_shutdown(engine->platform);
         engine->platform = NULL;
+        hth_fps_camera_controller_destroy(engine->camera_controller);
+        engine->camera_controller = NULL;
         return false;
     }
 
@@ -92,6 +150,8 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         engine->renderer = NULL;
         hth_platform_shutdown(engine->platform);
         engine->platform = NULL;
+        hth_fps_camera_controller_destroy(engine->camera_controller);
+        engine->camera_controller = NULL;
         return false;
     }
 
@@ -124,6 +184,7 @@ void hth_engine_frame(HTHEngine *engine)
     HTHPlatformEvent event;
     uint64_t counter;
     uint64_t sleep_ns;
+    bool discard_mouse_delta = false;
 
     if (engine == NULL || !engine->initialized || !engine->running) {
         return;
@@ -134,6 +195,30 @@ void hth_engine_frame(HTHEngine *engine)
     hth_input_begin_frame(engine->input);
 
     while (hth_platform_poll_event(engine->platform, &event)) {
+        if (engine->debug_fps_input) {
+            if (event.type == HTH_PLATFORM_EVENT_MOUSE_MOTION) {
+                printf("HTH translated mouse:\n  dx=%.17g\n  dy=%.17g\n",
+                       event.data.motion.delta_x,
+                       event.data.motion.delta_y);
+                if (hth_input_mouse_motion_discard_active(engine->input)) {
+                    puts("FPS input: mouse motion discarded after capture "
+                         "transition");
+                }
+            } else if (event.type == HTH_PLATFORM_EVENT_MOUSE_BUTTON_DOWN &&
+                       event.data.mouse_button.button == HTH_MOUSE_LEFT) {
+                puts("FPS input: mouse left pressed");
+            } else if (event.type == HTH_PLATFORM_EVENT_MOUSE_BUTTON_UP &&
+                       event.data.mouse_button.button == HTH_MOUSE_LEFT) {
+                puts("FPS input: mouse left released");
+            } else if (event.type == HTH_PLATFORM_EVENT_KEY_DOWN &&
+                       event.data.keyboard.key == HTH_KEY_ESCAPE) {
+                puts("FPS input: Escape pressed");
+            } else if (event.type == HTH_PLATFORM_EVENT_FOCUS_GAINED) {
+                puts("FPS input: focus gained");
+            } else if (event.type == HTH_PLATFORM_EVENT_FOCUS_LOST) {
+                puts("FPS input: focus lost");
+            }
+        }
         if (event.type == HTH_PLATFORM_EVENT_QUIT) {
             engine->running = false;
         } else if (event.type == HTH_PLATFORM_EVENT_WINDOW_RESIZED) {
@@ -149,12 +234,30 @@ void hth_engine_frame(HTHEngine *engine)
                    !hth_renderer_resize(engine->renderer)) {
             fputs("Renderer framebuffer resize failed.\n", stderr);
             engine->running = false;
+        } else if (event.type == HTH_PLATFORM_EVENT_FOCUS_GAINED ||
+                   event.type == HTH_PLATFORM_EVENT_FOCUS_LOST) {
+            discard_mouse_delta = true;
         }
 
         hth_input_handle_event(engine->input, &event);
     }
 
     if (!engine->running) {
+        return;
+    }
+
+    if (discard_mouse_delta) {
+        clear_debugged_mouse_delta(engine, "focus transition");
+    }
+    update_mouse_capture(engine);
+    hth_fps_camera_controller_update(
+        engine->camera_controller, &engine->camera, engine->input,
+        hth_timing_delta_seconds(engine->timing), engine->debug_fps_input);
+
+    if (engine->renderer != NULL &&
+        !hth_renderer_set_camera(engine->renderer, &engine->camera)) {
+        fputs("Renderer camera update failed.\n", stderr);
+        engine->running = false;
         return;
     }
 
@@ -174,6 +277,7 @@ void hth_engine_frame(HTHEngine *engine)
     if (sleep_ns > 0) {
         hth_platform_sleep_ns(sleep_ns);
     }
+    hth_input_end_frame(engine->input);
     hth_timing_finish_frame(engine->timing, hth_platform_time_counter());
 }
 
@@ -185,10 +289,17 @@ void hth_engine_shutdown(HTHEngine *engine)
 
     puts("Shutting down...");
     engine->running = false;
+    if (hth_fps_camera_controller_capture_active(engine->camera_controller)) {
+        (void)hth_platform_set_relative_mouse_mode(engine->platform, false);
+        hth_fps_camera_controller_set_capture(engine->camera_controller,
+                                              false);
+    }
     hth_timing_destroy(engine->timing);
     engine->timing = NULL;
     hth_input_destroy(engine->input);
     engine->input = NULL;
+    hth_fps_camera_controller_destroy(engine->camera_controller);
+    engine->camera_controller = NULL;
     hth_renderer_destroy(engine->renderer);
     engine->renderer = NULL;
     hth_platform_shutdown(engine->platform);

@@ -44,6 +44,8 @@ typedef struct {
     GLfloat position[3];
 } HTHBootstrapVertex;
 
+#define HTH_BOOTSTRAP_MODEL_COUNT 8
+
 struct HTHOpenGLBackend {
     HTHPlatform *platform;
     HTHPlatformGraphicsContext *context;
@@ -54,6 +56,7 @@ struct HTHOpenGLBackend {
     GLint model_location;
     GLint view_location;
     GLint projection_location;
+    HTHMat4 bootstrap_models[HTH_BOOTSTRAP_MODEL_COUNT];
     uint32_t framebuffer_width;
     uint32_t framebuffer_height;
 };
@@ -79,9 +82,25 @@ static const GLchar fragment_shader_source[] =
     "}\n";
 
 static const HTHBootstrapVertex bootstrap_vertices[] = {
-    {{ 0.0F,  0.7F, 0.0F}},
-    {{-0.7F, -0.5F, 0.0F}},
-    {{ 0.7F, -0.5F, 0.0F}},
+    {{ 0.0F,  0.7F,  0.0F}}, {{-0.6F, -0.5F,  0.4F}},
+    {{ 0.6F, -0.5F,  0.4F}},
+    {{ 0.0F,  0.7F,  0.0F}}, {{ 0.6F, -0.5F,  0.4F}},
+    {{ 0.0F, -0.5F, -0.7F}},
+    {{ 0.0F,  0.7F,  0.0F}}, {{ 0.0F, -0.5F, -0.7F}},
+    {{-0.6F, -0.5F,  0.4F}},
+    {{-0.6F, -0.5F,  0.4F}}, {{ 0.0F, -0.5F, -0.7F}},
+    {{ 0.6F, -0.5F,  0.4F}},
+};
+
+static const HTHVec3 bootstrap_model_positions[HTH_BOOTSTRAP_MODEL_COUNT] = {
+    { 0.0F,  0.0F,   0.0F},
+    {-3.0F,  0.0F,  -2.0F},
+    { 3.0F,  0.0F,  -2.0F},
+    { 0.0F,  2.0F,  -4.0F},
+    { 0.0F, -2.0F,  -4.0F},
+    {-4.0F,  0.0F,  -7.0F},
+    { 4.0F,  0.0F,  -7.0F},
+    { 0.0F,  0.0F, -10.0F},
 };
 
 #define HTH_LOAD_GL_FUNCTION(backend, member, type, name)                   \
@@ -293,6 +312,16 @@ static bool create_geometry(HTHOpenGLBackend *backend)
     return true;
 }
 
+static void create_bootstrap_models(HTHOpenGLBackend *backend)
+{
+    size_t index;
+
+    for (index = 0; index < HTH_BOOTSTRAP_MODEL_COUNT; ++index) {
+        backend->bootstrap_models[index] =
+            hth_mat4_translation(bootstrap_model_positions[index]);
+    }
+}
+
 static bool validate_context(void)
 {
     bool core_profile = false;
@@ -384,6 +413,7 @@ HTHOpenGLBackend *hth_renderer_opengl_create(HTHPlatform *platform)
         hth_renderer_opengl_destroy(backend);
         return NULL;
     }
+    create_bootstrap_models(backend);
 
     puts("Renderer backend: OpenGL");
     printf("OpenGL version: %s\n", gl_string(GL_VERSION));
@@ -431,19 +461,15 @@ bool hth_renderer_opengl_resize(HTHOpenGLBackend *backend,
     return glGetError() == GL_NO_ERROR;
 }
 
-bool hth_renderer_opengl_set_matrices(HTHOpenGLBackend *backend,
-                                      const HTHMat4 *model,
-                                      const HTHMat4 *view,
-                                      const HTHMat4 *projection)
+bool hth_renderer_opengl_set_camera_matrices(HTHOpenGLBackend *backend,
+                                             const HTHMat4 *view,
+                                             const HTHMat4 *projection)
 {
-    if (backend == NULL || model == NULL || view == NULL ||
-        projection == NULL) {
+    if (backend == NULL || view == NULL || projection == NULL) {
         return false;
     }
 
     backend->gl.use_program(backend->program);
-    backend->gl.uniform_matrix_4fv(backend->model_location, 1, GL_FALSE,
-                                   model->elements);
     backend->gl.uniform_matrix_4fv(backend->view_location, 1, GL_FALSE,
                                    view->elements);
     backend->gl.uniform_matrix_4fv(backend->projection_location, 1, GL_FALSE,
@@ -454,6 +480,8 @@ bool hth_renderer_opengl_set_matrices(HTHOpenGLBackend *backend,
 
 bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
 {
+    size_t index;
+
     if (backend == NULL) {
         return false;
     }
@@ -461,7 +489,15 @@ bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     backend->gl.use_program(backend->program);
     backend->gl.bind_vertex_array(backend->vao);
-    backend->gl.draw_arrays(GL_TRIANGLES, 0, 3);
+    for (index = 0; index < HTH_BOOTSTRAP_MODEL_COUNT; ++index) {
+        backend->gl.uniform_matrix_4fv(
+            backend->model_location, 1, GL_FALSE,
+            backend->bootstrap_models[index].elements);
+        backend->gl.draw_arrays(
+            GL_TRIANGLES, 0,
+            (GLsizei)(sizeof(bootstrap_vertices) /
+                      sizeof(bootstrap_vertices[0])));
+    }
     backend->gl.bind_vertex_array(0);
     backend->gl.use_program(0);
     if (glGetError() != GL_NO_ERROR) {

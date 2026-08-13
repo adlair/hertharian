@@ -1,14 +1,19 @@
 #include "platform.h"
+#include "mouse_source.h"
 
 #include <SDL3/SDL.h>
 
+#include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 struct HTHPlatform {
     SDL_Window *window;
+    SDL_MouseID relative_mouse_source_id;
     bool headless;
+    bool debug_fps_input;
+    bool relative_mouse_source_known;
 };
 
 struct HTHPlatformGraphicsContext {
@@ -82,6 +87,61 @@ static HTHMouseButton translate_mouse_button(uint8_t button)
     }
 }
 
+static void print_mouse_device(const char *label, SDL_MouseID id)
+{
+    const char *name = SDL_GetMouseNameForID(id);
+
+    printf("%s:\n  id=%" PRIu32 "\n  name=\"%s\"\n",
+           label, (uint32_t)id, name != NULL ? name : "unavailable");
+}
+
+static void refresh_relative_mouse_source(HTHPlatform *platform,
+                                          bool print_inventory)
+{
+    SDL_MouseID *mice;
+    SDL_MouseID previous_id = platform->relative_mouse_source_id;
+    const char *name;
+    bool previous_known = platform->relative_mouse_source_known;
+    int count = 0;
+    int index;
+
+    platform->relative_mouse_source_id = 0;
+    platform->relative_mouse_source_known = false;
+    mice = SDL_GetMice(&count);
+    if (mice == NULL) {
+        if (platform->debug_fps_input) {
+            fprintf(stderr, "SDL mouse device enumeration failed: %s\n",
+                    SDL_GetError());
+        }
+        return;
+    }
+    for (index = 0; index < count; ++index) {
+        name = SDL_GetMouseNameForID(mice[index]);
+        if (platform->debug_fps_input && print_inventory) {
+            print_mouse_device("SDL mouse device", mice[index]);
+        }
+        if (!platform->relative_mouse_source_known &&
+            hth_mouse_name_is_explicit_relative_source(name)) {
+            platform->relative_mouse_source_id = mice[index];
+            platform->relative_mouse_source_known = true;
+        }
+    }
+    SDL_free(mice);
+
+    if (platform->debug_fps_input &&
+        (print_inventory ||
+         previous_known != platform->relative_mouse_source_known ||
+         (previous_known && previous_id !=
+          platform->relative_mouse_source_id))) {
+        if (platform->relative_mouse_source_known) {
+            print_mouse_device("SDL relative mouse source",
+                               platform->relative_mouse_source_id);
+        } else {
+            puts("SDL relative mouse source: generic SDL fallback");
+        }
+    }
+}
+
 bool hth_platform_init(HTHPlatform **platform, const HTHPlatformConfig *config)
 {
     const char *video_driver;
@@ -111,6 +171,7 @@ bool hth_platform_init(HTHPlatform **platform, const HTHPlatformConfig *config)
     }
 
     state->headless = config->headless;
+    state->debug_fps_input = config->debug_fps_input;
     if (config->headless) {
         puts("Headless mode.");
         *platform = state;
@@ -146,6 +207,8 @@ bool hth_platform_init(HTHPlatform **platform, const HTHPlatformConfig *config)
         free(state);
         return false;
     }
+
+    refresh_relative_mouse_source(state, state->debug_fps_input);
 
     video_driver = SDL_GetCurrentVideoDriver();
     printf("SDL video driver: %s\n",
@@ -195,6 +258,36 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
             event->data.keyboard.key = translate_key(native_event.key.scancode);
             return true;
         case SDL_EVENT_MOUSE_MOTION:
+            if (platform->debug_fps_input) {
+                SDL_WindowFlags flags = SDL_GetWindowFlags(platform->window);
+
+                printf("SDL raw mouse:\n"
+                       "  xrel=%.17g\n"
+                       "  yrel=%.17g\n"
+                       "  which=%" PRIu32 "\n"
+                       "  relative_mode=%s\n"
+                       "  mouse_focus=%s\n"
+                       "  input_focus=%s\n",
+                       (double)native_event.motion.xrel,
+                       (double)native_event.motion.yrel,
+                       (uint32_t)native_event.motion.which,
+                       SDL_GetWindowRelativeMouseMode(platform->window)
+                           ? "true" : "false",
+                       (flags & SDL_WINDOW_MOUSE_FOCUS) != 0
+                           ? "true" : "false",
+                       (flags & SDL_WINDOW_INPUT_FOCUS) != 0
+                           ? "true" : "false");
+            }
+            if (SDL_GetWindowRelativeMouseMode(platform->window) &&
+                platform->relative_mouse_source_known &&
+                native_event.motion.which !=
+                    platform->relative_mouse_source_id) {
+                if (platform->debug_fps_input) {
+                    puts("SDL mouse motion ignored: non-relative source "
+                         "while relative mode active");
+                }
+                break;
+            }
             event->type = HTH_PLATFORM_EVENT_MOUSE_MOTION;
             event->data.motion.x = native_event.motion.x;
             event->data.motion.y = native_event.motion.y;
@@ -203,6 +296,16 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
             return true;
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
         case SDL_EVENT_MOUSE_BUTTON_UP:
+            if (platform->debug_fps_input) {
+                printf("SDL raw mouse button:\n"
+                       "  action=%s\n"
+                       "  button=%" PRIu8 "\n"
+                       "  which=%" PRIu32 "\n",
+                       native_event.type == SDL_EVENT_MOUSE_BUTTON_DOWN
+                           ? "down" : "up",
+                       (uint8_t)native_event.button.button,
+                       (uint32_t)native_event.button.which);
+            }
             event->type = native_event.type == SDL_EVENT_MOUSE_BUTTON_DOWN
                 ? HTH_PLATFORM_EVENT_MOUSE_BUTTON_DOWN
                 : HTH_PLATFORM_EVENT_MOUSE_BUTTON_UP;
@@ -211,6 +314,10 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
             event->data.mouse_button.x = native_event.button.x;
             event->data.mouse_button.y = native_event.button.y;
             return true;
+        case SDL_EVENT_MOUSE_ADDED:
+        case SDL_EVENT_MOUSE_REMOVED:
+            refresh_relative_mouse_source(platform, false);
+            break;
         case SDL_EVENT_MOUSE_WHEEL:
             wheel_direction = native_event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED
                 ? -1.0 : 1.0;
@@ -259,6 +366,20 @@ uint64_t hth_platform_time_frequency(void)
 void hth_platform_sleep_ns(uint64_t nanoseconds)
 {
     SDL_DelayNS(nanoseconds);
+}
+
+bool hth_platform_set_relative_mouse_mode(HTHPlatform *platform,
+                                          bool enabled)
+{
+    if (platform == NULL || platform->window == NULL || platform->headless) {
+        return false;
+    }
+    if (!SDL_SetWindowRelativeMouseMode(platform->window, enabled)) {
+        fprintf(stderr, "SDL relative mouse mode %s failed: %s\n",
+                enabled ? "enable" : "disable", SDL_GetError());
+        return false;
+    }
+    return true;
 }
 
 HTHPlatformGraphicsContext *hth_platform_graphics_create_context(

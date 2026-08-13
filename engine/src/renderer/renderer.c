@@ -8,8 +8,26 @@ struct HTHRenderer {
     HTHPlatform *platform;
     HTHOpenGLBackend *backend;
     HTHCamera camera;
+    uint32_t framebuffer_width;
+    uint32_t framebuffer_height;
     bool drawable;
 };
+
+static bool update_camera_matrices(HTHRenderer *renderer)
+{
+    HTHMat4 projection;
+    HTHMat4 view;
+
+    if (!hth_camera_view_matrix(&renderer->camera, &view) ||
+        !hth_camera_projection_matrix(&renderer->camera,
+                                      renderer->framebuffer_width,
+                                      renderer->framebuffer_height,
+                                      &projection)) {
+        return false;
+    }
+    return hth_renderer_opengl_set_camera_matrices(renderer->backend, &view,
+                                                   &projection);
+}
 
 HTHRenderer *hth_renderer_create(HTHPlatform *platform,
                                  const HTHCamera *camera)
@@ -51,9 +69,6 @@ void hth_renderer_destroy(HTHRenderer *renderer)
 
 bool hth_renderer_resize(HTHRenderer *renderer)
 {
-    HTHMat4 model;
-    HTHMat4 projection;
-    HTHMat4 view;
     uint32_t height;
     uint32_t width;
 
@@ -62,22 +77,29 @@ bool hth_renderer_resize(HTHRenderer *renderer)
         return false;
     }
     if (width == 0 || height == 0) {
+        renderer->framebuffer_width = width;
+        renderer->framebuffer_height = height;
         renderer->drawable = false;
         return true;
     }
-    if (!hth_camera_view_matrix(&renderer->camera, &view) ||
-        !hth_camera_projection_matrix(&renderer->camera, width, height,
-                                      &projection)) {
-        return false;
-    }
-    model = hth_mat4_identity();
+    renderer->framebuffer_width = width;
+    renderer->framebuffer_height = height;
     if (!hth_renderer_opengl_resize(renderer->backend, width, height) ||
-        !hth_renderer_opengl_set_matrices(renderer->backend, &model, &view,
-                                          &projection)) {
+        !update_camera_matrices(renderer)) {
         return false;
     }
     renderer->drawable = true;
     return true;
+}
+
+bool hth_renderer_set_camera(HTHRenderer *renderer,
+                             const HTHCamera *camera)
+{
+    if (renderer == NULL || camera == NULL) {
+        return false;
+    }
+    renderer->camera = *camera;
+    return !renderer->drawable || update_camera_matrices(renderer);
 }
 
 bool hth_renderer_frame(HTHRenderer *renderer)

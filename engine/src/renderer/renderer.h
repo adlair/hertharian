@@ -12,6 +12,8 @@ HTHRenderer *hth_renderer_create(HTHPlatform *platform,
                                  const HTHCamera *camera);
 void hth_renderer_destroy(HTHRenderer *renderer);
 bool hth_renderer_resize(HTHRenderer *renderer);
+bool hth_renderer_set_camera(HTHRenderer *renderer,
+                             const HTHCamera *camera);
 bool hth_renderer_frame(HTHRenderer *renderer);
 
 #endif

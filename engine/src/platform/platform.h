@@ -16,6 +16,7 @@ typedef struct {
     uint32_t window_height;
     bool headless;
     bool graphics_enabled;
+    bool debug_fps_input;
 } HTHPlatformConfig;
 
 bool hth_platform_init(HTHPlatform **platform, const HTHPlatformConfig *config);
@@ -24,6 +25,8 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event);
 uint64_t hth_platform_time_counter(void);
 uint64_t hth_platform_time_frequency(void);
 void hth_platform_sleep_ns(uint64_t nanoseconds);
+bool hth_platform_set_relative_mouse_mode(HTHPlatform *platform,
+                                          bool enabled);
 HTHPlatformGraphicsContext *hth_platform_graphics_create_context(
     HTHPlatform *platform);
 void hth_platform_graphics_destroy_context(

@@ -15,10 +15,15 @@ OpenGL.
 
 ## 3D Bootstrap Frame
 
-Each drawable frame clears color, depth, and stencil, submits one static local-
-space triangle through the MVP shader path, and presents. The clear color
-`(0.05, 0.02, 0.08, 1.0)` and pink-red triangle are diagnostics rather than art
+Each drawable frame clears color, depth, and stencil, submits several instances
+of one static local-space marker through the MVP shader path, and presents. The
+clear color
+`(0.05, 0.02, 0.08, 1.0)` and pink-red geometry are diagnostics rather than art
 direction. Depth testing uses `GL_LESS` as the baseline 3D semantic.
+
+The frontend refreshes View from the engine camera before drawing. The backend
+uses a private array of model translations to create spatial navigation
+references without introducing scene or entity abstractions.
 
 Rendering and presentation happen before work timing is measured, so both are
 included in `frame_work_seconds`.

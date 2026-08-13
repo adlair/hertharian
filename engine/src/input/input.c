@@ -16,7 +16,10 @@ struct HTHInput {
     double mouse_delta_y;
     double wheel_x;
     double wheel_y;
+    unsigned int relative_motion_discard_end_frames;
 };
+
+static const unsigned int capture_transition_end_frames = 2;
 
 static bool valid_key(HTHKey key)
 {
@@ -54,6 +57,36 @@ void hth_input_begin_frame(HTHInput *input)
     input->wheel_y = 0.0;
 }
 
+void hth_input_end_frame(HTHInput *input)
+{
+    if (input != NULL && input->relative_motion_discard_end_frames > 0) {
+        input->relative_motion_discard_end_frames--;
+    }
+}
+
+void hth_input_clear_mouse_delta(HTHInput *input)
+{
+    if (input != NULL) {
+        input->mouse_delta_x = 0.0;
+        input->mouse_delta_y = 0.0;
+    }
+}
+
+void hth_input_begin_capture_transition_discard(HTHInput *input)
+{
+    if (input != NULL) {
+        /* Remainder of this frame plus the next complete frame. */
+        input->relative_motion_discard_end_frames =
+            capture_transition_end_frames;
+        hth_input_clear_mouse_delta(input);
+    }
+}
+
+bool hth_input_mouse_motion_discard_active(const HTHInput *input)
+{
+    return input != NULL && input->relative_motion_discard_end_frames > 0;
+}
+
 static void clear_for_focus_loss(HTHInput *input)
 {
     size_t index;
@@ -72,8 +105,7 @@ static void clear_for_focus_loss(HTHInput *input)
         input->mouse_down[index] = false;
     }
 
-    input->mouse_delta_x = 0.0;
-    input->mouse_delta_y = 0.0;
+    hth_input_clear_mouse_delta(input);
 }
 
 void hth_input_handle_event(HTHInput *input, const HTHPlatformEvent *event)
@@ -103,6 +135,9 @@ void hth_input_handle_event(HTHInput *input, const HTHPlatformEvent *event)
     case HTH_PLATFORM_EVENT_MOUSE_MOTION:
         input->mouse_x = event->data.motion.x;
         input->mouse_y = event->data.motion.y;
+        if (hth_input_mouse_motion_discard_active(input)) {
+            break;
+        }
         input->mouse_delta_x += event->data.motion.delta_x;
         input->mouse_delta_y += event->data.motion.delta_y;
         break;

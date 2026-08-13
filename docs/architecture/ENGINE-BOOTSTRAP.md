@@ -48,8 +48,23 @@ Run exactly three frames with:
 ./build/engine/hertharian-engine --frames 3
 ```
 
-The minimal command-line interface accepts optional `--frames N`, where `N` is
-a positive integer. Running without arguments continues until window close.
+The command-line interface accepts optional `--frames N`, where `N` is a
+positive integer, plus `--headless` and the focused development diagnostic
+`--debug-fps-input`. Running without arguments continues until window close.
+
+The current frame order is:
+
+```text
+Timing begin → Input begin → Platform events → Input state
+→ capture coordination → FPS controller → Renderer camera → render/present
+→ work measurement → pacing → Input end → Timing finish
+```
+
+Pressed/released edges and accumulated mouse/wheel deltas are cleared at the
+next Input begin. The controller consumes the current frame's Input exactly
+once before Renderer sees the updated camera. Input end advances only the
+short relative-mode transition guard; Timing finish then marks the whole frame
+complete.
 
 ## Tests
 

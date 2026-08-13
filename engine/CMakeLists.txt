@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.1.5 LANGUAGES C)
+project(hertharian-engine VERSION 0.1.6 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -16,8 +16,10 @@ add_executable(hertharian-engine
     src/common/engine.c
     src/common/math.c
     src/common/camera.c
+    src/common/fps_camera_controller.c
     src/common/timing.c
     src/input/input.c
+    src/platform/mouse_source.c
     src/platform/platform_sdl3.c
     src/renderer/renderer.c
     src/renderer/renderer_opengl.c
@@ -100,9 +102,35 @@ if(BUILD_TESTING)
     target_compile_features(camera_tests PRIVATE c_std_11)
     set_target_properties(camera_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(fps_camera_controller_tests
+        tests/fps_camera_controller_tests.c
+        src/common/fps_camera_controller.c
+        src/common/camera.c
+        src/common/math.c
+        src/input/input.c
+    )
+    target_include_directories(fps_camera_controller_tests PRIVATE
+        include
+        src/common
+        src/input
+    )
+    target_compile_features(fps_camera_controller_tests PRIVATE c_std_11)
+    set_target_properties(fps_camera_controller_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
+    add_executable(mouse_source_tests
+        tests/mouse_source_tests.c
+        src/platform/mouse_source.c
+    )
+    target_include_directories(mouse_source_tests PRIVATE src/platform)
+    target_compile_features(mouse_source_tests PRIVATE c_std_11)
+    set_target_properties(mouse_source_tests PROPERTIES C_EXTENSIONS OFF)
+
     if(NOT WIN32)
         target_link_libraries(math_tests PRIVATE m)
         target_link_libraries(camera_tests PRIVATE m)
+        target_link_libraries(fps_camera_controller_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -118,10 +146,18 @@ if(BUILD_TESTING)
         target_compile_options(camera_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(fps_camera_controller_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(mouse_source_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
     add_test(NAME timing_state COMMAND timing_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
+    add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)
+    add_test(NAME relative_mouse_source COMMAND mouse_source_tests)
 endif()
