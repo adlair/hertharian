@@ -59,7 +59,8 @@ Timing begin → Input begin → Platform events → Input state
 → capture coordination → FPS orientation → movement intent
 → locomotion friction/acceleration/jump/gravity
 → swept slide/step movement → ground probe
-→ resolved Player Body → Camera follow
+→ resolved Player Body + MovementResult → physical eye
+→ View Dynamics → final Camera position/FOV
 → Renderer camera → render/present → work measurement → pacing
 → Input end → Timing finish
 ```

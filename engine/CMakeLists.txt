@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.1.9 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.0 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -29,6 +29,7 @@ add_executable(hertharian-engine
     src/platform/platform_sdl3.c
     src/renderer/renderer.c
     src/renderer/renderer_opengl.c
+    src/view/view_dynamics.c
 )
 
 target_include_directories(hertharian-engine PRIVATE
@@ -39,6 +40,7 @@ target_include_directories(hertharian-engine PRIVATE
     src/platform
     src/player
     src/renderer
+    src/view
     "${PROJECT_BINARY_DIR}/generated"
 )
 target_link_libraries(hertharian-engine PRIVATE SDL3::SDL3 OpenGL::GL)
@@ -189,6 +191,17 @@ if(BUILD_TESTING)
     target_compile_features(collision_tests PRIVATE c_std_11)
     set_target_properties(collision_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(view_dynamics_tests
+        tests/view_dynamics_tests.c
+        src/view/view_dynamics.c
+        src/common/math.c
+    )
+    target_include_directories(view_dynamics_tests PRIVATE
+        include src/view
+    )
+    target_compile_features(view_dynamics_tests PRIVATE c_std_11)
+    set_target_properties(view_dynamics_tests PROPERTIES C_EXTENSIONS OFF)
+
     add_executable(collision_trace_tests
         tests/collision_trace_tests.c
         src/collision/aabb.c
@@ -210,6 +223,7 @@ if(BUILD_TESTING)
         target_link_libraries(player_movement_tests PRIVATE m)
         target_link_libraries(locomotion_tests PRIVATE m)
         target_link_libraries(collision_trace_tests PRIVATE m)
+        target_link_libraries(view_dynamics_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -246,6 +260,9 @@ if(BUILD_TESTING)
         target_compile_options(collision_trace_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(view_dynamics_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
@@ -259,4 +276,5 @@ if(BUILD_TESTING)
     add_test(NAME locomotion_foundation COMMAND locomotion_tests)
     add_test(NAME collision_foundation COMMAND collision_tests)
     add_test(NAME collision_trace_foundation COMMAND collision_trace_tests)
+    add_test(NAME view_dynamics_foundation COMMAND view_dynamics_tests)
 endif()

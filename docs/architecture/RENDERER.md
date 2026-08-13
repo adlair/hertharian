@@ -7,11 +7,15 @@ Engine → Renderer frontend → OpenGL backend → Platform presentation → SD
 ```
 
 Platform owns the SDL window and opaque graphics-context services. The renderer
-frontend owns a backend and consumes an engine camera. It obtains framebuffer
+frontend owns a backend and consumes the final engine camera. It obtains framebuffer
 pixel dimensions, builds HTH Model/View/Projection matrices, and gives those
 matrices to the backend. The OpenGL backend owns context, pipeline, geometry,
 uniform locations, and draw state. Public headers expose neither SDL nor
 OpenGL.
+
+As of v0.2.0, Engine composes that Camera from the physical eye plus View
+Dynamics position/FOV offsets before submission. Renderer remains unaware of
+View Dynamics and simply uses the resulting view and effective radian FOV.
 
 ## 3D Bootstrap Frame
 

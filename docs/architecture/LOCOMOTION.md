@@ -116,6 +116,9 @@ once in the same update, ascending bodies skip the ground probe, and jump
 frames cannot use step-up or step-down. A ceiling clips upward velocity through
 the ordinary collision solver; subsequent gravity produces descent without a
 bounce. Landing restores grounded state and clears descending velocity.
+Player Movement can expose that transition and the pre-resolution downward
+speed through a frame-local result for visual observation; locomotion formulas
+and physical state remain unchanged.
 
 ## Capture and Focus
 

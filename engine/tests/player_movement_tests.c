@@ -650,6 +650,74 @@ static void test_airborne_jump_into_wall_uses_normal_slide(void)
     assert(body.velocity.y < previous_vertical_velocity);
 }
 
+static void test_movement_result_landing_speed_and_transitions(void)
+{
+    HTHCollisionWorld world = {0};
+    HTHMovementConfig config = hth_movement_config_default();
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent none = {
+        {0.0F, 0.0F, 0.0F}, 0.0F, false
+    };
+    HTHPlayerMovementResult result;
+
+    world.obstacles[0] = (HTHAABB){
+        {-10.0F, -1.0F, -10.0F}, {10.0F, 0.0F, 10.0F}
+    };
+    world.obstacle_count = 1;
+    assert(hth_collision_world_is_valid(&world));
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.30F, 0.0F)));
+    body.velocity.y = -5.0F;
+    assert(hth_player_movement_step_with_result(
+        &body, &world, &config, &none, 0.1, &result));
+    assert(result.landed);
+    assert(close_enough(result.landing_speed, 5.981F));
+    assert(body.grounded);
+    assert(close_enough(body.velocity.y, 0.0F));
+
+    assert(hth_player_movement_step_with_result(
+        &body, &world, &config, &none, 0.1, &result));
+    assert(!result.landed);
+    assert(close_enough(result.landing_speed, 0.0F));
+
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 5.0F, 0.0F)));
+    assert(hth_player_movement_step_with_result(
+        &body, &world, &config, &none, 0.01, &result));
+    assert(!result.landed);
+}
+
+static void test_jump_reports_one_landing(void)
+{
+    HTHCollisionWorld world = {0};
+    HTHMovementConfig config = hth_movement_config_default();
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent jump = {
+        {0.0F, 0.0F, 0.0F}, 0.0F, true
+    };
+    HTHPlayerMovementIntent none = {
+        {0.0F, 0.0F, 0.0F}, 0.0F, false
+    };
+    HTHPlayerMovementResult result;
+    unsigned int landing_count = 0;
+    unsigned int frame;
+
+    world.obstacles[0] = (HTHAABB){
+        {-10.0F, -1.0F, -10.0F}, {10.0F, 0.0F, 10.0F}
+    };
+    world.obstacle_count = 1;
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.0F, 0.0F)));
+    body.grounded = true;
+    for (frame = 0; frame < 300; ++frame) {
+        assert(hth_player_movement_step_with_result(
+            &body, &world, &config, frame == 0 ? &jump : &none,
+            0.01, &result));
+        if (result.landed) {
+            landing_count++;
+            assert(result.landing_speed > 0.0F);
+        }
+    }
+    assert(landing_count == 1);
+}
+
 int main(void)
 {
     test_intent();
@@ -673,5 +741,7 @@ int main(void)
     test_jump_arc_ceiling_and_landing();
     test_jump_has_priority_and_no_double_jump();
     test_airborne_jump_into_wall_uses_normal_slide();
+    test_movement_result_landing_speed_and_transitions();
+    test_jump_reports_one_landing();
     return 0;
 }

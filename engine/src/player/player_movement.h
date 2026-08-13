@@ -9,6 +9,11 @@
 
 #include <stdbool.h>
 
+typedef struct {
+    bool landed;
+    float landing_speed;
+} HTHPlayerMovementResult;
+
 bool hth_player_movement_build_intent(const HTHInput *input,
                                       HTHVec3 view_forward,
                                       HTHVec3 view_up,
@@ -24,5 +29,12 @@ bool hth_player_movement_step_with_config(
     const HTHMovementConfig *config,
     const HTHPlayerMovementIntent *intent,
     double delta_seconds);
+bool hth_player_movement_step_with_result(
+    HTHPlayerBody *body,
+    const HTHCollisionWorld *world,
+    const HTHMovementConfig *config,
+    const HTHPlayerMovementIntent *intent,
+    double delta_seconds,
+    HTHPlayerMovementResult *out_result);
 
 #endif

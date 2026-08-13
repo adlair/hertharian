@@ -38,6 +38,15 @@ step, and larger drops fall under gravity. An accepted jump is airborne
 immediately, skips ground snap while ascending, and cannot attempt step-up or
 step-down that frame.
 
+## Frame-Local Movement Result
+
+The v0.2.0 integration variant also returns a temporary
+`HTHPlayerMovementResult`. It reports `landed` only for an airborne-to-grounded
+transition and captures `landing_speed` from downward velocity immediately
+before collision/ground resolution clears it. This observation is not stored
+in PlayerBody, is not an event bus, and does not alter the v0.1.9 locomotion or
+v0.1.8 collision algorithms. View Dynamics is its only current consumer.
+
 This remains local variable-delta bootstrap movement, not a fixed simulation
 tick or a claim of network determinism. It has no advanced Quake air control,
 walkable slopes, crouch, sprint, or gameplay binding layer.

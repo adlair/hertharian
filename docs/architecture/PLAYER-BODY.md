@@ -28,6 +28,11 @@ After physical resolution, the engine places the camera at:
 body.position + (0, body.eye_height, 0)
 ```
 
+As of v0.2.0 this is the physical eye anchor, not necessarily the final visual
+Camera position. View Dynamics adds transient presentation offsets downstream.
+Those offsets never modify Body position, velocity, dimensions, or grounded
+state.
+
 Changing camera yaw or pitch never changes body position. The player body is
 not public API, a gameplay `Entity`, a renderable object, or a networked player
 model. v0.1.9 can move this physical state through a basic jump, but crouching,

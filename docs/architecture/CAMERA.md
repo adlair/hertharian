@@ -32,13 +32,17 @@ multiplied by delta time.
 
 W/S/A/D now feed Player Movement. That subsystem derives its horizontal basis
 from camera orientation but moves Player Body, never `HTHCamera` directly.
-After collision resolution, Camera position follows body position plus the
-1.60-unit eye offset. Rotating Camera does not rotate or translate the body.
-Explicit v0.1.8 step-up and step-down therefore move Camera by exactly the
-resolved Body height; smoothing, bobbing, and interpolation remain absent.
-v0.1.9 jump and landing likewise change `body.position.y`, and Camera follows
-that resolved height immediately. No landing kick, jump smoothing, or view
-effect is added.
+After collision resolution, the physical eye remains body position plus the
+1.60-unit eye offset. v0.2.0 passes that anchor through internal View Dynamics,
+then recomposes final Camera position from the anchor plus independent vertical
+and camera-right offsets. Its effective FOV is stable base FOV plus a dynamic
+offset. Neither position nor FOV accumulates from the previous visual frame.
+Renderer still consumes an ordinary final `HTHCamera`.
+
+Rotating Camera does not rotate or translate the body. Mouse yaw/pitch remains
+immediate: step smoothing, landing response, head bob, and speed FOV never
+modify orientation or introduce aim lag. Jump motion itself is not smoothed;
+only grounded steps receive visual settling.
 
 ## Bootstrap Capture Policy
 

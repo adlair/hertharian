@@ -281,12 +281,13 @@ bool hth_player_movement_build_intent(const HTHInput *input,
     return true;
 }
 
-bool hth_player_movement_step_with_config(
+bool hth_player_movement_step_with_result(
     HTHPlayerBody *body,
     const HTHCollisionWorld *world,
     const HTHMovementConfig *config,
     const HTHPlayerMovementIntent *intent,
-    double delta_seconds)
+    double delta_seconds,
+    HTHPlayerMovementResult *out_result)
 {
     HTHPlayerBody movement_start;
     HTHPlayerBody normal_result;
@@ -297,19 +298,24 @@ bool hth_player_movement_step_with_config(
     bool step_accepted = false;
     bool was_grounded;
     float delta;
+    float downward_speed;
     float normal_progress;
 
     if (!hth_player_body_is_valid(body) ||
         !hth_collision_world_is_valid(world) ||
         !hth_movement_config_is_valid(config) || intent == NULL ||
-        !isfinite(delta_seconds) || delta_seconds < 0.0) {
+        !isfinite(delta_seconds) || delta_seconds < 0.0 ||
+        out_result == NULL) {
         return false;
     }
+    out_result->landed = false;
+    out_result->landing_speed = 0.0F;
     was_grounded = body->grounded;
     if (!hth_player_locomotion_update(body, config, intent, delta_seconds,
                                       &jump_started)) {
         return false;
     }
+    downward_speed = fmaxf(-body->velocity.y, 0.0F);
     if (delta_seconds == 0.0) {
         return true;
     }
@@ -346,7 +352,24 @@ bool hth_player_movement_step_with_config(
             body->grounded = grounded;
         }
     }
+    out_result->landed = !was_grounded && body->grounded;
+    if (out_result->landed) {
+        out_result->landing_speed = downward_speed;
+    }
     return true;
+}
+
+bool hth_player_movement_step_with_config(
+    HTHPlayerBody *body,
+    const HTHCollisionWorld *world,
+    const HTHMovementConfig *config,
+    const HTHPlayerMovementIntent *intent,
+    double delta_seconds)
+{
+    HTHPlayerMovementResult result;
+
+    return hth_player_movement_step_with_result(
+        body, world, config, intent, delta_seconds, &result);
 }
 
 bool hth_player_movement_step(HTHPlayerBody *body,
