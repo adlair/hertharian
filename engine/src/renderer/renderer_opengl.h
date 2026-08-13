@@ -2,13 +2,15 @@
 #define HTH_RENDERER_OPENGL_H
 
 #include "hth_math.h"
+#include "collision_world.h"
 #include "platform.h"
 
 #include <stdbool.h>
 
 typedef struct HTHOpenGLBackend HTHOpenGLBackend;
 
-HTHOpenGLBackend *hth_renderer_opengl_create(HTHPlatform *platform);
+HTHOpenGLBackend *hth_renderer_opengl_create(
+    HTHPlatform *platform, const HTHCollisionWorld *collision_world);
 void hth_renderer_opengl_destroy(HTHOpenGLBackend *backend);
 bool hth_renderer_opengl_resize(HTHOpenGLBackend *backend,
                                 uint32_t width, uint32_t height);

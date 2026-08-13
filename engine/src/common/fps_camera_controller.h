@@ -26,7 +26,6 @@ bool hth_fps_camera_controller_capture_active(
 void hth_fps_camera_controller_update(HTHFPSCameraController *controller,
                                       HTHCamera *camera,
                                       const HTHInput *input,
-                                      double delta_seconds,
                                       bool debug_input);
 
 #endif

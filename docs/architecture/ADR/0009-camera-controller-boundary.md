@@ -35,7 +35,9 @@ SDL, Renderer, or OpenGL. Renderer receives only the resulting camera/matrices.
   relative-pointer source and filter other motion only while relative mode is
   active. If no explicit source exists, generic SDL translation remains intact.
   IDs and backend device names stay private to Platform.
-- Future player movement, collision, gravity, semantic bindings, networking,
-  and other camera controllers remain separate design work.
-- Click-to-capture, Escape-to-release, WASD, sensitivity, speed, and safety
-  clamp are temporary bootstrap policy rather than durable gameplay contracts.
+- v0.1.7 moves player translation, collision, and gravity into separate
+  Player Body and Player Movement systems. Semantic bindings, networking, and
+  other camera controllers remain separate design work.
+- Click-to-capture, Escape-to-release, and look sensitivity remain temporary
+  bootstrap policy. WASD, movement speed, and movement dt safety no longer
+  belong to this controller.

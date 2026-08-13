@@ -4,14 +4,16 @@
 vectors, vertical FOV in radians, and near/far clipping planes. It contains no
 input, player, SDL, OpenGL, yaw, pitch, or renderer-backend state.
 
-The engine owns the bootstrap camera. Its initial state remains position
-`(0, 0, 3)`, forward `(0, 0, -1)`, up `(0, 1, 0)`, 75-degree vertical FOV,
-near 0.1, and far 1000. Projection aspect comes from framebuffer pixels.
+The engine owns the bootstrap camera. Its default mathematical state remains
+position `(0, 0, 3)`, forward `(0, 0, -1)`, up `(0, 1, 0)`, 75-degree vertical
+FOV, near 0.1, and far 1000. In v0.1.7 runtime position is supplied by Player
+Body plus its eye offset. Projection aspect comes from framebuffer pixels.
 
 ## Internal FPS Camera Controller
 
-v0.1.6 adds an engine-internal controller under `src/common/`. It reads only
-`HTHInput`, owns yaw/pitch and bootstrap tuning, and modifies an `HTHCamera`.
+v0.1.6 added an engine-internal controller under `src/common/`. It reads only
+`HTHInput`, owns yaw/pitch and bootstrap look tuning, and modifies camera
+orientation. v0.1.7 removes physical translation from this controller.
 The controller is separate so cameras can still be constructed or driven by
 non-FPS systems later.
 
@@ -28,12 +30,10 @@ Sensitivity is a bootstrap constant of 0.10 degrees per mouse unit. Mouse
 delta is displacement already accumulated during the frame, so it is not
 multiplied by delta time.
 
-W/S add or subtract a forward vector projected onto XZ. Right is normalized
-`horizontal_forward × up`; at the baseline it is +X. A/D subtract or add that
-right vector. Combined intent is normalized, movement is 4 world units per
-second, and timing delta makes movement frame-rate independent. Only the
-controller's movement delta is capped at 0.1 seconds to prevent teleporting
-after a debugger or scheduler pause. Pitch never changes movement height.
+W/S/A/D now feed Player Movement. That subsystem derives its horizontal basis
+from camera orientation but moves Player Body, never `HTHCamera` directly.
+After collision resolution, Camera position follows body position plus the
+1.60-unit eye offset. Rotating Camera does not rotate or translate the body.
 
 ## Bootstrap Capture Policy
 
@@ -57,6 +57,7 @@ The click-to-capture / Escape-to-release policy is temporary interaction
 behavior for FPS camera validation, not the final Hertharian input/menu binding
 design.
 
-This is free camera navigation, not player movement. Gravity, collision,
-grounding, jump, vertical controls, physics, player entities, and semantic
+The v0.1.6 controller could produce free-camera navigation. v0.1.7 keeps its
+orientation and capture responsibilities while Player Body and Player Movement
+own translation. Jump, vertical controls, gameplay entities, and semantic
 bindings remain deliberately absent.

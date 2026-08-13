@@ -74,7 +74,7 @@ static void test_orientation(void)
 
     controller = create_controller(&camera, &input);
     inject_mouse_delta(input, 300.0, -300.0);
-    hth_fps_camera_controller_update(controller, &camera, input, 0.0, false);
+    hth_fps_camera_controller_update(controller, &camera, input, false);
     assert(close_enough(camera.forward.x, 0.0F));
     assert(close_enough(camera.forward.y, 0.0F));
     assert(close_enough(camera.forward.z, -1.0F));
@@ -87,7 +87,7 @@ static void test_orientation(void)
     hth_fps_camera_controller_set_capture(controller, true);
     hth_input_clear_mouse_delta(input);
     inject_mouse_delta(input, 900.0, 0.0);
-    hth_fps_camera_controller_update(controller, &camera, input, 0.01, false);
+    hth_fps_camera_controller_update(controller, &camera, input, false);
     assert(close_enough(camera.forward.x, 1.0F));
     assert(close_enough(camera.forward.y, 0.0F));
     assert(close_enough(camera.forward.z, 0.0F));
@@ -96,7 +96,7 @@ static void test_orientation(void)
     controller = create_controller(&camera, &input);
     hth_fps_camera_controller_set_capture(controller, true);
     inject_mouse_delta(input, 0.0, -100.0);
-    hth_fps_camera_controller_update(controller, &camera, input, 0.1, false);
+    hth_fps_camera_controller_update(controller, &camera, input, false);
     assert(camera.forward.y > 0.0F);
     destroy_controller(controller, input);
 }
@@ -117,10 +117,8 @@ static void test_pitch_clamp_and_mouse_delta_semantics(void)
     hth_fps_camera_controller_set_capture(fast, true);
     inject_mouse_delta(slow_input, 100.0, -2000.0);
     inject_mouse_delta(fast_input, 100.0, -2000.0);
-    hth_fps_camera_controller_update(slow, &camera_slow, slow_input, 0.01,
-                                     false);
-    hth_fps_camera_controller_update(fast, &camera_fast, fast_input, 0.1,
-                                     false);
+    hth_fps_camera_controller_update(slow, &camera_slow, slow_input, false);
+    hth_fps_camera_controller_update(fast, &camera_fast, fast_input, false);
     assert(close_enough(camera_slow.forward.y, pitch_limit_sine));
     assert(close_enough(camera_fast.forward.y, pitch_limit_sine));
     assert(close_enough(camera_slow.forward.x, camera_fast.forward.x));
@@ -131,14 +129,12 @@ static void test_pitch_clamp_and_mouse_delta_semantics(void)
     slow = create_controller(&camera_slow, &slow_input);
     hth_fps_camera_controller_set_capture(slow, true);
     inject_mouse_delta(slow_input, 0.0, 2000.0);
-    hth_fps_camera_controller_update(slow, &camera_slow, slow_input, 0.1,
-                                     false);
+    hth_fps_camera_controller_update(slow, &camera_slow, slow_input, false);
     assert(close_enough(camera_slow.forward.y, -pitch_limit_sine));
     destroy_controller(slow, slow_input);
 }
 
-static HTHVec3 movement_for(HTHKey first, HTHKey second,
-                            double delta_seconds, double pitch_mouse_delta)
+static void test_controller_does_not_translate_camera(void)
 {
     HTHCamera camera;
     HTHFPSCameraController *controller;
@@ -147,42 +143,12 @@ static HTHVec3 movement_for(HTHKey first, HTHKey second,
 
     controller = create_controller(&camera, &input);
     start = camera.position;
-    if (pitch_mouse_delta != 0.0) {
-        hth_fps_camera_controller_set_capture(controller, true);
-        inject_mouse_delta(input, 0.0, pitch_mouse_delta);
-    }
-    inject_key(input, first, true);
-    if (second != HTH_KEY_UNKNOWN) {
-        inject_key(input, second, true);
-    }
-    hth_fps_camera_controller_update(controller, &camera, input,
-                                     delta_seconds, false);
-    camera.position = hth_vec3_subtract(camera.position, start);
+    inject_key(input, HTH_KEY_W, true);
+    hth_fps_camera_controller_update(controller, &camera, input, false);
+    assert(close_enough(camera.position.x, start.x));
+    assert(close_enough(camera.position.y, start.y));
+    assert(close_enough(camera.position.z, start.z));
     destroy_controller(controller, input);
-    return camera.position;
-}
-
-static void test_movement(void)
-{
-    HTHVec3 w = movement_for(HTH_KEY_W, HTH_KEY_UNKNOWN, 0.1, 0.0);
-    HTHVec3 s = movement_for(HTH_KEY_S, HTH_KEY_UNKNOWN, 0.1, 0.0);
-    HTHVec3 a = movement_for(HTH_KEY_A, HTH_KEY_UNKNOWN, 0.1, 0.0);
-    HTHVec3 d = movement_for(HTH_KEY_D, HTH_KEY_UNKNOWN, 0.1, 0.0);
-    HTHVec3 diagonal = movement_for(HTH_KEY_W, HTH_KEY_D, 0.1, 0.0);
-    HTHVec3 half_delta = movement_for(HTH_KEY_W, HTH_KEY_UNKNOWN, 0.05, 0.0);
-    HTHVec3 clamped = movement_for(HTH_KEY_W, HTH_KEY_UNKNOWN, 1.0, 0.0);
-    HTHVec3 pitched = movement_for(HTH_KEY_W, HTH_KEY_UNKNOWN, 0.1, -450.0);
-
-    assert(close_enough(w.z, -0.4F));
-    assert(close_enough(s.z, 0.4F));
-    assert(close_enough(a.x, -0.4F));
-    assert(close_enough(d.x, 0.4F));
-    assert(close_enough(hth_vec3_length(diagonal), 0.4F));
-    assert(diagonal.x > 0.0F && diagonal.z < 0.0F);
-    assert(close_enough(half_delta.z, -0.2F));
-    assert(close_enough(clamped.z, -0.4F));
-    assert(close_enough(pitched.y, 0.0F));
-    assert(close_enough(pitched.z, -0.4F));
 }
 
 static void test_capture_transitions(void)
@@ -227,7 +193,7 @@ static void test_capture_transition_does_not_reach_controller(void)
     hth_fps_camera_controller_set_capture(controller, true);
     hth_input_begin_capture_transition_discard(input);
     inject_mouse_delta(input, 100.0, 80.0);
-    hth_fps_camera_controller_update(controller, &camera, input, 0.01, false);
+    hth_fps_camera_controller_update(controller, &camera, input, false);
     assert(close_enough(camera.forward.x, 0.0F));
     assert(close_enough(camera.forward.y, 0.0F));
     assert(close_enough(camera.forward.z, -1.0F));
@@ -235,7 +201,7 @@ static void test_capture_transition_does_not_reach_controller(void)
     hth_input_end_frame(input);
     hth_input_begin_frame(input);
     inject_mouse_delta(input, -60.0, 40.0);
-    hth_fps_camera_controller_update(controller, &camera, input, 0.01, false);
+    hth_fps_camera_controller_update(controller, &camera, input, false);
     assert(close_enough(camera.forward.x, 0.0F));
     assert(close_enough(camera.forward.y, 0.0F));
     assert(close_enough(camera.forward.z, -1.0F));
@@ -243,7 +209,7 @@ static void test_capture_transition_does_not_reach_controller(void)
     hth_input_end_frame(input);
     hth_input_begin_frame(input);
     inject_mouse_delta(input, 10.0, 0.0);
-    hth_fps_camera_controller_update(controller, &camera, input, 0.01, false);
+    hth_fps_camera_controller_update(controller, &camera, input, false);
     assert(camera.forward.x > 0.0F);
     destroy_controller(controller, input);
 }
@@ -252,7 +218,7 @@ int main(void)
 {
     test_orientation();
     test_pitch_clamp_and_mouse_delta_semantics();
-    test_movement();
+    test_controller_does_not_translate_camera();
     test_capture_transitions();
     test_capture_transition_does_not_reach_controller();
     return 0;

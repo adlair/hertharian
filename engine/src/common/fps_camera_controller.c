@@ -9,13 +9,10 @@
 struct HTHFPSCameraController {
     float yaw_radians;
     float pitch_radians;
-    float move_speed;
     float mouse_sensitivity_radians;
     float pitch_limit_radians;
     bool capture_active;
 };
-
-static const double maximum_movement_delta_seconds = 0.1;
 
 static float clamp_float(float value, float minimum, float maximum)
 {
@@ -51,7 +48,6 @@ HTHFPSCameraController *hth_fps_camera_controller_create(
     if (controller == NULL) {
         return NULL;
     }
-    controller->move_speed = 4.0F;
     controller->mouse_sensitivity_radians =
         hth_degrees_to_radians(0.1F);
     controller->pitch_limit_radians = hth_degrees_to_radians(89.0F);
@@ -101,15 +97,10 @@ bool hth_fps_camera_controller_capture_active(
 void hth_fps_camera_controller_update(HTHFPSCameraController *controller,
                                       HTHCamera *camera,
                                       const HTHInput *input,
-                                      double delta_seconds,
                                       bool debug_input)
 {
-    HTHVec3 horizontal_forward;
-    HTHVec3 movement = {0.0F, 0.0F, 0.0F};
-    HTHVec3 right;
     double mouse_x;
     double mouse_y;
-    float movement_delta;
     float mouse_delta_x;
     float mouse_delta_y;
     float pitch_before;
@@ -146,35 +137,4 @@ void hth_fps_camera_controller_update(HTHFPSCameraController *controller,
 
     camera->forward = forward_from_angles(controller->yaw_radians,
                                           controller->pitch_radians);
-    horizontal_forward = hth_vec3(camera->forward.x, 0.0F,
-                                  camera->forward.z);
-    if (!hth_vec3_normalize(horizontal_forward, &horizontal_forward) ||
-        !hth_vec3_normalize(
-            hth_vec3_cross(horizontal_forward, camera->up), &right)) {
-        return;
-    }
-
-    if (hth_input_key_down(input, HTH_KEY_W)) {
-        movement = hth_vec3_add(movement, horizontal_forward);
-    }
-    if (hth_input_key_down(input, HTH_KEY_S)) {
-        movement = hth_vec3_subtract(movement, horizontal_forward);
-    }
-    if (hth_input_key_down(input, HTH_KEY_D)) {
-        movement = hth_vec3_add(movement, right);
-    }
-    if (hth_input_key_down(input, HTH_KEY_A)) {
-        movement = hth_vec3_subtract(movement, right);
-    }
-
-    if (!isfinite(delta_seconds) || delta_seconds <= 0.0 ||
-        !hth_vec3_normalize(movement, &movement)) {
-        return;
-    }
-    if (delta_seconds > maximum_movement_delta_seconds) {
-        delta_seconds = maximum_movement_delta_seconds;
-    }
-    movement_delta = controller->move_speed * (float)delta_seconds;
-    camera->position = hth_vec3_add(
-        camera->position, hth_vec3_scale(movement, movement_delta));
 }

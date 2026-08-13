@@ -32,7 +32,13 @@ v0.1.6 uses the existing accumulated `mouse_delta_x` and `mouse_delta_y` for
 FPS look. Relative mode changes only how Platform supplies motion; the
 controller still reads HTH Input and never SDL. Mouse delta is displacement
 that occurred during the frame, not a rate, and therefore is intentionally not
-multiplied by frame delta time. WASD movement does use Timing delta.
+multiplied by frame delta time.
+
+As of v0.1.7, W/S/A/D physical state feeds an internal Player Movement intent
+while capture is active. Player Movement derives its horizontal basis from
+Camera orientation and applies variable-delta motion to Player Body; the FPS
+controller no longer translates Camera directly. Input remains unaware of
+Player Body and Collision.
 
 The engine coordinates a temporary bootstrap capture policy: left click
 enables relative mode and Escape disables it. Capture transitions clear Input's

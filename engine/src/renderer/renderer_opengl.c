@@ -44,8 +44,6 @@ typedef struct {
     GLfloat position[3];
 } HTHBootstrapVertex;
 
-#define HTH_BOOTSTRAP_MODEL_COUNT 8
-
 struct HTHOpenGLBackend {
     HTHPlatform *platform;
     HTHPlatformGraphicsContext *context;
@@ -56,7 +54,8 @@ struct HTHOpenGLBackend {
     GLint model_location;
     GLint view_location;
     GLint projection_location;
-    HTHMat4 bootstrap_models[HTH_BOOTSTRAP_MODEL_COUNT];
+    HTHMat4 bootstrap_models[HTH_COLLISION_WORLD_MAX_OBSTACLES];
+    size_t bootstrap_model_count;
     uint32_t framebuffer_width;
     uint32_t framebuffer_height;
 };
@@ -82,25 +81,18 @@ static const GLchar fragment_shader_source[] =
     "}\n";
 
 static const HTHBootstrapVertex bootstrap_vertices[] = {
-    {{ 0.0F,  0.7F,  0.0F}}, {{-0.6F, -0.5F,  0.4F}},
-    {{ 0.6F, -0.5F,  0.4F}},
-    {{ 0.0F,  0.7F,  0.0F}}, {{ 0.6F, -0.5F,  0.4F}},
-    {{ 0.0F, -0.5F, -0.7F}},
-    {{ 0.0F,  0.7F,  0.0F}}, {{ 0.0F, -0.5F, -0.7F}},
-    {{-0.6F, -0.5F,  0.4F}},
-    {{-0.6F, -0.5F,  0.4F}}, {{ 0.0F, -0.5F, -0.7F}},
-    {{ 0.6F, -0.5F,  0.4F}},
-};
-
-static const HTHVec3 bootstrap_model_positions[HTH_BOOTSTRAP_MODEL_COUNT] = {
-    { 0.0F,  0.0F,   0.0F},
-    {-3.0F,  0.0F,  -2.0F},
-    { 3.0F,  0.0F,  -2.0F},
-    { 0.0F,  2.0F,  -4.0F},
-    { 0.0F, -2.0F,  -4.0F},
-    {-4.0F,  0.0F,  -7.0F},
-    { 4.0F,  0.0F,  -7.0F},
-    { 0.0F,  0.0F, -10.0F},
+    {{-0.5F, -0.5F,  0.5F}}, {{ 0.5F, -0.5F,  0.5F}}, {{ 0.5F,  0.5F,  0.5F}},
+    {{-0.5F, -0.5F,  0.5F}}, {{ 0.5F,  0.5F,  0.5F}}, {{-0.5F,  0.5F,  0.5F}},
+    {{ 0.5F, -0.5F, -0.5F}}, {{-0.5F, -0.5F, -0.5F}}, {{-0.5F,  0.5F, -0.5F}},
+    {{ 0.5F, -0.5F, -0.5F}}, {{-0.5F,  0.5F, -0.5F}}, {{ 0.5F,  0.5F, -0.5F}},
+    {{-0.5F, -0.5F, -0.5F}}, {{-0.5F, -0.5F,  0.5F}}, {{-0.5F,  0.5F,  0.5F}},
+    {{-0.5F, -0.5F, -0.5F}}, {{-0.5F,  0.5F,  0.5F}}, {{-0.5F,  0.5F, -0.5F}},
+    {{ 0.5F, -0.5F,  0.5F}}, {{ 0.5F, -0.5F, -0.5F}}, {{ 0.5F,  0.5F, -0.5F}},
+    {{ 0.5F, -0.5F,  0.5F}}, {{ 0.5F,  0.5F, -0.5F}}, {{ 0.5F,  0.5F,  0.5F}},
+    {{-0.5F,  0.5F,  0.5F}}, {{ 0.5F,  0.5F,  0.5F}}, {{ 0.5F,  0.5F, -0.5F}},
+    {{-0.5F,  0.5F,  0.5F}}, {{ 0.5F,  0.5F, -0.5F}}, {{-0.5F,  0.5F, -0.5F}},
+    {{-0.5F, -0.5F, -0.5F}}, {{ 0.5F, -0.5F, -0.5F}}, {{ 0.5F, -0.5F,  0.5F}},
+    {{-0.5F, -0.5F, -0.5F}}, {{ 0.5F, -0.5F,  0.5F}}, {{-0.5F, -0.5F,  0.5F}},
 };
 
 #define HTH_LOAD_GL_FUNCTION(backend, member, type, name)                   \
@@ -312,14 +304,28 @@ static bool create_geometry(HTHOpenGLBackend *backend)
     return true;
 }
 
-static void create_bootstrap_models(HTHOpenGLBackend *backend)
+static bool create_bootstrap_models(
+    HTHOpenGLBackend *backend, const HTHCollisionWorld *collision_world)
 {
     size_t index;
 
-    for (index = 0; index < HTH_BOOTSTRAP_MODEL_COUNT; ++index) {
-        backend->bootstrap_models[index] =
-            hth_mat4_translation(bootstrap_model_positions[index]);
+    if (!hth_collision_world_is_valid(collision_world)) {
+        return false;
     }
+    backend->bootstrap_model_count = collision_world->obstacle_count;
+    for (index = 0; index < backend->bootstrap_model_count; ++index) {
+        const HTHAABB *bounds = &collision_world->obstacles[index];
+        HTHMat4 model = hth_mat4_identity();
+
+        model.elements[0] = bounds->max.x - bounds->min.x;
+        model.elements[5] = bounds->max.y - bounds->min.y;
+        model.elements[10] = bounds->max.z - bounds->min.z;
+        model.elements[12] = (bounds->min.x + bounds->max.x) * 0.5F;
+        model.elements[13] = (bounds->min.y + bounds->max.y) * 0.5F;
+        model.elements[14] = (bounds->min.z + bounds->max.z) * 0.5F;
+        backend->bootstrap_models[index] = model;
+    }
+    return true;
 }
 
 static bool validate_context(void)
@@ -372,7 +378,8 @@ static bool cache_uniform_locations(HTHOpenGLBackend *backend)
     return true;
 }
 
-HTHOpenGLBackend *hth_renderer_opengl_create(HTHPlatform *platform)
+HTHOpenGLBackend *hth_renderer_opengl_create(
+    HTHPlatform *platform, const HTHCollisionWorld *collision_world)
 {
     HTHOpenGLBackend *backend = calloc(1, sizeof(*backend));
 
@@ -407,14 +414,13 @@ HTHOpenGLBackend *hth_renderer_opengl_create(HTHPlatform *platform)
     backend->program = create_program(backend);
     if (backend->program == 0 || !cache_uniform_locations(backend) ||
         !create_geometry(backend) ||
+        !create_bootstrap_models(backend, collision_world) ||
         glGetError() != GL_NO_ERROR) {
         fputs("Renderer initialization failed: graphics pipeline setup "
               "failed.\n", stderr);
         hth_renderer_opengl_destroy(backend);
         return NULL;
     }
-    create_bootstrap_models(backend);
-
     puts("Renderer backend: OpenGL");
     printf("OpenGL version: %s\n", gl_string(GL_VERSION));
     printf("OpenGL renderer: %s\n", gl_string(GL_RENDERER));
@@ -489,7 +495,7 @@ bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     backend->gl.use_program(backend->program);
     backend->gl.bind_vertex_array(backend->vao);
-    for (index = 0; index < HTH_BOOTSTRAP_MODEL_COUNT; ++index) {
+    for (index = 0; index < backend->bootstrap_model_count; ++index) {
         backend->gl.uniform_matrix_4fv(
             backend->model_location, 1, GL_FALSE,
             backend->bootstrap_models[index].elements);

@@ -56,13 +56,15 @@ The current frame order is:
 
 ```text
 Timing begin → Input begin → Platform events → Input state
-→ capture coordination → FPS controller → Renderer camera → render/present
-→ work measurement → pacing → Input end → Timing finish
+→ capture coordination → FPS orientation → movement intent
+→ Player Body movement/gravity → collision resolution → Camera follow
+→ Renderer camera → render/present → work measurement → pacing
+→ Input end → Timing finish
 ```
 
 Pressed/released edges and accumulated mouse/wheel deltas are cleared at the
-next Input begin. The controller consumes the current frame's Input exactly
-once before Renderer sees the updated camera. Input end advances only the
+next Input begin. The orientation controller and Player Movement consume the
+current frame's Input before Renderer sees the followed camera. Input end advances only the
 short relative-mode transition guard; Timing finish then marks the whole frame
 complete.
 

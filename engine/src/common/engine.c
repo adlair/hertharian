@@ -4,13 +4,28 @@
 #include "hth_timing.h"
 #include "hth_version.h"
 #include "fps_camera_controller.h"
+#include "collision_world.h"
 #include "input_internal.h"
 #include "platform.h"
+#include "player_body.h"
+#include "player_movement.h"
 #include "renderer.h"
 #include "timing_internal.h"
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+struct HTHEnginePhysicalState {
+    HTHPlayerBody body;
+    HTHCollisionWorld collision_world;
+};
+
+static void destroy_physical_state(HTHEngine *engine)
+{
+    free(engine->physical_state);
+    engine->physical_state = NULL;
+}
 
 static void clear_debugged_mouse_delta(HTHEngine *engine, const char *reason)
 {
@@ -84,6 +99,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     engine->platform = NULL;
     engine->renderer = NULL;
     engine->camera_controller = NULL;
+    engine->physical_state = NULL;
     engine->input = NULL;
     engine->timing = NULL;
     hth_camera_init_default(&engine->camera);
@@ -91,6 +107,23 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         hth_fps_camera_controller_create(&engine->camera);
     if (engine->camera_controller == NULL) {
         fputs("Failed to initialize FPS camera controller.\n", stderr);
+        return false;
+    }
+    engine->physical_state = calloc(1, sizeof(*engine->physical_state));
+    if (engine->physical_state == NULL ||
+        !hth_player_body_init(&engine->physical_state->body,
+                              hth_vec3(0.0F, 0.05F, 3.0F)) ||
+        !hth_collision_world_init_bootstrap(
+            &engine->physical_state->collision_world) ||
+        hth_collision_world_body_penetrates(
+            &engine->physical_state->collision_world,
+            &engine->physical_state->body) ||
+        !hth_player_body_eye_position(&engine->physical_state->body,
+                                      &engine->camera.position)) {
+        fputs("Failed to initialize player body or collision world.\n", stderr);
+        destroy_physical_state(engine);
+        hth_fps_camera_controller_destroy(engine->camera_controller);
+        engine->camera_controller = NULL;
         return false;
     }
 
@@ -108,6 +141,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     platform_config.debug_fps_input = config->debug_fps_input;
 
     if (!hth_platform_init(&engine->platform, &platform_config)) {
+        destroy_physical_state(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
@@ -115,10 +149,12 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
 
     if (!config->headless) {
         engine->renderer = hth_renderer_create(engine->platform,
-                                               &engine->camera);
+                                               &engine->camera,
+                                               &engine->physical_state->collision_world);
         if (engine->renderer == NULL) {
             hth_platform_shutdown(engine->platform);
             engine->platform = NULL;
+            destroy_physical_state(engine);
             hth_fps_camera_controller_destroy(engine->camera_controller);
             engine->camera_controller = NULL;
             return false;
@@ -134,6 +170,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         engine->renderer = NULL;
         hth_platform_shutdown(engine->platform);
         engine->platform = NULL;
+        destroy_physical_state(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
@@ -150,6 +187,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         engine->renderer = NULL;
         hth_platform_shutdown(engine->platform);
         engine->platform = NULL;
+        destroy_physical_state(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
@@ -182,6 +220,7 @@ void hth_engine_run(HTHEngine *engine)
 void hth_engine_frame(HTHEngine *engine)
 {
     HTHPlatformEvent event;
+    HTHPlayerMovementIntent movement_intent;
     uint64_t counter;
     uint64_t sleep_ns;
     bool discard_mouse_delta = false;
@@ -252,7 +291,22 @@ void hth_engine_frame(HTHEngine *engine)
     update_mouse_capture(engine);
     hth_fps_camera_controller_update(
         engine->camera_controller, &engine->camera, engine->input,
-        hth_timing_delta_seconds(engine->timing), engine->debug_fps_input);
+        engine->debug_fps_input);
+    if (!hth_player_movement_build_intent(
+            engine->input, engine->camera.forward, engine->camera.up,
+            hth_fps_camera_controller_capture_active(
+                engine->camera_controller),
+            &movement_intent) ||
+        !hth_player_movement_step(
+            &engine->physical_state->body,
+            &engine->physical_state->collision_world, &movement_intent,
+            hth_timing_delta_seconds(engine->timing)) ||
+        !hth_player_body_eye_position(&engine->physical_state->body,
+                                      &engine->camera.position)) {
+        fputs("Player movement update failed.\n", stderr);
+        engine->running = false;
+        return;
+    }
 
     if (engine->renderer != NULL &&
         !hth_renderer_set_camera(engine->renderer, &engine->camera)) {
@@ -300,6 +354,7 @@ void hth_engine_shutdown(HTHEngine *engine)
     engine->input = NULL;
     hth_fps_camera_controller_destroy(engine->camera_controller);
     engine->camera_controller = NULL;
+    destroy_physical_state(engine);
     hth_renderer_destroy(engine->renderer);
     engine->renderer = NULL;
     hth_platform_shutdown(engine->platform);

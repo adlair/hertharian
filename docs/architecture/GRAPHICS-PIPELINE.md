@@ -12,11 +12,11 @@ camera position
 clip space → rasterization → framebuffer → Platform presentation
 ```
 
-One static VBO contains a small solid bootstrap marker made from local-space
-triangles. A private array of eight translation matrices places instances at
-different horizontal, vertical, and depth offsets, providing spatial references
-for FPS navigation without introducing Mesh, Scene, Entity, or Material APIs.
-A GLSL 330 Core
+One static VBO contains a unit cube made from local-space triangles. Private
+model matrices translate and scale instances to the static bootstrap Collision
+World AABBs. The resulting floor, walls, and boxes provide visible physical
+references for FPS navigation without introducing Mesh, Scene, Entity, or
+Material APIs. A GLSL 330 Core
 vertex shader applies `u_projection * u_view * u_model`; the fragment shader
 retains the bootstrap pink-red color over the dark-purple clear. The frontend
 builds HTH matrices, while the backend only caches uniform locations and uploads

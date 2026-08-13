@@ -30,12 +30,14 @@ static bool update_camera_matrices(HTHRenderer *renderer)
 }
 
 HTHRenderer *hth_renderer_create(HTHPlatform *platform,
-                                 const HTHCamera *camera)
+                                 const HTHCamera *camera,
+                                 const HTHCollisionWorld *collision_world)
 {
     HTHRenderer *renderer;
 
     renderer = calloc(1, sizeof(*renderer));
-    if (renderer == NULL || platform == NULL || camera == NULL) {
+    if (renderer == NULL || platform == NULL || camera == NULL ||
+        !hth_collision_world_is_valid(collision_world)) {
         fputs("Renderer initialization failed: allocation failed.\n", stderr);
         free(renderer);
         return NULL;
@@ -43,7 +45,7 @@ HTHRenderer *hth_renderer_create(HTHPlatform *platform,
 
     renderer->platform = platform;
     renderer->camera = *camera;
-    renderer->backend = hth_renderer_opengl_create(platform);
+    renderer->backend = hth_renderer_opengl_create(platform, collision_world);
     if (renderer->backend == NULL) {
         free(renderer);
         return NULL;

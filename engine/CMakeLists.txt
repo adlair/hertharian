@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.1.6 LANGUAGES C)
+project(hertharian-engine VERSION 0.1.7 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -18,7 +18,11 @@ add_executable(hertharian-engine
     src/common/camera.c
     src/common/fps_camera_controller.c
     src/common/timing.c
+    src/collision/aabb.c
+    src/collision/collision_world.c
     src/input/input.c
+    src/player/player_body.c
+    src/player/player_movement.c
     src/platform/mouse_source.c
     src/platform/platform_sdl3.c
     src/renderer/renderer.c
@@ -28,8 +32,10 @@ add_executable(hertharian-engine
 target_include_directories(hertharian-engine PRIVATE
     include
     src/common
+    src/collision
     src/input
     src/platform
+    src/player
     src/renderer
     "${PROJECT_BINARY_DIR}/generated"
 )
@@ -127,10 +133,54 @@ if(BUILD_TESTING)
     target_compile_features(mouse_source_tests PRIVATE c_std_11)
     set_target_properties(mouse_source_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(player_body_tests
+        tests/player_body_tests.c
+        src/player/player_body.c
+        src/collision/aabb.c
+        src/common/camera.c
+        src/common/math.c
+    )
+    target_include_directories(player_body_tests PRIVATE
+        include src/collision src/player
+    )
+    target_compile_features(player_body_tests PRIVATE c_std_11)
+    set_target_properties(player_body_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(player_movement_tests
+        tests/player_movement_tests.c
+        src/player/player_movement.c
+        src/player/player_body.c
+        src/collision/aabb.c
+        src/collision/collision_world.c
+        src/input/input.c
+        src/common/math.c
+    )
+    target_include_directories(player_movement_tests PRIVATE
+        include src/common src/collision src/input src/player
+    )
+    target_compile_features(player_movement_tests PRIVATE c_std_11)
+    set_target_properties(player_movement_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(collision_tests
+        tests/collision_tests.c
+        src/collision/aabb.c
+        src/collision/collision_world.c
+        src/player/player_body.c
+        src/common/math.c
+    )
+    target_include_directories(collision_tests PRIVATE
+        include src/collision src/player
+    )
+    target_compile_features(collision_tests PRIVATE c_std_11)
+    set_target_properties(collision_tests PROPERTIES C_EXTENSIONS OFF)
+
     if(NOT WIN32)
         target_link_libraries(math_tests PRIVATE m)
         target_link_libraries(camera_tests PRIVATE m)
         target_link_libraries(fps_camera_controller_tests PRIVATE m)
+        target_link_libraries(player_body_tests PRIVATE m)
+        target_link_libraries(player_movement_tests PRIVATE m)
+        target_link_libraries(collision_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -152,6 +202,15 @@ if(BUILD_TESTING)
         target_compile_options(mouse_source_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(player_body_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(player_movement_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(collision_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
@@ -160,4 +219,7 @@ if(BUILD_TESTING)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)
     add_test(NAME relative_mouse_source COMMAND mouse_source_tests)
+    add_test(NAME player_body_foundation COMMAND player_body_tests)
+    add_test(NAME player_movement_foundation COMMAND player_movement_tests)
+    add_test(NAME collision_foundation COMMAND collision_tests)
 endif()
