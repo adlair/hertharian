@@ -5,12 +5,9 @@
 #include "hth_input.h"
 #include "hth_math.h"
 #include "player_body.h"
+#include "player_locomotion.h"
 
 #include <stdbool.h>
-
-typedef struct {
-    HTHVec3 direction;
-} HTHPlayerMovementIntent;
 
 bool hth_player_movement_build_intent(const HTHInput *input,
                                       HTHVec3 view_forward,
@@ -21,5 +18,11 @@ bool hth_player_movement_step(HTHPlayerBody *body,
                               const HTHCollisionWorld *world,
                               const HTHPlayerMovementIntent *intent,
                               double delta_seconds);
+bool hth_player_movement_step_with_config(
+    HTHPlayerBody *body,
+    const HTHCollisionWorld *world,
+    const HTHMovementConfig *config,
+    const HTHPlayerMovementIntent *intent,
+    double delta_seconds);
 
 #endif

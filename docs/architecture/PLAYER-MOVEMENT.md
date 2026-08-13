@@ -1,15 +1,17 @@
 # Player Movement
 
-The W/S/A/D intent contract from v0.1.7 is unchanged. W/S use camera forward
+The W/S/A/D spatial convention from v0.1.7 is unchanged. W/S use camera forward
 projected onto XZ; A/D use `horizontal_forward × up`; pitch is ignored and
-combined intent is normalized. Movement remains enabled only during FPS pointer
-capture, and focus loss clears held Input state.
+combined intent is normalized. v0.1.9 also retains wish magnitude and consumes
+Space's pressed transition for jump. Movement intent remains enabled only
+during FPS pointer capture, and focus loss clears held Input state.
 
-Horizontal velocity is still assigned directly at 4 world units per second,
-including while airborne, and becomes zero without intent. There is no
-acceleration, friction, air-acceleration, or jump. Gravity remains -9.81 world
-units per second squared with semi-implicit Euler, and only movement clamps a
-frame delta above 0.1 seconds.
+The direct horizontal-velocity assignment from v0.1.8 is replaced by the
+ground/air acceleration model documented in `LOCOMOTION.md`. Player Movement
+consumes a per-instance MovementConfig, generates velocity through friction,
+directional acceleration, jump and gravity, then passes that velocity to the
+unchanged collision-resolution responsibilities below. Existing world-space
+momentum is not rotated with Camera yaw or globally clamped to ground speed.
 
 ## Trace-Based Resolution
 
@@ -32,8 +34,10 @@ velocity. Grounded movement may explicitly step up or down by at most 0.30
 units. Step-up requires upward clearance, trace-based horizontal progress,
 valid +Y support, and more horizontal progress than ordinary slide. Step-down
 snaps only a previously grounded body within that range. Airborne bodies never
-step, and larger drops fall under gravity.
+step, and larger drops fall under gravity. An accepted jump is airborne
+immediately, skips ground snap while ascending, and cannot attempt step-up or
+step-down that frame.
 
 This remains local variable-delta bootstrap movement, not a fixed simulation
-tick or a claim of network determinism. It has no Quake movement dynamics,
-walkable slopes, crouch, jump, or gameplay binding layer.
+tick or a claim of network determinism. It has no advanced Quake air control,
+walkable slopes, crouch, sprint, or gameplay binding layer.

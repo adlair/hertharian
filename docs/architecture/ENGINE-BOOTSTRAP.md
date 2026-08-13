@@ -57,7 +57,8 @@ The current frame order is:
 ```text
 Timing begin → Input begin → Platform events → Input state
 → capture coordination → FPS orientation → movement intent
-→ horizontal velocity/gravity → swept slide/step movement → ground probe
+→ locomotion friction/acceleration/jump/gravity
+→ swept slide/step movement → ground probe
 → resolved Player Body → Camera follow
 → Renderer camera → render/present → work measurement → pacing
 → Input end → Timing finish

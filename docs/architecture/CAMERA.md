@@ -36,6 +36,9 @@ After collision resolution, Camera position follows body position plus the
 1.60-unit eye offset. Rotating Camera does not rotate or translate the body.
 Explicit v0.1.8 step-up and step-down therefore move Camera by exactly the
 resolved Body height; smoothing, bobbing, and interpolation remain absent.
+v0.1.9 jump and landing likewise change `body.position.y`, and Camera follows
+that resolved height immediately. No landing kick, jump smoothing, or view
+effect is added.
 
 ## Bootstrap Capture Policy
 
@@ -61,5 +64,5 @@ design.
 
 The v0.1.6 controller could produce free-camera navigation. v0.1.7 keeps its
 orientation and capture responsibilities while Player Body and Player Movement
-own translation. Jump, vertical controls, gameplay entities, and semantic
-bindings remain deliberately absent.
+own translation. v0.1.9 gives Player Movement a Space jump while capture is
+active; gameplay entities and a semantic binding system remain absent.

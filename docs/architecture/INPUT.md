@@ -40,6 +40,11 @@ Camera orientation and applies variable-delta motion to Player Body; the FPS
 controller no longer translates Camera directly. Input remains unaware of
 Player Body and Collision.
 
+v0.1.9 additionally consumes Space's `pressed` edge as the bootstrap jump
+request while capture is active. It intentionally does not use held `down`, so
+holding Space through landing cannot auto-jump. This is still direct bootstrap
+physical-key consumption, not an action-map or binding system.
+
 The engine coordinates a temporary bootstrap capture policy: left click
 enables relative mode and Escape disables it. Capture transitions clear Input's
 current mouse delta and discard relative-motion events for the remainder of the

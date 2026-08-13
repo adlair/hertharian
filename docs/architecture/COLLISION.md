@@ -6,6 +6,11 @@ Movement submits an origin, destination, and local volume to Collision; it does
 not iterate or resolve `CollisionWorld` obstacle storage. Trace details and the
 result contract are documented in `COLLISION-TRACES.md`.
 
+As of v0.1.9, Locomotion owns ground friction, directional ground/air
+acceleration, gravity, and jump. Collision owns none of that policy: it only
+constrains generated velocity and movement geometrically, and its clipped
+velocity remains the Player Body's physical truth.
+
 ## Slide Movement
 
 Player Movement traces `velocity * remaining_time`, moves to the earliest

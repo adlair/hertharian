@@ -12,14 +12,11 @@ typedef struct {
     bool start_solid;
 } HTHSlideResult;
 
-static const float move_speed = 4.0F;
-static const float gravity = -9.81F;
 static const float step_height = 0.30F;
 static const float ground_probe_distance = 0.04F;
 static const float plane_epsilon = 1.0e-4F;
 static const float progress_epsilon = 1.0e-6F;
 static const float surface_offset = 1.0e-5F;
-static const double maximum_delta_seconds = 0.1;
 
 static void body_extents(const HTHPlayerBody *body, HTHVec3 *mins,
                          HTHVec3 *maxs)
@@ -243,11 +240,14 @@ bool hth_player_movement_build_intent(const HTHInput *input,
     HTHVec3 horizontal_forward;
     HTHVec3 direction = {0.0F, 0.0F, 0.0F};
     HTHVec3 right;
+    float magnitude;
 
     if (input == NULL || out_intent == NULL) {
         return false;
     }
     out_intent->direction = direction;
+    out_intent->magnitude = 0.0F;
+    out_intent->jump_pressed = false;
     horizontal_forward = hth_vec3(view_forward.x, 0.0F, view_forward.z);
     if (!hth_vec3_normalize(horizontal_forward, &horizontal_forward) ||
         !hth_vec3_normalize(
@@ -257,6 +257,7 @@ bool hth_player_movement_build_intent(const HTHInput *input,
     if (!movement_enabled) {
         return true;
     }
+    out_intent->jump_pressed = hth_input_key_pressed(input, HTH_KEY_SPACE);
     if (hth_input_key_down(input, HTH_KEY_W)) {
         direction = hth_vec3_add(direction, horizontal_forward);
     }
@@ -269,8 +270,81 @@ bool hth_player_movement_build_intent(const HTHInput *input,
     if (hth_input_key_down(input, HTH_KEY_A)) {
         direction = hth_vec3_subtract(direction, right);
     }
+    magnitude = hth_vec3_length(direction);
+    if (magnitude > 1.0F) {
+        magnitude = 1.0F;
+    }
     if (hth_vec3_normalize(direction, &direction)) {
         out_intent->direction = direction;
+        out_intent->magnitude = magnitude;
+    }
+    return true;
+}
+
+bool hth_player_movement_step_with_config(
+    HTHPlayerBody *body,
+    const HTHCollisionWorld *world,
+    const HTHMovementConfig *config,
+    const HTHPlayerMovementIntent *intent,
+    double delta_seconds)
+{
+    HTHPlayerBody movement_start;
+    HTHPlayerBody normal_result;
+    HTHPlayerBody step_result;
+    HTHSlideResult slide_result;
+    bool grounded;
+    bool jump_started;
+    bool step_accepted = false;
+    bool was_grounded;
+    float delta;
+    float normal_progress;
+
+    if (!hth_player_body_is_valid(body) ||
+        !hth_collision_world_is_valid(world) ||
+        !hth_movement_config_is_valid(config) || intent == NULL ||
+        !isfinite(delta_seconds) || delta_seconds < 0.0) {
+        return false;
+    }
+    was_grounded = body->grounded;
+    if (!hth_player_locomotion_update(body, config, intent, delta_seconds,
+                                      &jump_started)) {
+        return false;
+    }
+    if (delta_seconds == 0.0) {
+        return true;
+    }
+    if (delta_seconds > 0.1) {
+        delta_seconds = 0.1;
+    }
+    delta = (float)delta_seconds;
+    movement_start = *body;
+    normal_result = *body;
+    if (!slide_move(&normal_result, world, delta, &slide_result)) {
+        return false;
+    }
+    normal_progress = horizontal_progress_squared(
+        movement_start.position, normal_result.position);
+    if (was_grounded && !jump_started &&
+        slide_result.blocked_horizontal &&
+        (movement_start.velocity.x != 0.0F ||
+         movement_start.velocity.z != 0.0F) &&
+        !attempt_step(&movement_start, world, delta, normal_progress,
+                      &step_result, &step_accepted)) {
+        return false;
+    }
+    *body = step_accepted ? step_result : normal_result;
+    if (!step_accepted) {
+        float probe_distance = was_grounded && !jump_started
+            ? step_height + ground_probe_distance
+            : ground_probe_distance;
+        if (body->velocity.y > 0.0F) {
+            body->grounded = false;
+        } else if (!trace_down_to_ground(
+                       body, world, probe_distance, &grounded)) {
+            return false;
+        } else {
+            body->grounded = grounded;
+        }
     }
     return true;
 }
@@ -280,61 +354,8 @@ bool hth_player_movement_step(HTHPlayerBody *body,
                               const HTHPlayerMovementIntent *intent,
                               double delta_seconds)
 {
-    HTHPlayerBody movement_start;
-    HTHPlayerBody normal_result;
-    HTHPlayerBody step_result;
-    HTHSlideResult slide_result;
-    bool grounded;
-    bool step_accepted = false;
-    bool was_grounded;
-    float delta;
-    float normal_progress;
+    HTHMovementConfig config = hth_movement_config_default();
 
-    if (!hth_player_body_is_valid(body) ||
-        !hth_collision_world_is_valid(world) || intent == NULL ||
-        !isfinite(intent->direction.x) ||
-        !isfinite(intent->direction.y) ||
-        !isfinite(intent->direction.z) || !isfinite(delta_seconds) ||
-        delta_seconds < 0.0) {
-        return false;
-    }
-    body->velocity.x = intent->direction.x * move_speed;
-    body->velocity.z = intent->direction.z * move_speed;
-    if (delta_seconds == 0.0) {
-        return true;
-    }
-    if (delta_seconds > maximum_delta_seconds) {
-        delta_seconds = maximum_delta_seconds;
-    }
-    delta = (float)delta_seconds;
-    was_grounded = body->grounded;
-    if (was_grounded) {
-        body->velocity.y = 0.0F;
-    }
-    body->velocity.y += gravity * delta;
-    movement_start = *body;
-    normal_result = *body;
-    if (!slide_move(&normal_result, world, delta, &slide_result)) {
-        return false;
-    }
-    normal_progress = horizontal_progress_squared(
-        movement_start.position, normal_result.position);
-    if (was_grounded && slide_result.blocked_horizontal &&
-        (movement_start.velocity.x != 0.0F ||
-         movement_start.velocity.z != 0.0F) &&
-        !attempt_step(&movement_start, world, delta, normal_progress,
-                      &step_result, &step_accepted)) {
-        return false;
-    }
-    *body = step_accepted ? step_result : normal_result;
-    if (!step_accepted) {
-        float probe_distance = was_grounded
-            ? step_height + ground_probe_distance
-            : ground_probe_distance;
-        if (!trace_down_to_ground(body, world, probe_distance, &grounded)) {
-            return false;
-        }
-        body->grounded = grounded;
-    }
-    return true;
+    return hth_player_movement_step_with_config(
+        body, world, &config, intent, delta_seconds);
 }

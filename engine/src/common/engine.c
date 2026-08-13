@@ -19,6 +19,7 @@
 
 struct HTHEnginePhysicalState {
     HTHPlayerBody body;
+    HTHMovementConfig movement_config;
     HTHCollisionWorld collision_world;
 };
 
@@ -126,7 +127,13 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         return false;
     }
     engine->physical_state = calloc(1, sizeof(*engine->physical_state));
+    if (engine->physical_state != NULL) {
+        engine->physical_state->movement_config =
+            hth_movement_config_default();
+    }
     if (engine->physical_state == NULL ||
+        !hth_movement_config_is_valid(
+            &engine->physical_state->movement_config) ||
         !hth_player_body_init(&engine->physical_state->body,
                               hth_vec3(0.0F, 0.05F, 3.0F)) ||
         !hth_collision_world_init_bootstrap(
@@ -134,7 +141,8 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         !physical_state_spawn_is_clear(engine->physical_state) ||
         !hth_player_body_eye_position(&engine->physical_state->body,
                                       &engine->camera.position)) {
-        fputs("Failed to initialize player body or collision world.\n", stderr);
+        fputs("Failed to initialize player movement physical state.\n",
+              stderr);
         destroy_physical_state(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
@@ -311,9 +319,10 @@ void hth_engine_frame(HTHEngine *engine)
             hth_fps_camera_controller_capture_active(
                 engine->camera_controller),
             &movement_intent) ||
-        !hth_player_movement_step(
+        !hth_player_movement_step_with_config(
             &engine->physical_state->body,
-            &engine->physical_state->collision_world, &movement_intent,
+            &engine->physical_state->collision_world,
+            &engine->physical_state->movement_config, &movement_intent,
             hth_timing_delta_seconds(engine->timing)) ||
         !hth_player_body_eye_position(&engine->physical_state->body,
                                       &engine->camera.position)) {
