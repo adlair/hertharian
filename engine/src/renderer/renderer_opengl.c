@@ -28,6 +28,7 @@ typedef struct {
     PFNGLDELETEPROGRAMPROC delete_program;
     PFNGLGETUNIFORMLOCATIONPROC get_uniform_location;
     PFNGLUNIFORMMATRIX4FVPROC uniform_matrix_4fv;
+    PFNGLUNIFORM4FVPROC uniform_4fv;
     PFNGLGENVERTEXARRAYSPROC gen_vertex_arrays;
     PFNGLBINDVERTEXARRAYPROC bind_vertex_array;
     PFNGLDELETEVERTEXARRAYSPROC delete_vertex_arrays;
@@ -54,6 +55,7 @@ struct HTHOpenGLBackend {
     GLint model_location;
     GLint view_location;
     GLint projection_location;
+    GLint color_location;
     HTHMat4 bootstrap_models[HTH_COLLISION_WORLD_MAX_OBSTACLES];
     size_t bootstrap_model_count;
     uint32_t framebuffer_width;
@@ -74,11 +76,26 @@ static const GLchar vertex_shader_source[] =
 
 static const GLchar fragment_shader_source[] =
     "#version 330 core\n"
+    "uniform vec4 u_color;\n"
     "out vec4 fragment_color;\n"
     "void main()\n"
     "{\n"
-    "    fragment_color = vec4(0.80, 0.25, 0.40, 1.0);\n"
+    "    fragment_color = u_color;\n"
     "}\n";
+
+/* Bootstrap diagnostic visualization, indexed like bootstrap Collision World. */
+static const GLfloat bootstrap_diagnostic_colors[][4] = {
+    {0.22F, 0.24F, 0.28F, 1.0F}, /* floor: neutral dark gray */
+    {0.30F, 0.45F, 0.62F, 1.0F}, /* left wall: cool blue-gray */
+    {0.30F, 0.45F, 0.62F, 1.0F}, /* right wall: cool blue-gray */
+    {0.55F, 0.28F, 0.75F, 1.0F}, /* inside-corner wall: violet */
+    {0.18F, 0.78F, 0.32F, 1.0F}, /* low step 0.20: green */
+    {0.95F, 0.30F, 0.12F, 1.0F}, /* high ledge 0.60: orange-red */
+    {0.90F, 0.20F, 0.48F, 1.0F}, /* generic box: pink-red */
+    {1.00F, 0.72F, 0.10F, 1.0F}, /* exact step 0.30: gold */
+    {0.16F, 0.68F, 0.78F, 1.0F}, /* corridor/platform: cyan */
+    {0.48F, 0.30F, 0.72F, 1.0F}, /* corridor corner: purple */
+};
 
 static const HTHBootstrapVertex bootstrap_vertices[] = {
     {{-0.5F, -0.5F,  0.5F}}, {{ 0.5F, -0.5F,  0.5F}}, {{ 0.5F,  0.5F,  0.5F}},
@@ -146,6 +163,8 @@ static bool load_gl_functions(HTHOpenGLBackend *backend)
                          PFNGLGETUNIFORMLOCATIONPROC, "glGetUniformLocation");
     HTH_LOAD_GL_FUNCTION(backend, uniform_matrix_4fv,
                          PFNGLUNIFORMMATRIX4FVPROC, "glUniformMatrix4fv");
+    HTH_LOAD_GL_FUNCTION(backend, uniform_4fv,
+                         PFNGLUNIFORM4FVPROC, "glUniform4fv");
     HTH_LOAD_GL_FUNCTION(backend, gen_vertex_arrays,
                          PFNGLGENVERTEXARRAYSPROC, "glGenVertexArrays");
     HTH_LOAD_GL_FUNCTION(backend, bind_vertex_array,
@@ -313,6 +332,13 @@ static bool create_bootstrap_models(
         return false;
     }
     backend->bootstrap_model_count = collision_world->obstacle_count;
+    if (backend->bootstrap_model_count >
+        sizeof(bootstrap_diagnostic_colors) /
+            sizeof(bootstrap_diagnostic_colors[0])) {
+        fputs("Renderer initialization failed: missing bootstrap diagnostic "
+              "color.\n", stderr);
+        return false;
+    }
     for (index = 0; index < backend->bootstrap_model_count; ++index) {
         const HTHAABB *bounds = &collision_world->obstacles[index];
         HTHMat4 model = hth_mat4_identity();
@@ -366,13 +392,15 @@ static bool cache_uniform_locations(HTHOpenGLBackend *backend)
         backend->gl.get_uniform_location(backend->program, "u_view");
     backend->projection_location =
         backend->gl.get_uniform_location(backend->program, "u_projection");
+    backend->color_location =
+        backend->gl.get_uniform_location(backend->program, "u_color");
     if (backend->model_location < 0 || backend->view_location < 0 ||
-        backend->projection_location < 0) {
+        backend->projection_location < 0 || backend->color_location < 0) {
         fprintf(stderr,
-                "Renderer initialization failed: required MVP uniform "
-                "missing (model=%d, view=%d, projection=%d).\n",
+                "Renderer initialization failed: required uniform missing "
+                "(model=%d, view=%d, projection=%d, color=%d).\n",
                 backend->model_location, backend->view_location,
-                backend->projection_location);
+                backend->projection_location, backend->color_location);
         return false;
     }
     return true;
@@ -499,6 +527,9 @@ bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
         backend->gl.uniform_matrix_4fv(
             backend->model_location, 1, GL_FALSE,
             backend->bootstrap_models[index].elements);
+        backend->gl.uniform_4fv(
+            backend->color_location, 1,
+            bootstrap_diagnostic_colors[index]);
         backend->gl.draw_arrays(
             GL_TRIANGLES, 0,
             (GLsizei)(sizeof(bootstrap_vertices) /

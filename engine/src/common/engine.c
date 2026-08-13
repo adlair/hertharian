@@ -4,6 +4,7 @@
 #include "hth_timing.h"
 #include "hth_version.h"
 #include "fps_camera_controller.h"
+#include "collision_trace.h"
 #include "collision_world.h"
 #include "input_internal.h"
 #include "platform.h"
@@ -20,6 +21,21 @@ struct HTHEnginePhysicalState {
     HTHPlayerBody body;
     HTHCollisionWorld collision_world;
 };
+
+static bool physical_state_spawn_is_clear(
+    const struct HTHEnginePhysicalState *state)
+{
+    HTHTrace trace;
+    HTHVec3 mins = hth_vec3(-state->body.half_width, 0.0F,
+                            -state->body.half_width);
+    HTHVec3 maxs = hth_vec3(state->body.half_width, state->body.height,
+                            state->body.half_width);
+
+    return hth_collision_world_trace_aabb(
+               &state->collision_world, state->body.position,
+               state->body.position, mins, maxs, &trace) &&
+           !trace.start_solid;
+}
 
 static void destroy_physical_state(HTHEngine *engine)
 {
@@ -115,9 +131,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
                               hth_vec3(0.0F, 0.05F, 3.0F)) ||
         !hth_collision_world_init_bootstrap(
             &engine->physical_state->collision_world) ||
-        hth_collision_world_body_penetrates(
-            &engine->physical_state->collision_world,
-            &engine->physical_state->body) ||
+        !physical_state_spawn_is_clear(engine->physical_state) ||
         !hth_player_body_eye_position(&engine->physical_state->body,
                                       &engine->camera.position)) {
         fputs("Failed to initialize player body or collision world.\n", stderr);

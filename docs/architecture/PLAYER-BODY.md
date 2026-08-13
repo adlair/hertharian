@@ -15,10 +15,9 @@ max = (x + half_width, y + height, z + half_width)
 
 The baseline body has half-width 0.30, height 1.80, and eye height 1.60 world
 units. Eye height must be greater than zero and lower than body height. Linear
-velocity is a three-component world-space vector. `grounded` means vertical
-resolution found supporting static geometry while descending; simple gravity
-re-establishes this contact each moving frame without treating face contact as
-penetration.
+velocity is a three-component world-space vector. As of v0.1.8, `grounded`
+means the post-movement AABB probe found immediate +Y support. Slide planes and
+step candidates are temporary Movement state and are not stored in Body.
 
 After physical resolution, the engine places the camera at:
 

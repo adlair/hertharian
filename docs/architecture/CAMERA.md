@@ -34,6 +34,8 @@ W/S/A/D now feed Player Movement. That subsystem derives its horizontal basis
 from camera orientation but moves Player Body, never `HTHCamera` directly.
 After collision resolution, Camera position follows body position plus the
 1.60-unit eye offset. Rotating Camera does not rotate or translate the body.
+Explicit v0.1.8 step-up and step-down therefore move Camera by exactly the
+resolved Body height; smoothing, bobbing, and interpolation remain absent.
 
 ## Bootstrap Capture Policy
 

@@ -1,6 +1,7 @@
 #include "event.h"
 #include "input_internal.h"
 #include "player_movement.h"
+#include "collision_trace.h"
 
 #include <assert.h>
 #include <math.h>
@@ -8,6 +9,18 @@
 static bool close_enough(float left, float right)
 {
     return fabsf(left - right) <= 1.0e-4F;
+}
+
+static bool body_penetrates(const HTHCollisionWorld *world,
+                            const HTHPlayerBody *body)
+{
+    HTHTrace trace;
+    HTHVec3 mins = {-body->half_width, 0.0F, -body->half_width};
+    HTHVec3 maxs = {body->half_width, body->height, body->half_width};
+
+    assert(hth_collision_world_trace_aabb(
+        world, body->position, body->position, mins, maxs, &trace));
+    return trace.start_solid;
 }
 
 static HTHCollisionWorld floor_and_box_world(void)
@@ -19,6 +32,21 @@ static HTHCollisionWorld floor_and_box_world(void)
     };
     world.obstacles[1] = (HTHAABB){
         {-1.0F, 0.0F, -2.0F}, {1.0F, 1.0F, -1.0F}
+    };
+    world.obstacle_count = 2;
+    assert(hth_collision_world_is_valid(&world));
+    return world;
+}
+
+static HTHCollisionWorld floor_and_step_world(float height)
+{
+    HTHCollisionWorld world = {0};
+
+    world.obstacles[0] = (HTHAABB){
+        {-10.0F, -1.0F, -10.0F}, {10.0F, 0.0F, 10.0F}
+    };
+    world.obstacles[1] = (HTHAABB){
+        {-1.0F, 0.0F, -1.0F}, {1.0F, height, -0.4F}
     };
     world.obstacle_count = 2;
     assert(hth_collision_world_is_valid(&world));
@@ -126,7 +154,7 @@ static void test_gravity_lands_on_floor(void)
     assert(body.grounded);
     assert(close_enough(body.position.y, 0.0F));
     assert(close_enough(body.velocity.y, 0.0F));
-    assert(!hth_collision_world_body_penetrates(&world, &body));
+    assert(!body_penetrates(&world, &body));
     assert(hth_player_movement_step(&body, &world, &none, 1.0 / 60.0));
     assert(body.grounded);
     assert(close_enough(body.position.y, 0.0F));
@@ -145,7 +173,7 @@ static void test_repeated_side_push_does_not_step_up(void)
         assert(hth_player_movement_step(
             &body, &world, &forward, 1.0 / 60.0));
         assert(close_enough(body.position.y, 0.0F));
-        assert(!hth_collision_world_body_penetrates(&world, &body));
+        assert(!body_penetrates(&world, &body));
     }
     assert(close_enough(body.position.z, -0.7F));
     assert(body.grounded);
@@ -164,7 +192,7 @@ static void test_diagonal_push_slides_without_step_up(void)
         assert(hth_player_movement_step(
             &body, &world, &diagonal, 1.0 / 60.0));
         assert(close_enough(body.position.y, 0.0F));
-        assert(!hth_collision_world_body_penetrates(&world, &body));
+        assert(!body_penetrates(&world, &body));
     }
     assert(body.position.x > 1.3F);
     assert(body.position.z < -0.7F);
@@ -185,7 +213,7 @@ static void test_true_box_landing_from_above(void)
     assert(body.grounded);
     assert(close_enough(body.position.y, 1.0F));
     assert(close_enough(body.velocity.y, 0.0F));
-    assert(!hth_collision_world_body_penetrates(&world, &body));
+    assert(!body_penetrates(&world, &body));
 }
 
 static void test_floor_ground_stability(void)
@@ -210,6 +238,235 @@ static void test_floor_ground_stability(void)
     }
 }
 
+static void test_wall_slide_and_repeated_push(void)
+{
+    HTHCollisionWorld world = {0};
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent diagonal = {{0.70710677F, 0.0F, -0.70710677F}};
+    HTHPlayerMovementIntent into_wall = {{1.0F, 0.0F, 0.0F}};
+    unsigned int step;
+
+    world.obstacles[0] = (HTHAABB){
+        {-10.0F, -1.0F, -10.0F}, {10.0F, 0.0F, 10.0F}
+    };
+    world.obstacles[1] = (HTHAABB){
+        {1.0F, 0.0F, -10.0F}, {2.0F, 3.0F, 10.0F}
+    };
+    world.obstacle_count = 2;
+    assert(hth_player_body_init(&body, hth_vec3(0.6F, 0.0F, 0.0F)));
+    body.grounded = true;
+    for (step = 0; step < 30; ++step) {
+        assert(hth_player_movement_step(
+            &body, &world, &diagonal, 1.0 / 60.0));
+    }
+    assert(close_enough(body.position.x, 0.7F));
+    assert(body.position.z < -1.0F);
+    assert(!body_penetrates(&world, &body));
+    for (step = 0; step < 300; ++step) {
+        assert(hth_player_movement_step(
+            &body, &world, &into_wall, 1.0 / 60.0));
+        assert(close_enough(body.position.x, 0.7F));
+        assert(close_enough(body.position.y, 0.0F));
+        assert(!body_penetrates(&world, &body));
+    }
+}
+
+static void test_inside_corner_stability(void)
+{
+    HTHCollisionWorld world = {0};
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent diagonal = {{0.70710677F, 0.0F, -0.70710677F}};
+    unsigned int step;
+
+    world.obstacles[0] = (HTHAABB){
+        {-10.0F, -1.0F, -10.0F}, {10.0F, 0.0F, 10.0F}
+    };
+    world.obstacles[1] = (HTHAABB){
+        {1.0F, 0.0F, -10.0F}, {2.0F, 3.0F, 10.0F}
+    };
+    world.obstacles[2] = (HTHAABB){
+        {-10.0F, 0.0F, -2.0F}, {2.0F, 3.0F, -1.0F}
+    };
+    world.obstacle_count = 3;
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.0F, 0.0F)));
+    body.grounded = true;
+    for (step = 0; step < 300; ++step) {
+        assert(hth_player_movement_step(
+            &body, &world, &diagonal, 1.0 / 60.0));
+        assert(!body_penetrates(&world, &body));
+    }
+    assert(close_enough(body.position.x, 0.7F));
+    assert(close_enough(body.position.z, -0.7F));
+    assert(close_enough(body.velocity.x, 0.0F));
+    assert(close_enough(body.velocity.z, 0.0F));
+}
+
+static void assert_step_height_result(float obstacle_height,
+                                      bool should_step)
+{
+    HTHCollisionWorld world = floor_and_step_world(obstacle_height);
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent forward = {{0.0F, 0.0F, -1.0F}};
+
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.0F, 0.0F)));
+    body.grounded = true;
+    assert(hth_player_movement_step(&body, &world, &forward, 0.1));
+    assert(!body_penetrates(&world, &body));
+    if (should_step) {
+        assert(close_enough(body.position.y, obstacle_height));
+        assert(body.position.z < -0.1F);
+        assert(body.grounded);
+    } else {
+        assert(close_enough(body.position.y, 0.0F));
+        assert(close_enough(body.position.z, -0.1F));
+    }
+}
+
+static void test_low_exact_and_high_steps(void)
+{
+    assert_step_height_result(0.20F, true);
+    assert_step_height_result(0.30F, true);
+    assert_step_height_result(0.60F, false);
+}
+
+static void test_step_requires_head_clearance(void)
+{
+    HTHCollisionWorld world = floor_and_step_world(0.20F);
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent forward = {{0.0F, 0.0F, -1.0F}};
+
+    world.obstacles[2] = (HTHAABB){
+        {-2.0F, 1.90F, -2.0F}, {2.0F, 2.20F, 1.0F}
+    };
+    world.obstacle_count = 3;
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.0F, 0.0F)));
+    body.grounded = true;
+    assert(hth_player_movement_step(&body, &world, &forward, 0.1));
+    assert(close_enough(body.position.y, 0.0F));
+    assert(close_enough(body.position.z, -0.1F));
+    assert(!body_penetrates(&world, &body));
+}
+
+static void test_step_requires_better_progress(void)
+{
+    HTHCollisionWorld world = floor_and_step_world(0.20F);
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent forward = {{0.0F, 0.0F, -1.0F}};
+
+    world.obstacles[2] = (HTHAABB){
+        {-1.0F, 0.0F, -1.0F}, {1.0F, 3.0F, -0.4F}
+    };
+    world.obstacle_count = 3;
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.0F, 0.0F)));
+    body.grounded = true;
+    assert(hth_player_movement_step(&body, &world, &forward, 0.1));
+    assert(close_enough(body.position.y, 0.0F));
+    assert(close_enough(body.position.z, -0.1F));
+    assert(!body_penetrates(&world, &body));
+}
+
+static void test_airborne_body_does_not_step(void)
+{
+    HTHCollisionWorld world = floor_and_step_world(0.20F);
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent forward = {{0.0F, 0.0F, -1.0F}};
+
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.05F, 0.0F)));
+    body.grounded = false;
+    assert(hth_player_movement_step(&body, &world, &forward, 0.1));
+    assert(body.position.y < 0.20F);
+    assert(!body_penetrates(&world, &body));
+}
+
+static void test_step_down_preserves_ground(void)
+{
+    HTHCollisionWorld world = {0};
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent forward = {{0.0F, 0.0F, -1.0F}};
+    unsigned int step;
+
+    world.obstacles[0] = (HTHAABB){
+        {-10.0F, -1.0F, -10.0F}, {10.0F, 0.0F, 10.0F}
+    };
+    world.obstacles[1] = (HTHAABB){
+        {-2.0F, 0.0F, -0.2F}, {2.0F, 0.20F, 2.0F}
+    };
+    world.obstacle_count = 2;
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.20F, 0.3F)));
+    body.grounded = true;
+    for (step = 0; step < 20 && body.position.y > 0.0F; ++step) {
+        assert(hth_player_movement_step(
+            &body, &world, &forward, 1.0 / 60.0));
+    }
+    assert(close_enough(body.position.y, 0.0F));
+    assert(body.grounded);
+    assert(!body_penetrates(&world, &body));
+}
+
+static void test_large_drop_does_not_snap(void)
+{
+    HTHCollisionWorld world = {0};
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent forward = {{0.0F, 0.0F, -1.0F}};
+    unsigned int step;
+
+    world.obstacles[0] = (HTHAABB){
+        {-10.0F, -1.0F, -10.0F}, {10.0F, 0.0F, 10.0F}
+    };
+    world.obstacles[1] = (HTHAABB){
+        {-2.0F, 0.0F, -0.2F}, {2.0F, 0.60F, 2.0F}
+    };
+    world.obstacle_count = 2;
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.60F, 0.3F)));
+    body.grounded = true;
+    for (step = 0; step < 20 && body.grounded; ++step) {
+        assert(hth_player_movement_step(
+            &body, &world, &forward, 1.0 / 60.0));
+    }
+    assert(!body.grounded);
+    assert(body.position.y > 0.30F);
+    assert(!body_penetrates(&world, &body));
+}
+
+static void test_start_solid_stops_safely(void)
+{
+    HTHCollisionWorld world = floor_and_step_world(0.60F);
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent forward = {{0.0F, 0.0F, -1.0F}};
+
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.1F, -0.7F)));
+    body.grounded = false;
+    assert(body_penetrates(&world, &body));
+    assert(hth_player_movement_step(&body, &world, &forward, 0.1));
+    assert(close_enough(body.velocity.x, 0.0F));
+    assert(close_enough(body.velocity.y, 0.0F));
+    assert(close_enough(body.velocity.z, 0.0F));
+    assert(isfinite(body.position.x));
+    assert(isfinite(body.position.y));
+    assert(isfinite(body.position.z));
+}
+
+static void test_camera_eye_follows_step_up_and_down(void)
+{
+    HTHCollisionWorld world = floor_and_step_world(0.20F);
+    HTHPlayerBody body;
+    HTHPlayerMovementIntent forward = {{0.0F, 0.0F, -1.0F}};
+    HTHVec3 eye;
+    unsigned int step;
+
+    assert(hth_player_body_init(&body, hth_vec3(0.0F, 0.0F, 0.0F)));
+    body.grounded = true;
+    assert(hth_player_movement_step(&body, &world, &forward, 0.1));
+    assert(hth_player_body_eye_position(&body, &eye));
+    assert(close_enough(eye.y, 1.80F));
+    for (step = 0; step < 20 && body.position.y > 0.0F; ++step) {
+        assert(hth_player_movement_step(
+            &body, &world, &forward, 1.0 / 60.0));
+    }
+    assert(hth_player_body_eye_position(&body, &eye));
+    assert(close_enough(eye.y, 1.60F));
+}
+
 int main(void)
 {
     test_intent();
@@ -219,5 +476,15 @@ int main(void)
     test_diagonal_push_slides_without_step_up();
     test_true_box_landing_from_above();
     test_floor_ground_stability();
+    test_wall_slide_and_repeated_push();
+    test_inside_corner_stability();
+    test_low_exact_and_high_steps();
+    test_step_requires_head_clearance();
+    test_step_requires_better_progress();
+    test_airborne_body_does_not_step();
+    test_step_down_preserves_ground();
+    test_large_drop_does_not_snap();
+    test_start_solid_stops_safely();
+    test_camera_eye_follows_step_up_and_down();
     return 0;
 }

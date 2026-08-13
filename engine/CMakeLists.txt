@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.1.7 LANGUAGES C)
+project(hertharian-engine VERSION 0.1.8 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -19,6 +19,7 @@ add_executable(hertharian-engine
     src/common/fps_camera_controller.c
     src/common/timing.c
     src/collision/aabb.c
+    src/collision/collision_trace.c
     src/collision/collision_world.c
     src/input/input.c
     src/player/player_body.c
@@ -151,6 +152,7 @@ if(BUILD_TESTING)
         src/player/player_movement.c
         src/player/player_body.c
         src/collision/aabb.c
+        src/collision/collision_trace.c
         src/collision/collision_world.c
         src/input/input.c
         src/common/math.c
@@ -165,14 +167,25 @@ if(BUILD_TESTING)
         tests/collision_tests.c
         src/collision/aabb.c
         src/collision/collision_world.c
-        src/player/player_body.c
-        src/common/math.c
     )
     target_include_directories(collision_tests PRIVATE
-        include src/collision src/player
+        include src/collision
     )
     target_compile_features(collision_tests PRIVATE c_std_11)
     set_target_properties(collision_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(collision_trace_tests
+        tests/collision_trace_tests.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+    )
+    target_include_directories(collision_trace_tests PRIVATE
+        include src/collision
+    )
+    target_compile_features(collision_trace_tests PRIVATE c_std_11)
+    set_target_properties(collision_trace_tests PROPERTIES C_EXTENSIONS OFF)
 
     if(NOT WIN32)
         target_link_libraries(math_tests PRIVATE m)
@@ -180,7 +193,7 @@ if(BUILD_TESTING)
         target_link_libraries(fps_camera_controller_tests PRIVATE m)
         target_link_libraries(player_body_tests PRIVATE m)
         target_link_libraries(player_movement_tests PRIVATE m)
-        target_link_libraries(collision_tests PRIVATE m)
+        target_link_libraries(collision_trace_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -211,6 +224,9 @@ if(BUILD_TESTING)
         target_compile_options(collision_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(collision_trace_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
@@ -222,4 +238,5 @@ if(BUILD_TESTING)
     add_test(NAME player_body_foundation COMMAND player_body_tests)
     add_test(NAME player_movement_foundation COMMAND player_movement_tests)
     add_test(NAME collision_foundation COMMAND collision_tests)
+    add_test(NAME collision_trace_foundation COMMAND collision_trace_tests)
 endif()

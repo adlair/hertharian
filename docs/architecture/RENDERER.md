@@ -17,14 +17,22 @@ OpenGL.
 
 Each drawable frame clears color, depth, and stencil, submits several instances
 of one static local-space cube through the MVP shader path, and presents. The
-clear color
-`(0.05, 0.02, 0.08, 1.0)` and pink-red geometry are diagnostics rather than art
+clear color is `(0.05, 0.02, 0.08, 1.0)`. A per-draw `u_color` uniform assigns
+bootstrap diagnostic colors: dark gray floor, blue-gray walls, violet corner,
+green 0.20 step, gold 0.30 exact-limit step, orange-red 0.60 ledge, pink-red
+generic box, and cyan/purple corridor references. These colors distinguish
+manual physics test cases and are explicitly not Hertharian final art
 direction. Depth testing uses `GL_LESS` as the baseline 3D semantic.
 
-The frontend refreshes View from the engine camera before drawing. In v0.1.7,
+The frontend refreshes View from the engine camera before drawing. Since v0.1.7,
 the backend builds private model matrices from the bootstrap Collision World
-bounds. This makes the floor, walls, central obstacle, boxes, and open passage
-visible without introducing scene or entity abstractions.
+bounds. v0.1.8 expands those temporary references with a corridor, inside
+corner, low step, exact-limit platform, high ledge, and box. This direct
+Collision-to-Renderer bootstrap dependency is temporary. Physical AABBs remain
+the source of truth; Renderer associates colors through a small parallel table
+indexed only for this known bootstrap layout. Future World, Scene, and Material
+systems will replace this temporary coupling. No such abstraction is introduced
+in v0.1.8.
 
 Rendering and presentation happen before work timing is measured, so both are
 included in `frame_work_seconds`.
