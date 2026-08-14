@@ -77,6 +77,12 @@ data. The spawn is validated against the derived Collision World before
 Platform or Renderer startup. Shutdown destroys Renderer and physical
 Collision state before World so no consumer can outlive its source content.
 
+As of v0.2.2, Engine first initializes its internal Resource System with a
+stable Resource Root, before World and any future resource consumer. Bootstrap
+World remains compiled C content and performs no resource load in this
+milestone. Shutdown releases current consumers and World before Resources,
+then Platform. Failed initialization unwinds Resources on every later failure.
+
 ## Tests
 
 After configuring and building, run:

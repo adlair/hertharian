@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.1 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.2 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -9,6 +9,21 @@ find_package(X11 QUIET)
 configure_file(
     cmake/hth_version.h.in
     generated/hth_version.h
+    @ONLY
+)
+
+get_filename_component(
+    HTH_DEVELOPMENT_RESOURCE_ROOT
+    "${PROJECT_SOURCE_DIR}/../assets"
+    REALPATH
+)
+file(TO_CMAKE_PATH
+    "${HTH_DEVELOPMENT_RESOURCE_ROOT}"
+    HTH_DEVELOPMENT_RESOURCE_ROOT
+)
+configure_file(
+    cmake/hth_resource_config.h.in
+    generated/hth_resource_config.h
     @ONLY
 )
 
@@ -26,6 +41,7 @@ add_executable(hertharian-engine
     src/player/player_body.c
     src/player/player_locomotion.c
     src/player/player_movement.c
+    src/resource/resource.c
     src/platform/keyboard_reconciliation.c
     src/platform/mouse_source.c
     src/platform/platform_sdl3.c
@@ -44,6 +60,7 @@ target_include_directories(hertharian-engine PRIVATE
     src/platform
     src/player
     src/renderer
+    src/resource
     src/view
     src/world
     "${PROJECT_BINARY_DIR}/generated"
@@ -248,6 +265,14 @@ if(BUILD_TESTING)
     target_compile_features(world_tests PRIVATE c_std_11)
     set_target_properties(world_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(resource_tests
+        tests/resource_tests.c
+        src/resource/resource.c
+    )
+    target_include_directories(resource_tests PRIVATE src/resource)
+    target_compile_features(resource_tests PRIVATE c_std_11)
+    set_target_properties(resource_tests PROPERTIES C_EXTENSIONS OFF)
+
     add_executable(view_dynamics_tests
         tests/view_dynamics_tests.c
         src/view/view_dynamics.c
@@ -334,6 +359,9 @@ if(BUILD_TESTING)
         target_compile_options(world_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(resource_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
@@ -353,4 +381,5 @@ if(BUILD_TESTING)
     add_test(NAME collision_trace_foundation COMMAND collision_trace_tests)
     add_test(NAME view_dynamics_foundation COMMAND view_dynamics_tests)
     add_test(NAME world_representation_foundation COMMAND world_tests)
+    add_test(NAME resource_foundation COMMAND resource_tests)
 endif()

@@ -3,6 +3,7 @@
 #include "hth_input.h"
 #include "hth_timing.h"
 #include "hth_version.h"
+#include "hth_resource_config.h"
 #include "fps_camera_controller.h"
 #include "collision_trace.h"
 #include "collision_world.h"
@@ -11,6 +12,7 @@
 #include "player_body.h"
 #include "player_movement.h"
 #include "renderer.h"
+#include "resource.h"
 #include "timing_internal.h"
 #include "view_dynamics.h"
 #include "bootstrap_world.h"
@@ -35,6 +37,10 @@ struct HTHEngineViewState {
 
 struct HTHEngineWorldState {
     HTHWorld world;
+};
+
+struct HTHEngineStorageState {
+    HTHResourceSystem *resources;
 };
 
 static bool physical_state_spawn_is_clear(
@@ -70,6 +76,15 @@ static void destroy_world(HTHEngine *engine)
         hth_world_shutdown(&engine->world_state->world);
         free(engine->world_state);
         engine->world_state = NULL;
+    }
+}
+
+static void destroy_storage(HTHEngine *engine)
+{
+    if (engine->storage_state != NULL) {
+        hth_resource_system_destroy(engine->storage_state->resources);
+        free(engine->storage_state);
+        engine->storage_state = NULL;
     }
 }
 
@@ -128,6 +143,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     uint64_t counter;
     uint64_t frequency;
     HTHPlatformConfig platform_config;
+    HTHResourceConfig resource_config;
     HTHWorldSpawn spawn;
 
     if (engine == NULL || config == NULL) {
@@ -149,15 +165,29 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     engine->physical_state = NULL;
     engine->view_state = NULL;
     engine->world_state = NULL;
+    engine->storage_state = NULL;
     engine->input = NULL;
     engine->timing = NULL;
     hth_camera_init_default(&engine->camera);
+    resource_config.root_path = HTH_DEVELOPMENT_RESOURCE_ROOT;
+    engine->storage_state = calloc(1, sizeof(*engine->storage_state));
+    if (engine->storage_state != NULL) {
+        engine->storage_state->resources =
+            hth_resource_system_create(&resource_config);
+    }
+    if (engine->storage_state == NULL ||
+        engine->storage_state->resources == NULL) {
+        fputs("Failed to initialize resource system.\n", stderr);
+        destroy_storage(engine);
+        return false;
+    }
     engine->world_state = calloc(1, sizeof(*engine->world_state));
     if (engine->world_state == NULL ||
         !hth_bootstrap_world_create(&engine->world_state->world) ||
         !hth_world_default_spawn(&engine->world_state->world, &spawn)) {
         fputs("Failed to initialize bootstrap world.\n", stderr);
         destroy_world(engine);
+        destroy_storage(engine);
         return false;
     }
     engine->camera.forward = hth_vec3(
@@ -173,6 +203,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         fputs("Failed to initialize view dynamics state.\n", stderr);
         destroy_view_state(engine);
         destroy_world(engine);
+        destroy_storage(engine);
         return false;
     }
     engine->camera_controller =
@@ -181,6 +212,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         fputs("Failed to initialize FPS camera controller.\n", stderr);
         destroy_view_state(engine);
         destroy_world(engine);
+        destroy_storage(engine);
         return false;
     }
     engine->physical_state = calloc(1, sizeof(*engine->physical_state));
@@ -203,6 +235,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         destroy_physical_state(engine);
         destroy_view_state(engine);
         destroy_world(engine);
+        destroy_storage(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
@@ -225,6 +258,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         destroy_physical_state(engine);
         destroy_view_state(engine);
         destroy_world(engine);
+        destroy_storage(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
@@ -235,13 +269,14 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
                                                &engine->camera,
                                                &engine->world_state->world);
         if (engine->renderer == NULL) {
-            hth_platform_shutdown(engine->platform);
-            engine->platform = NULL;
             destroy_physical_state(engine);
             destroy_view_state(engine);
             destroy_world(engine);
+            destroy_storage(engine);
             hth_fps_camera_controller_destroy(engine->camera_controller);
             engine->camera_controller = NULL;
+            hth_platform_shutdown(engine->platform);
+            engine->platform = NULL;
             return false;
         }
     } else {
@@ -253,13 +288,14 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         fputs("Failed to initialize input state.\n", stderr);
         hth_renderer_destroy(engine->renderer);
         engine->renderer = NULL;
-        hth_platform_shutdown(engine->platform);
-        engine->platform = NULL;
         destroy_physical_state(engine);
         destroy_view_state(engine);
         destroy_world(engine);
+        destroy_storage(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
+        hth_platform_shutdown(engine->platform);
+        engine->platform = NULL;
         return false;
     }
     hth_input_set_debug_fps_input(engine->input, config->debug_fps_input);
@@ -273,13 +309,14 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         engine->input = NULL;
         hth_renderer_destroy(engine->renderer);
         engine->renderer = NULL;
-        hth_platform_shutdown(engine->platform);
-        engine->platform = NULL;
         destroy_physical_state(engine);
         destroy_view_state(engine);
         destroy_world(engine);
+        destroy_storage(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
+        hth_platform_shutdown(engine->platform);
+        engine->platform = NULL;
         return false;
     }
 
@@ -486,6 +523,7 @@ void hth_engine_shutdown(HTHEngine *engine)
     destroy_physical_state(engine);
     destroy_world(engine);
     destroy_view_state(engine);
+    destroy_storage(engine);
     hth_platform_shutdown(engine->platform);
     engine->platform = NULL;
     engine->initialized = false;
