@@ -44,6 +44,9 @@ surface offset policy; Collision does not falsify a trace fraction to create a
 gap.
 
 The contract is internal and the current backend is a brute-force static AABB
-array. A future BSP collision backend can provide equivalent swept-volume
+array copied from the collidable subset of the finalized World. Its
+`obstacle_index` is local to that copied Collision array; it is not a World
+object index or a persistent content identifier. A future BSP collision backend
+can provide equivalent swept-volume
 semantics without making Player Movement understand BSP or obstacle storage.
 Initial penetration is reported but no general depenetration is attempted.

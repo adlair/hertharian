@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.0 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.1 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
+find_package(X11 QUIET)
 
 configure_file(
     cmake/hth_version.h.in
@@ -25,11 +26,14 @@ add_executable(hertharian-engine
     src/player/player_body.c
     src/player/player_locomotion.c
     src/player/player_movement.c
+    src/platform/keyboard_reconciliation.c
     src/platform/mouse_source.c
     src/platform/platform_sdl3.c
     src/renderer/renderer.c
     src/renderer/renderer_opengl.c
     src/view/view_dynamics.c
+    src/world/bootstrap_world.c
+    src/world/world.c
 )
 
 target_include_directories(hertharian-engine PRIVATE
@@ -41,9 +45,17 @@ target_include_directories(hertharian-engine PRIVATE
     src/player
     src/renderer
     src/view
+    src/world
     "${PROJECT_BINARY_DIR}/generated"
 )
 target_link_libraries(hertharian-engine PRIVATE SDL3::SDL3 OpenGL::GL)
+if(X11_FOUND)
+    target_sources(hertharian-engine PRIVATE src/platform/platform_x11.c)
+    target_link_libraries(hertharian-engine PRIVATE X11::X11)
+    target_compile_definitions(hertharian-engine PRIVATE
+        HTH_HAVE_X11_OBSERVER=1
+    )
+endif()
 if(NOT WIN32)
     target_link_libraries(hertharian-engine PRIVATE m)
 endif()
@@ -137,6 +149,29 @@ if(BUILD_TESTING)
     target_compile_features(mouse_source_tests PRIVATE c_std_11)
     set_target_properties(mouse_source_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(keyboard_reconciliation_tests
+        tests/keyboard_reconciliation_tests.c
+        src/platform/keyboard_reconciliation.c
+    )
+    target_include_directories(keyboard_reconciliation_tests PRIVATE
+        include src/platform
+    )
+    target_compile_features(keyboard_reconciliation_tests PRIVATE c_std_11)
+    set_target_properties(keyboard_reconciliation_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
+    if(X11_FOUND)
+        add_executable(platform_x11_tests
+            tests/platform_x11_tests.c
+            src/platform/platform_x11.c
+        )
+        target_include_directories(platform_x11_tests PRIVATE src/platform)
+        target_link_libraries(platform_x11_tests PRIVATE X11::X11)
+        target_compile_features(platform_x11_tests PRIVATE c_std_11)
+        set_target_properties(platform_x11_tests PROPERTIES C_EXTENSIONS OFF)
+    endif()
+
     add_executable(player_body_tests
         tests/player_body_tests.c
         src/player/player_body.c
@@ -158,11 +193,15 @@ if(BUILD_TESTING)
         src/collision/aabb.c
         src/collision/collision_trace.c
         src/collision/collision_world.c
+        src/world/bootstrap_world.c
+        src/world/world.c
         src/input/input.c
         src/common/math.c
+        src/platform/keyboard_reconciliation.c
     )
     target_include_directories(player_movement_tests PRIVATE
-        include src/common src/collision src/input src/player
+        include src/common src/collision src/input src/platform src/player
+        src/world
     )
     target_compile_features(player_movement_tests PRIVATE c_std_11)
     set_target_properties(player_movement_tests PROPERTIES C_EXTENSIONS OFF)
@@ -184,12 +223,30 @@ if(BUILD_TESTING)
         tests/collision_tests.c
         src/collision/aabb.c
         src/collision/collision_world.c
+        src/world/bootstrap_world.c
+        src/world/world.c
     )
     target_include_directories(collision_tests PRIVATE
-        include src/collision
+        include src/collision src/world
     )
     target_compile_features(collision_tests PRIVATE c_std_11)
     set_target_properties(collision_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(world_tests
+        tests/world_tests.c
+        src/world/bootstrap_world.c
+        src/world/world.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+        src/player/player_body.c
+    )
+    target_include_directories(world_tests PRIVATE
+        include src/collision src/player src/world
+    )
+    target_compile_features(world_tests PRIVATE c_std_11)
+    set_target_properties(world_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(view_dynamics_tests
         tests/view_dynamics_tests.c
@@ -208,9 +265,10 @@ if(BUILD_TESTING)
         src/collision/collision_trace.c
         src/collision/collision_world.c
         src/common/math.c
+        src/world/world.c
     )
     target_include_directories(collision_trace_tests PRIVATE
-        include src/collision
+        include src/collision src/world
     )
     target_compile_features(collision_trace_tests PRIVATE c_std_11)
     set_target_properties(collision_trace_tests PROPERTIES C_EXTENSIONS OFF)
@@ -224,6 +282,8 @@ if(BUILD_TESTING)
         target_link_libraries(locomotion_tests PRIVATE m)
         target_link_libraries(collision_trace_tests PRIVATE m)
         target_link_libraries(view_dynamics_tests PRIVATE m)
+        target_link_libraries(collision_tests PRIVATE m)
+        target_link_libraries(world_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -245,6 +305,14 @@ if(BUILD_TESTING)
         target_compile_options(mouse_source_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(keyboard_reconciliation_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        if(X11_FOUND)
+            target_compile_options(platform_x11_tests PRIVATE
+                -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+            )
+        endif()
         target_compile_options(player_body_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
@@ -263,6 +331,9 @@ if(BUILD_TESTING)
         target_compile_options(view_dynamics_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(world_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
@@ -271,10 +342,15 @@ if(BUILD_TESTING)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)
     add_test(NAME relative_mouse_source COMMAND mouse_source_tests)
+    add_test(NAME keyboard_reconciliation COMMAND keyboard_reconciliation_tests)
+    if(X11_FOUND)
+        add_test(NAME platform_x11_observer COMMAND platform_x11_tests)
+    endif()
     add_test(NAME player_body_foundation COMMAND player_body_tests)
     add_test(NAME player_movement_foundation COMMAND player_movement_tests)
     add_test(NAME locomotion_foundation COMMAND locomotion_tests)
     add_test(NAME collision_foundation COMMAND collision_tests)
     add_test(NAME collision_trace_foundation COMMAND collision_trace_tests)
     add_test(NAME view_dynamics_foundation COMMAND view_dynamics_tests)
+    add_test(NAME world_representation_foundation COMMAND world_tests)
 endif()

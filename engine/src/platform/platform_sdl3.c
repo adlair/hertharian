@@ -1,5 +1,9 @@
 #include "platform.h"
+#include "keyboard_reconciliation.h"
 #include "mouse_source.h"
+#if defined(HTH_HAVE_X11_OBSERVER)
+#include "platform_x11.h"
+#endif
 
 #include <SDL3/SDL.h>
 
@@ -7,10 +11,18 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct HTHPlatform {
     SDL_Window *window;
     SDL_MouseID relative_mouse_source_id;
+    HTHKeyboardReconciliation keyboard_reconciliation;
+    SDL_Scancode reported_scancodes[HTH_KEY_COUNT];
+#if defined(HTH_HAVE_X11_OBSERVER)
+    HTHPlatformX11Observer x11_observer;
+    uint16_t reported_x11_keycodes[HTH_KEY_COUNT];
+    bool x11_observer_active;
+#endif
     bool headless;
     bool debug_fps_input;
     bool relative_mouse_source_known;
@@ -75,6 +87,11 @@ static HTHKey translate_key(SDL_Scancode scancode)
     }
 }
 
+static bool valid_translated_key(HTHKey key)
+{
+    return key > HTH_KEY_UNKNOWN && key < HTH_KEY_COUNT;
+}
+
 static HTHMouseButton translate_mouse_button(uint8_t button)
 {
     switch (button) {
@@ -86,6 +103,148 @@ static HTHMouseButton translate_mouse_button(uint8_t button)
     default: return HTH_MOUSE_UNKNOWN;
     }
 }
+
+static void print_keyboard_event(const SDL_KeyboardEvent *keyboard,
+                                 HTHKey translated_key, bool down)
+{
+    printf("SDL raw key:\n"
+           "  action=%s\n"
+           "  scancode=%d\n"
+           "  repeat=%s\n"
+           "  platform_raw=%" PRIu16 "\n"
+           "  windowID=%" PRIu32 "\n"
+           "HTH translated key:\n"
+           "  key=%d\n"
+           "  action=%s\n",
+           down ? "down" : "up",
+           (int)keyboard->scancode,
+           keyboard->repeat ? "true" : "false",
+           (uint16_t)keyboard->raw,
+           (uint32_t)keyboard->windowID,
+           (int)translated_key,
+           down ? "down" : "up");
+}
+
+static void print_focus_event(const char *focus, const char *action)
+{
+    printf("SDL focus:\n  %s %s\n", focus, action);
+}
+
+static bool observe_sdl_keyboard(bool physical_down[HTH_KEY_COUNT])
+{
+    const bool *keyboard_state;
+    HTHKey key;
+    int scancode_count = 0;
+    int index;
+
+    keyboard_state = SDL_GetKeyboardState(&scancode_count);
+    if (keyboard_state == NULL || scancode_count <= 0) {
+        return false;
+    }
+    for (index = 0; index < scancode_count; ++index) {
+        if (keyboard_state[index]) {
+            key = translate_key((SDL_Scancode)index);
+            if (valid_translated_key(key)) {
+                physical_down[key] = true;
+            }
+        }
+    }
+    return true;
+}
+
+static void make_reconciled_key_up(HTHPlatform *platform,
+                                   HTHPlatformEvent *event, HTHKey key)
+{
+    platform->reported_scancodes[key] = SDL_SCANCODE_UNKNOWN;
+#if defined(HTH_HAVE_X11_OBSERVER)
+    platform->reported_x11_keycodes[key] = 0U;
+#endif
+    *event = (HTHPlatformEvent){0};
+    event->type = HTH_PLATFORM_EVENT_KEY_UP;
+    event->timestamp_ns = SDL_GetTicksNS();
+    event->data.keyboard.key = key;
+}
+
+static bool reconcile_sdl_keyboard(HTHPlatform *platform,
+                                   HTHPlatformEvent *event,
+                                   const bool sdl_down[HTH_KEY_COUNT])
+{
+    HTHKey key;
+    SDL_Scancode scancode;
+
+    if (!hth_keyboard_reconciliation_next_release(
+            &platform->keyboard_reconciliation, sdl_down, &key)) {
+        return false;
+    }
+
+    scancode = platform->reported_scancodes[key];
+    make_reconciled_key_up(platform, event, key);
+    if (platform->debug_fps_input) {
+        printf("SDL keyboard reconciliation:\n"
+               "  scancode=%d\n"
+               "  HTH key=%d\n"
+               "  SDL state=up\n"
+               "  normalized action=release\n",
+               (int)scancode, (int)key);
+    }
+    return true;
+}
+
+#if defined(HTH_HAVE_X11_OBSERVER)
+static bool reconcile_x11_keyboard(HTHPlatform *platform,
+                                   HTHPlatformEvent *event)
+{
+    bool x11_down[HTH_X11_KEYCODE_COUNT];
+    bool observed_down[HTH_KEY_COUNT] = {false};
+    bool sdl_down[HTH_KEY_COUNT] = {false};
+    HTHKey key;
+    SDL_Scancode scancode;
+    uint16_t x11_keycode;
+    size_t index;
+
+    if (!hth_platform_x11_query_keyboard(&platform->x11_observer,
+                                         x11_down)) {
+        return false;
+    }
+
+    for (index = (size_t)HTH_KEY_UNKNOWN + 1U;
+         index < (size_t)HTH_KEY_COUNT; ++index) {
+        x11_keycode = platform->reported_x11_keycodes[index];
+        if (x11_keycode != 0U && x11_keycode < HTH_X11_KEYCODE_COUNT) {
+            observed_down[index] = x11_down[x11_keycode];
+        } else {
+            /* An unassociated key cannot be authoritatively reconciled. */
+            observed_down[index] = true;
+        }
+    }
+
+    if (!hth_keyboard_reconciliation_next_release(
+            &platform->keyboard_reconciliation, observed_down, &key)) {
+        return false;
+    }
+
+    scancode = platform->reported_scancodes[key];
+    x11_keycode = platform->reported_x11_keycodes[key];
+    if (platform->debug_fps_input) {
+        (void)observe_sdl_keyboard(sdl_down);
+        printf("X11 keyboard reconciliation:\n"
+               "  HTH key=%d\n"
+               "  SDL scancode=%d\n"
+               "  X11 keycode=%" PRIu16 "\n"
+               "  reported=down\n"
+               "  X11 state=up\n"
+               "  SDL cached state=%s\n"
+               "  normalized action=release\n"
+               "HTH translated/reconciled key:\n"
+               "  key=%d\n"
+               "  action=up\n",
+               (int)key, (int)scancode, x11_keycode,
+               sdl_down[key] ? "down" : "up", (int)key);
+    }
+    make_reconciled_key_up(platform, event, key);
+    return true;
+}
+#endif
 
 static void print_mouse_device(const char *label, SDL_MouseID id)
 {
@@ -208,9 +367,23 @@ bool hth_platform_init(HTHPlatform **platform, const HTHPlatformConfig *config)
         return false;
     }
 
+    video_driver = SDL_GetCurrentVideoDriver();
+#if defined(HTH_HAVE_X11_OBSERVER)
+    if (video_driver != NULL && SDL_strcmp(video_driver, "x11") == 0) {
+        SDL_PropertiesID properties = SDL_GetWindowProperties(state->window);
+        void *display = SDL_GetPointerProperty(
+            properties, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, NULL);
+
+        state->x11_observer_active = hth_platform_x11_observer_init(
+            &state->x11_observer, display);
+        if (state->debug_fps_input && !state->x11_observer_active) {
+            fprintf(stderr, "X11 keyboard observer unavailable: %s\n",
+                    SDL_GetError());
+        }
+    }
+#endif
     refresh_relative_mouse_source(state, state->debug_fps_input);
 
-    video_driver = SDL_GetCurrentVideoDriver();
     printf("SDL video driver: %s\n",
            video_driver != NULL ? video_driver : "unknown");
 
@@ -252,10 +425,44 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
         case SDL_EVENT_KEY_DOWN:
             event->type = HTH_PLATFORM_EVENT_KEY_DOWN;
             event->data.keyboard.key = translate_key(native_event.key.scancode);
+            event->data.keyboard.repeat = native_event.key.repeat;
+            hth_keyboard_reconciliation_report_down(
+                &platform->keyboard_reconciliation,
+                event->data.keyboard.key);
+            if (valid_translated_key(event->data.keyboard.key)) {
+                platform->reported_scancodes[event->data.keyboard.key] =
+                    native_event.key.scancode;
+#if defined(HTH_HAVE_X11_OBSERVER)
+                if (platform->x11_observer_active) {
+                    platform->reported_x11_keycodes[
+                        event->data.keyboard.key] = native_event.key.raw;
+                }
+#endif
+            }
+            if (platform->debug_fps_input) {
+                print_keyboard_event(&native_event.key,
+                                     event->data.keyboard.key, true);
+            }
             return true;
         case SDL_EVENT_KEY_UP:
             event->type = HTH_PLATFORM_EVENT_KEY_UP;
             event->data.keyboard.key = translate_key(native_event.key.scancode);
+            event->data.keyboard.repeat = false;
+            hth_keyboard_reconciliation_report_up(
+                &platform->keyboard_reconciliation,
+                event->data.keyboard.key);
+            if (valid_translated_key(event->data.keyboard.key)) {
+                platform->reported_scancodes[event->data.keyboard.key] =
+                    SDL_SCANCODE_UNKNOWN;
+#if defined(HTH_HAVE_X11_OBSERVER)
+                platform->reported_x11_keycodes[
+                    event->data.keyboard.key] = 0U;
+#endif
+            }
+            if (platform->debug_fps_input) {
+                print_keyboard_event(&native_event.key,
+                                     event->data.keyboard.key, false);
+            }
             return true;
         case SDL_EVENT_MOUSE_MOTION:
             if (platform->debug_fps_input) {
@@ -326,11 +533,35 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
             event->data.wheel.y = (double)native_event.wheel.y * wheel_direction;
             return true;
         case SDL_EVENT_WINDOW_FOCUS_GAINED:
+            if (platform->debug_fps_input) {
+                print_focus_event("input_focus", "gained");
+            }
             event->type = HTH_PLATFORM_EVENT_FOCUS_GAINED;
             return true;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
+            if (platform->debug_fps_input) {
+                print_focus_event("input_focus", "lost");
+            }
             event->type = HTH_PLATFORM_EVENT_FOCUS_LOST;
+            hth_keyboard_reconciliation_reset(
+                &platform->keyboard_reconciliation);
+            memset(platform->reported_scancodes, 0,
+                   sizeof(platform->reported_scancodes));
+#if defined(HTH_HAVE_X11_OBSERVER)
+            memset(platform->reported_x11_keycodes, 0,
+                   sizeof(platform->reported_x11_keycodes));
+#endif
             return true;
+        case SDL_EVENT_WINDOW_MOUSE_ENTER:
+            if (platform->debug_fps_input) {
+                print_focus_event("mouse_focus", "gained");
+            }
+            break;
+        case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+            if (platform->debug_fps_input) {
+                print_focus_event("mouse_focus", "lost");
+            }
+            break;
         case SDL_EVENT_WINDOW_RESIZED:
             event->type = HTH_PLATFORM_EVENT_WINDOW_RESIZED;
             event->data.window.width = native_event.window.data1 > 0
@@ -350,7 +581,17 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
         }
     }
 
-    return false;
+#if defined(HTH_HAVE_X11_OBSERVER)
+    if (platform->x11_observer_active) {
+        return reconcile_x11_keyboard(platform, event);
+    }
+#endif
+    {
+        bool sdl_down[HTH_KEY_COUNT] = {false};
+
+        return observe_sdl_keyboard(sdl_down) &&
+               reconcile_sdl_keyboard(platform, event, sdl_down);
+    }
 }
 
 uint64_t hth_platform_time_counter(void)

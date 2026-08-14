@@ -56,8 +56,9 @@ struct HTHOpenGLBackend {
     GLint view_location;
     GLint projection_location;
     GLint color_location;
-    HTHMat4 bootstrap_models[HTH_COLLISION_WORLD_MAX_OBSTACLES];
-    size_t bootstrap_model_count;
+    HTHOpenGLStaticDraw *static_draws;
+    HTHMat4 *static_models;
+    size_t static_draw_count;
     uint32_t framebuffer_width;
     uint32_t framebuffer_height;
 };
@@ -82,20 +83,6 @@ static const GLchar fragment_shader_source[] =
     "{\n"
     "    fragment_color = u_color;\n"
     "}\n";
-
-/* Bootstrap diagnostic visualization, indexed like bootstrap Collision World. */
-static const GLfloat bootstrap_diagnostic_colors[][4] = {
-    {0.22F, 0.24F, 0.28F, 1.0F}, /* floor: neutral dark gray */
-    {0.30F, 0.45F, 0.62F, 1.0F}, /* left wall: cool blue-gray */
-    {0.30F, 0.45F, 0.62F, 1.0F}, /* right wall: cool blue-gray */
-    {0.55F, 0.28F, 0.75F, 1.0F}, /* inside-corner wall: violet */
-    {0.18F, 0.78F, 0.32F, 1.0F}, /* low step 0.20: green */
-    {0.95F, 0.30F, 0.12F, 1.0F}, /* high ledge 0.60: orange-red */
-    {0.90F, 0.20F, 0.48F, 1.0F}, /* generic box: pink-red */
-    {1.00F, 0.72F, 0.10F, 1.0F}, /* exact step 0.30: gold */
-    {0.16F, 0.68F, 0.78F, 1.0F}, /* corridor/platform: cyan */
-    {0.48F, 0.30F, 0.72F, 1.0F}, /* corridor corner: purple */
-};
 
 static const HTHBootstrapVertex bootstrap_vertices[] = {
     {{-0.5F, -0.5F,  0.5F}}, {{ 0.5F, -0.5F,  0.5F}}, {{ 0.5F,  0.5F,  0.5F}},
@@ -323,33 +310,45 @@ static bool create_geometry(HTHOpenGLBackend *backend)
     return true;
 }
 
-static bool create_bootstrap_models(
-    HTHOpenGLBackend *backend, const HTHCollisionWorld *collision_world)
+static bool create_static_models(HTHOpenGLBackend *backend,
+                                 const HTHOpenGLStaticDraw *draws,
+                                 size_t draw_count)
 {
     size_t index;
 
-    if (!hth_collision_world_is_valid(collision_world)) {
+    if (draw_count == 0U) {
+        return true;
+    }
+    if (draws == NULL) {
         return false;
     }
-    backend->bootstrap_model_count = collision_world->obstacle_count;
-    if (backend->bootstrap_model_count >
-        sizeof(bootstrap_diagnostic_colors) /
-            sizeof(bootstrap_diagnostic_colors[0])) {
-        fputs("Renderer initialization failed: missing bootstrap diagnostic "
-              "color.\n", stderr);
+    if (draw_count > SIZE_MAX / sizeof(*backend->static_draws) ||
+        draw_count > SIZE_MAX / sizeof(*backend->static_models)) {
         return false;
     }
-    for (index = 0; index < backend->bootstrap_model_count; ++index) {
-        const HTHAABB *bounds = &collision_world->obstacles[index];
+    backend->static_draws = malloc(
+        draw_count * sizeof(*backend->static_draws));
+    backend->static_models = malloc(
+        draw_count * sizeof(*backend->static_models));
+    if (backend->static_draws == NULL || backend->static_models == NULL) {
+        return false;
+    }
+    backend->static_draw_count = draw_count;
+    for (index = 0; index < draw_count; ++index) {
+        const HTHAABB *bounds = &draws[index].bounds;
         HTHMat4 model = hth_mat4_identity();
 
+        if (!hth_aabb_is_valid(bounds)) {
+            return false;
+        }
+        backend->static_draws[index] = draws[index];
         model.elements[0] = bounds->max.x - bounds->min.x;
         model.elements[5] = bounds->max.y - bounds->min.y;
         model.elements[10] = bounds->max.z - bounds->min.z;
         model.elements[12] = (bounds->min.x + bounds->max.x) * 0.5F;
         model.elements[13] = (bounds->min.y + bounds->max.y) * 0.5F;
         model.elements[14] = (bounds->min.z + bounds->max.z) * 0.5F;
-        backend->bootstrap_models[index] = model;
+        backend->static_models[index] = model;
     }
     return true;
 }
@@ -407,7 +406,8 @@ static bool cache_uniform_locations(HTHOpenGLBackend *backend)
 }
 
 HTHOpenGLBackend *hth_renderer_opengl_create(
-    HTHPlatform *platform, const HTHCollisionWorld *collision_world)
+    HTHPlatform *platform, const HTHOpenGLStaticDraw *draws,
+    size_t draw_count)
 {
     HTHOpenGLBackend *backend = calloc(1, sizeof(*backend));
 
@@ -442,7 +442,7 @@ HTHOpenGLBackend *hth_renderer_opengl_create(
     backend->program = create_program(backend);
     if (backend->program == 0 || !cache_uniform_locations(backend) ||
         !create_geometry(backend) ||
-        !create_bootstrap_models(backend, collision_world) ||
+        !create_static_models(backend, draws, draw_count) ||
         glGetError() != GL_NO_ERROR) {
         fputs("Renderer initialization failed: graphics pipeline setup "
               "failed.\n", stderr);
@@ -479,6 +479,8 @@ void hth_renderer_opengl_destroy(HTHOpenGLBackend *backend)
         }
     }
     hth_platform_graphics_destroy_context(backend->context);
+    free(backend->static_draws);
+    free(backend->static_models);
     free(backend);
 }
 
@@ -523,13 +525,13 @@ bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     backend->gl.use_program(backend->program);
     backend->gl.bind_vertex_array(backend->vao);
-    for (index = 0; index < backend->bootstrap_model_count; ++index) {
+    for (index = 0; index < backend->static_draw_count; ++index) {
         backend->gl.uniform_matrix_4fv(
             backend->model_location, 1, GL_FALSE,
-            backend->bootstrap_models[index].elements);
+            backend->static_models[index].elements);
         backend->gl.uniform_4fv(
             backend->color_location, 1,
-            bootstrap_diagnostic_colors[index]);
+            backend->static_draws[index].color);
         backend->gl.draw_arrays(
             GL_TRIANGLES, 0,
             (GLsizei)(sizeof(bootstrap_vertices) /

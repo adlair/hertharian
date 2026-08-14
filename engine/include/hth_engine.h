@@ -13,6 +13,7 @@ struct HTHRenderer;
 struct HTHFPSCameraController;
 struct HTHEnginePhysicalState;
 struct HTHEngineViewState;
+struct HTHEngineWorldState;
 
 typedef struct {
     uint64_t frame_limit;
@@ -37,6 +38,7 @@ typedef struct {
     struct HTHFPSCameraController *camera_controller;
     struct HTHEnginePhysicalState *physical_state;
     struct HTHEngineViewState *view_state;
+    struct HTHEngineWorldState *world_state;
     HTHCamera camera;
     HTHInput *input;
     HTHTiming *timing;

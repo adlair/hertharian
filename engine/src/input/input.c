@@ -1,5 +1,6 @@
 #include "input_internal.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,6 +18,7 @@ struct HTHInput {
     double wheel_x;
     double wheel_y;
     unsigned int relative_motion_discard_end_frames;
+    bool debug_fps_input;
 };
 
 static const unsigned int capture_transition_end_frames = 2;
@@ -39,6 +41,13 @@ HTHInput *hth_input_create(void)
 void hth_input_destroy(HTHInput *input)
 {
     free(input);
+}
+
+void hth_input_set_debug_fps_input(HTHInput *input, bool enabled)
+{
+    if (input != NULL) {
+        input->debug_fps_input = enabled;
+    }
 }
 
 void hth_input_begin_frame(HTHInput *input)
@@ -120,7 +129,8 @@ void hth_input_handle_event(HTHInput *input, const HTHPlatformEvent *event)
     switch (event->type) {
     case HTH_PLATFORM_EVENT_KEY_DOWN:
         key = event->data.keyboard.key;
-        if (valid_key(key) && !input->keys_down[key]) {
+        if (valid_key(key) && !event->data.keyboard.repeat &&
+            !input->keys_down[key]) {
             input->keys_down[key] = true;
             input->keys_pressed[key] = true;
         }
@@ -130,6 +140,12 @@ void hth_input_handle_event(HTHInput *input, const HTHPlatformEvent *event)
         if (valid_key(key) && input->keys_down[key]) {
             input->keys_down[key] = false;
             input->keys_released[key] = true;
+        }
+        if (input->debug_fps_input && valid_key(key)) {
+            printf("HTH input key state:\n"
+                   "  key=%d\n"
+                   "  down=false\n",
+                   (int)key);
         }
         break;
     case HTH_PLATFORM_EVENT_MOUSE_MOTION:
@@ -164,6 +180,10 @@ void hth_input_handle_event(HTHInput *input, const HTHPlatformEvent *event)
         input->wheel_y += event->data.wheel.y;
         break;
     case HTH_PLATFORM_EVENT_FOCUS_LOST:
+        if (input->debug_fps_input) {
+            puts("HTH input:\n"
+                 "  clearing held keys/buttons on focus loss");
+        }
         clear_for_focus_loss(input);
         break;
     default:

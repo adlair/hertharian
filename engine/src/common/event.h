@@ -24,7 +24,7 @@ typedef struct {
     HTHPlatformEventType type;
     uint64_t timestamp_ns;
     union {
-        struct { HTHKey key; } keyboard;
+        struct { HTHKey key; bool repeat; } keyboard;
         struct { double x; double y; double delta_x; double delta_y; } motion;
         struct { HTHMouseButton button; double x; double y; } mouse_button;
         struct { double x; double y; } wheel;

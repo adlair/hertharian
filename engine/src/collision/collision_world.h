@@ -2,6 +2,7 @@
 #define HTH_COLLISION_WORLD_H
 
 #include "aabb.h"
+#include "world.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -12,7 +13,8 @@ typedef struct HTHCollisionWorld {
     size_t obstacle_count;
 } HTHCollisionWorld;
 
-bool hth_collision_world_init_bootstrap(HTHCollisionWorld *world);
+bool hth_collision_world_build_from_world(HTHCollisionWorld *collision,
+                                          const HTHWorld *world);
 bool hth_collision_world_is_valid(const HTHCollisionWorld *world);
 
 #endif

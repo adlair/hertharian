@@ -1,6 +1,6 @@
 # Collision Foundation
 
-v0.1.8 retains the small engine-owned static AABB world but replaces the
+v0.1.8 retained the small static AABB collision world but replaced the
 v0.1.7 X/Y/Z resolver with swept AABB traces as the sole Player Movement path.
 Movement submits an origin, destination, and local volume to Collision; it does
 not iterate or resolve `CollisionWorld` obstacle storage. Trace details and the
@@ -49,10 +49,15 @@ the physical step directly.
 
 ## Bootstrap World and Limits
 
-The visible bootstrap world contains a floor, long walls and corridor, an
+As of v0.2.1, `HTHWorld` owns bootstrap content. Collision builds its private,
+fixed-capacity array by copying only static objects marked collidable from the
+finalized World. Trace obstacle indices identify that Collision-owned copy and
+are not stable World-object identifiers. Collision never consumes visual
+classes or visibility flags.
+
+The bootstrap content contains a floor, long walls and corridor, an
 inside corner, a box, a 0.20-unit low step, an exact 0.30-unit platform, and a
-0.60-unit high ledge. Renderer temporarily builds matching cube models directly
-from the same bounds; this is not a general Scene or Entity design.
+0.60-unit high ledge. The physical bounds are unchanged from v0.1.8.
 
 Collision remains axis-aligned and static. There is no general depenetration,
 rotation, capsule, slope, stair flight, dynamic body, moving platform,

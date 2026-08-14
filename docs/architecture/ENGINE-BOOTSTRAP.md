@@ -71,6 +71,12 @@ current frame's Input before Renderer sees the followed camera. Input end advanc
 short relative-mode transition guard; Timing finish then marks the whole frame
 complete.
 
+As of v0.2.1, initialization first builds and finalizes the engine-owned World,
+reads its default spawn, then derives Collision and Renderer initialization
+data. The spawn is validated against the derived Collision World before
+Platform or Renderer startup. Shutdown destroys Renderer and physical
+Collision state before World so no consumer can outlive its source content.
+
 ## Tests
 
 After configuring and building, run:

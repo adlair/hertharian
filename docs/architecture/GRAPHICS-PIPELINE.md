@@ -12,15 +12,17 @@ camera position
 clip space → rasterization → framebuffer → Platform presentation
 ```
 
-One static VBO contains a unit cube made from local-space triangles. Private
-model matrices translate and scale instances to the static bootstrap Collision
-World AABBs. The resulting floor, walls, and boxes provide visible physical
+One static VBO contains a unit cube made from local-space triangles. The
+Renderer frontend derives bounds and diagnostic colors from visible World
+objects; private backend model matrices translate and scale cube instances to
+those AABBs. The resulting floor, walls, and boxes provide visible physical
 references for FPS navigation without introducing Mesh, Scene, Entity, or
 Material APIs. A GLSL 330 Core
 vertex shader applies `u_projection * u_view * u_model`; the fragment shader
-retains the bootstrap pink-red color over the dark-purple clear. The frontend
-builds HTH matrices, while the backend only caches uniform locations and uploads
-them. Locations are resolved once during initialization and are required.
+uses the per-draw diagnostic `u_color` over the dark-purple clear. The frontend
+builds HTH matrices, while the backend caches uniform locations and uploads
+matrices/colors. Locations are resolved once during initialization and are
+required.
 
 Column-major HTH matrices match GLSL storage, so `glUniformMatrix4fv` uses
 `GL_FALSE` rather than compensating with a transpose. The projection aspect is

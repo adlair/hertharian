@@ -26,6 +26,20 @@ When keyboard focus is lost, all held keys and mouse buttons are released and
 mouse delta is cleared. This prevents input released outside the window from
 remaining virtually stuck.
 
+Platform reconciles only keys it previously reported as down after draining
+the native event queue. If a normal key-up is unavailable but the backend's
+observed state says that a reported key is up, Platform emits exactly one
+normalized HTH key-up through the regular event path. It never synthesizes a
+key-down or `pressed`, and a later real key-up is harmless because release is
+idempotent. A fresh non-repeat key-down works normally after recovery.
+
+SDL's cached keyboard snapshot is used by the general backend path, but is not
+an independent authority under an X11 global interruption: it can remain down
+together with the missing SDL key-up. The optional X11 Platform path therefore
+uses `XQueryKeymap` as its release-recovery authority. It associates each HTH
+key with the native X11 keycode carried by the real SDL key-down event and
+recovers only missing releases. Native Wayland does not use this path.
+
 ## FPS Camera Consumption
 
 v0.1.6 uses the existing accumulated `mouse_delta_x` and `mouse_delta_y` for

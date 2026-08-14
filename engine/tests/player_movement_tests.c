@@ -1,7 +1,9 @@
 #include "event.h"
 #include "input_internal.h"
+#include "keyboard_reconciliation.h"
 #include "player_movement.h"
 #include "collision_trace.h"
+#include "bootstrap_world.h"
 
 #include <assert.h>
 #include <math.h>
@@ -9,6 +11,17 @@
 static bool close_enough(float left, float right)
 {
     return fabsf(left - right) <= 1.0e-4F;
+}
+
+static HTHCollisionWorld bootstrap_collision_world(void)
+{
+    HTHWorld source;
+    HTHCollisionWorld collision;
+
+    assert(hth_bootstrap_world_create(&source));
+    assert(hth_collision_world_build_from_world(&collision, &source));
+    hth_world_shutdown(&source);
+    return collision;
 }
 
 static bool body_penetrates(const HTHCollisionWorld *world,
@@ -122,6 +135,46 @@ static void test_intent(void)
     assert(close_enough(disabled.magnitude, 0.0F));
 }
 
+static void test_normalized_release_clears_directional_intent(void)
+{
+    const HTHKey movement_keys[] = {
+        HTH_KEY_W, HTH_KEY_A, HTH_KEY_S, HTH_KEY_D
+    };
+    size_t index;
+
+    for (index = 0;
+         index < sizeof(movement_keys) / sizeof(movement_keys[0]); ++index) {
+        HTHKeyboardReconciliation reconciliation = {0};
+        bool physical_down[HTH_KEY_COUNT] = {false};
+        HTHPlayerMovementIntent intent;
+        HTHPlatformEvent release = {0};
+        HTHInput *input = hth_input_create();
+        HTHKey released;
+
+        assert(input != NULL);
+        hth_input_begin_frame(input);
+        inject_key(input, movement_keys[index]);
+        hth_keyboard_reconciliation_report_down(
+            &reconciliation, movement_keys[index]);
+        assert(hth_player_movement_build_intent(
+            input, hth_vec3(0.0F, 0.0F, -1.0F),
+            hth_vec3(0.0F, 1.0F, 0.0F), true, &intent));
+        assert(intent.magnitude > 0.0F);
+
+        assert(hth_keyboard_reconciliation_next_release(
+            &reconciliation, physical_down, &released));
+        release.type = HTH_PLATFORM_EVENT_KEY_UP;
+        release.data.keyboard.key = released;
+        hth_input_handle_event(input, &release);
+        assert(hth_player_movement_build_intent(
+            input, hth_vec3(0.0F, 0.0F, -1.0F),
+            hth_vec3(0.0F, 1.0F, 0.0F), true, &intent));
+        assert(close_enough(intent.magnitude, 0.0F));
+        assert(!hth_input_key_down(input, movement_keys[index]));
+        hth_input_destroy(input);
+    }
+}
+
 static void test_jump_intent_uses_pressed_transition(void)
 {
     HTHInput *input = hth_input_create();
@@ -164,7 +217,7 @@ static void test_integration(void)
         {0.0F, 0.0F, 0.0F}, 0.0F, false
     };
 
-    assert(hth_collision_world_init_bootstrap(&world));
+    world = bootstrap_collision_world();
     assert(hth_player_body_init(&body, hth_vec3(0.0F, 5.0F, 3.0F)));
     assert(hth_player_movement_step(&body, &world, &forward, 0.05));
     assert(body.position.z < 3.0F);
@@ -194,7 +247,7 @@ static void test_gravity_lands_on_floor(void)
     };
     unsigned int step;
 
-    assert(hth_collision_world_init_bootstrap(&world));
+    world = bootstrap_collision_world();
     assert(hth_player_body_init(&body, hth_vec3(0.0F, 1.0F, 3.0F)));
     for (step = 0; step < 120 && !body.grounded; ++step) {
         assert(hth_player_movement_step(&body, &world, &none, 1.0 / 60.0));
@@ -721,6 +774,7 @@ static void test_jump_reports_one_landing(void)
 int main(void)
 {
     test_intent();
+    test_normalized_release_clears_directional_intent();
     test_jump_intent_uses_pressed_transition();
     test_integration();
     test_gravity_lands_on_floor();

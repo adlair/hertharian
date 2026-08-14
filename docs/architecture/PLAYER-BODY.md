@@ -33,6 +33,11 @@ Camera position. View Dynamics adds transient presentation offsets downstream.
 Those offsets never modify Body position, velocity, dimensions, or grounded
 state.
 
+As of v0.2.1, the initial body position comes from the finalized World's
+default spawn. Engine validates the initialized body against the derived
+Collision World and rejects a start-solid spawn. Player Body itself remains
+unaware of World representation and spawn policy.
+
 Changing camera yaw or pitch never changes body position. The player body is
 not public API, a gameplay `Entity`, a renderable object, or a networked player
 model. v0.1.9 can move this physical state through a basic jump, but crouching,

@@ -26,6 +26,37 @@ execution prints none of this detail. Device IDs are diagnostic observations,
 not configured or hardcoded policy; any selected ID is discovered dynamically
 from the current SDL inventory.
 
+## Keyboard Release Reconciliation
+
+Window-system transitions can make an SDL key-up event unavailable even after
+the physical key has been released. Platform retains a private set of
+translated keys it has already reported as down. After fully draining the SDL
+event queue, it compares only that set with the active backend observation and
+emits a single normalized HTH key-up for each stale entry. Normal key events
+remain the source of pressed edges and the primary source of released edges.
+
+The reconciliation policy is backend-independent and never synthesizes
+key-down, polls into Input directly, grabs the keyboard, uses a timeout, or
+names a desktop environment. Focus loss clears Platform's reported set as
+Input clears held state; focus gain does not infer presses from observation.
+Each normalized release traverses the ordinary HTH event and Input route. A
+late real key-up is idempotent and a later real key-down starts a new press.
+
+The X11 backend can keep both its SDL event state and SDL keyboard snapshot
+stale when a release is intercepted outside the application. Builds with Xlib
+therefore use a private observer that reuses SDL's
+`SDL_PROP_WINDOW_X11_DISPLAY_POINTER` connection and calls `XQueryKeymap`.
+SDL's backend passes the native X keycode through `SDL_KeyboardEvent.raw`, so
+the observer records that value alongside the translated SDL scancode instead
+of assuming a numeric offset. The X11 server bitmap is the independent
+authority for recovering exclusively lost releases; SDL's cached state remains
+diagnostic in this path. Debug mode reports the discrepancy and its single
+normalized release.
+
+Xlib is a private, target-scoped optional dependency. The observer is compiled
+only when X11 development support is available and activated only when SDL's
+current video driver is X11. Native Wayland never invokes it.
+
 ## Relative Motion Source Selection
 
 Some SDL X11/XWayland environments expose separate absolute and explicit

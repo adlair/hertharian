@@ -7,8 +7,9 @@ Engine → Renderer frontend → OpenGL backend → Platform presentation → SD
 ```
 
 Platform owns the SDL window and opaque graphics-context services. The renderer
-frontend owns a backend and consumes the final engine camera. It obtains framebuffer
-pixel dimensions, builds HTH Model/View/Projection matrices, and gives those
+frontend owns a backend and consumes the final engine camera plus finalized
+World content at initialization. It obtains framebuffer pixel dimensions,
+builds HTH Model/View/Projection matrices, and gives derived draw data and
 matrices to the backend. The OpenGL backend owns context, pipeline, geometry,
 uniform locations, and draw state. Public headers expose neither SDL nor
 OpenGL.
@@ -28,15 +29,14 @@ generic box, and cyan/purple corridor references. These colors distinguish
 manual physics test cases and are explicitly not Hertharian final art
 direction. Depth testing uses `GL_LESS` as the baseline 3D semantic.
 
-The frontend refreshes View from the engine camera before drawing. Since v0.1.7,
-the backend builds private model matrices from the bootstrap Collision World
-bounds. v0.1.8 expands those temporary references with a corridor, inside
-corner, low step, exact-limit platform, high ledge, and box. This direct
-Collision-to-Renderer bootstrap dependency is temporary. Physical AABBs remain
-the source of truth; Renderer associates colors through a small parallel table
-indexed only for this known bootstrap layout. Future World, Scene, and Material
-systems will replace this temporary coupling. No such abstraction is introduced
-in v0.1.8.
+The frontend refreshes View from the engine camera before drawing. As of
+v0.2.1, it iterates only World objects marked visible and maps their bootstrap
+visual class to the diagnostic color above. It passes derived AABB/color draw
+records to the backend once during initialization. The OpenGL backend builds
+private model matrices from those records and includes neither World nor
+Collision headers. Physical AABBs remain the bootstrap source of truth, while
+future Scene and Material systems will replace the temporary visual-class
+mapping.
 
 Rendering and presentation happen before work timing is measured, so both are
 included in `frame_work_seconds`.

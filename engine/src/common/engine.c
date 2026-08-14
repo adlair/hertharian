@@ -13,6 +13,8 @@
 #include "renderer.h"
 #include "timing_internal.h"
 #include "view_dynamics.h"
+#include "bootstrap_world.h"
+#include "world.h"
 
 #include <inttypes.h>
 #include <math.h>
@@ -29,6 +31,10 @@ struct HTHEngineViewState {
     HTHViewDynamicsState dynamics;
     HTHViewDynamicsConfig config;
     float base_vertical_fov_radians;
+};
+
+struct HTHEngineWorldState {
+    HTHWorld world;
 };
 
 static bool physical_state_spawn_is_clear(
@@ -56,6 +62,15 @@ static void destroy_view_state(HTHEngine *engine)
 {
     free(engine->view_state);
     engine->view_state = NULL;
+}
+
+static void destroy_world(HTHEngine *engine)
+{
+    if (engine->world_state != NULL) {
+        hth_world_shutdown(&engine->world_state->world);
+        free(engine->world_state);
+        engine->world_state = NULL;
+    }
 }
 
 static void clear_debugged_mouse_delta(HTHEngine *engine, const char *reason)
@@ -113,6 +128,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     uint64_t counter;
     uint64_t frequency;
     HTHPlatformConfig platform_config;
+    HTHWorldSpawn spawn;
 
     if (engine == NULL || config == NULL) {
         return false;
@@ -132,9 +148,20 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     engine->camera_controller = NULL;
     engine->physical_state = NULL;
     engine->view_state = NULL;
+    engine->world_state = NULL;
     engine->input = NULL;
     engine->timing = NULL;
     hth_camera_init_default(&engine->camera);
+    engine->world_state = calloc(1, sizeof(*engine->world_state));
+    if (engine->world_state == NULL ||
+        !hth_bootstrap_world_create(&engine->world_state->world) ||
+        !hth_world_default_spawn(&engine->world_state->world, &spawn)) {
+        fputs("Failed to initialize bootstrap world.\n", stderr);
+        destroy_world(engine);
+        return false;
+    }
+    engine->camera.forward = hth_vec3(
+        sinf(spawn.yaw_radians), 0.0F, -cosf(spawn.yaw_radians));
     engine->view_state = calloc(1, sizeof(*engine->view_state));
     if (engine->view_state != NULL) {
         engine->view_state->config = hth_view_dynamics_config_default();
@@ -145,6 +172,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         !hth_view_dynamics_config_is_valid(&engine->view_state->config)) {
         fputs("Failed to initialize view dynamics state.\n", stderr);
         destroy_view_state(engine);
+        destroy_world(engine);
         return false;
     }
     engine->camera_controller =
@@ -152,6 +180,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     if (engine->camera_controller == NULL) {
         fputs("Failed to initialize FPS camera controller.\n", stderr);
         destroy_view_state(engine);
+        destroy_world(engine);
         return false;
     }
     engine->physical_state = calloc(1, sizeof(*engine->physical_state));
@@ -162,10 +191,10 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     if (engine->physical_state == NULL ||
         !hth_movement_config_is_valid(
             &engine->physical_state->movement_config) ||
-        !hth_player_body_init(&engine->physical_state->body,
-                              hth_vec3(0.0F, 0.05F, 3.0F)) ||
-        !hth_collision_world_init_bootstrap(
-            &engine->physical_state->collision_world) ||
+        !hth_player_body_init(&engine->physical_state->body, spawn.position) ||
+        !hth_collision_world_build_from_world(
+            &engine->physical_state->collision_world,
+            &engine->world_state->world) ||
         !physical_state_spawn_is_clear(engine->physical_state) ||
         !hth_player_body_eye_position(&engine->physical_state->body,
                                       &engine->camera.position)) {
@@ -173,6 +202,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
               stderr);
         destroy_physical_state(engine);
         destroy_view_state(engine);
+        destroy_world(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
@@ -194,6 +224,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     if (!hth_platform_init(&engine->platform, &platform_config)) {
         destroy_physical_state(engine);
         destroy_view_state(engine);
+        destroy_world(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
@@ -202,12 +233,13 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     if (!config->headless) {
         engine->renderer = hth_renderer_create(engine->platform,
                                                &engine->camera,
-                                               &engine->physical_state->collision_world);
+                                               &engine->world_state->world);
         if (engine->renderer == NULL) {
             hth_platform_shutdown(engine->platform);
             engine->platform = NULL;
             destroy_physical_state(engine);
             destroy_view_state(engine);
+            destroy_world(engine);
             hth_fps_camera_controller_destroy(engine->camera_controller);
             engine->camera_controller = NULL;
             return false;
@@ -225,10 +257,12 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         engine->platform = NULL;
         destroy_physical_state(engine);
         destroy_view_state(engine);
+        destroy_world(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
     }
+    hth_input_set_debug_fps_input(engine->input, config->debug_fps_input);
 
     frequency = hth_platform_time_frequency();
     counter = hth_platform_time_counter();
@@ -243,6 +277,7 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
         engine->platform = NULL;
         destroy_physical_state(engine);
         destroy_view_state(engine);
+        destroy_world(engine);
         hth_fps_camera_controller_destroy(engine->camera_controller);
         engine->camera_controller = NULL;
         return false;
@@ -313,9 +348,9 @@ void hth_engine_frame(HTHEngine *engine)
                        event.data.keyboard.key == HTH_KEY_ESCAPE) {
                 puts("FPS input: Escape pressed");
             } else if (event.type == HTH_PLATFORM_EVENT_FOCUS_GAINED) {
-                puts("FPS input: focus gained");
+                puts("HTH focus:\n  gained");
             } else if (event.type == HTH_PLATFORM_EVENT_FOCUS_LOST) {
-                puts("FPS input: focus lost");
+                puts("HTH focus:\n  lost");
             }
         }
         if (event.type == HTH_PLATFORM_EVENT_QUIT) {
@@ -446,10 +481,11 @@ void hth_engine_shutdown(HTHEngine *engine)
     engine->input = NULL;
     hth_fps_camera_controller_destroy(engine->camera_controller);
     engine->camera_controller = NULL;
-    destroy_physical_state(engine);
-    destroy_view_state(engine);
     hth_renderer_destroy(engine->renderer);
     engine->renderer = NULL;
+    destroy_physical_state(engine);
+    destroy_world(engine);
+    destroy_view_state(engine);
     hth_platform_shutdown(engine->platform);
     engine->platform = NULL;
     engine->initialized = false;

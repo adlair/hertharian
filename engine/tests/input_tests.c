@@ -30,6 +30,64 @@ static void test_keyboard_edges(void)
     hth_input_destroy(input);
 }
 
+static void test_repeat_does_not_reactivate_after_focus_loss(void)
+{
+    HTHInput *input = hth_input_create();
+    HTHPlatformEvent event = {0};
+
+    assert(input != NULL);
+    hth_input_begin_frame(input);
+    event.type = HTH_PLATFORM_EVENT_KEY_DOWN;
+    event.data.keyboard.key = HTH_KEY_W;
+    hth_input_handle_event(input, &event);
+    assert(hth_input_key_down(input, HTH_KEY_W));
+
+    event.type = HTH_PLATFORM_EVENT_FOCUS_LOST;
+    hth_input_handle_event(input, &event);
+    assert(!hth_input_key_down(input, HTH_KEY_W));
+
+    hth_input_begin_frame(input);
+    event.type = HTH_PLATFORM_EVENT_FOCUS_GAINED;
+    hth_input_handle_event(input, &event);
+    event.type = HTH_PLATFORM_EVENT_KEY_DOWN;
+    event.data.keyboard.repeat = true;
+    hth_input_handle_event(input, &event);
+    assert(!hth_input_key_down(input, HTH_KEY_W));
+    assert(!hth_input_key_pressed(input, HTH_KEY_W));
+
+    event.data.keyboard.repeat = false;
+    hth_input_handle_event(input, &event);
+    assert(hth_input_key_down(input, HTH_KEY_W));
+    assert(hth_input_key_pressed(input, HTH_KEY_W));
+    hth_input_destroy(input);
+}
+
+static void test_release_is_idempotent_and_allows_a_new_press(void)
+{
+    HTHInput *input = hth_input_create();
+    HTHPlatformEvent event = {0};
+
+    assert(input != NULL);
+    hth_input_begin_frame(input);
+    event.type = HTH_PLATFORM_EVENT_KEY_DOWN;
+    event.data.keyboard.key = HTH_KEY_W;
+    hth_input_handle_event(input, &event);
+
+    event.type = HTH_PLATFORM_EVENT_KEY_UP;
+    hth_input_handle_event(input, &event); /* Normalized release. */
+    hth_input_handle_event(input, &event); /* Late real SDL release. */
+    assert(!hth_input_key_down(input, HTH_KEY_W));
+    assert(hth_input_key_released(input, HTH_KEY_W));
+
+    hth_input_begin_frame(input);
+    event.type = HTH_PLATFORM_EVENT_KEY_DOWN;
+    event.data.keyboard.repeat = false;
+    hth_input_handle_event(input, &event);
+    assert(hth_input_key_down(input, HTH_KEY_W));
+    assert(hth_input_key_pressed(input, HTH_KEY_W));
+    hth_input_destroy(input);
+}
+
 static void test_mouse_transients(void)
 {
     HTHInput *input = hth_input_create();
@@ -169,6 +227,8 @@ static void test_capture_transition_motion_discard(void)
 int main(void)
 {
     test_keyboard_edges();
+    test_repeat_does_not_reactivate_after_focus_loss();
+    test_release_is_idempotent_and_allows_a_new_press();
     test_mouse_transients();
     test_mouse_button_edges();
     test_focus_loss();
