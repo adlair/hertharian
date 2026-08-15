@@ -1,10 +1,11 @@
 # Graphics Pipeline
 
-The private OpenGL backend now exercises a real 3D transform chain:
+The private OpenGL backend exercises this data and transform chain:
 
 ```text
-local vec3 position + vec2 UV
-        ↓ Model (identity)
+World render shape
+        ↓ Geometry Library → indexed position + UV
+        ↓ Model (scale + translation from bounds)
 world position
         ↓ View (bootstrap camera)
 camera position
@@ -12,18 +13,18 @@ camera position
 clip space → rasterization → framebuffer → Platform presentation
 ```
 
-One static VBO contains a unit cube made from local-space triangles with a
-full `[0,1]` UV square on each face. Before Renderer initialization, World
-visual classes pass through the temporary bootstrap material binding and
-external `hthmaterial`/PPM resources. Renderer receives only resolved bounds,
-base color, and optional RGB8 pixels; private backend model matrices translate
-and scale cube instances to those AABBs.
+The CPU-only Geometry Library supplies canonical indexed BOX and WEDGE views.
+Before Renderer initialization, Engine translates explicit World render shape
+and resolves visual classes through external `hthmaterial`/PPM resources.
+Renderer receives primitive, bounds, base color, and optional RGB8 pixels;
+private backend model matrices translate and scale primitive instances.
 
 A GLSL 330 Core vertex shader applies
 `u_projection * u_view * u_model` and forwards UV. The fragment shader emits
 base color or `texture(u_base_texture, uv) * base_color` according to a
 per-draw uniform. The backend caches all uniform locations, uploads each
-texture once during initialization, and binds one texture unit while drawing.
+texture once during initialization, uploads one VAO/VBO/EBO set per primitive,
+and binds one texture unit while drawing with `glDrawElements`.
 The externally stored palette and diagnostic textures provide visible physical
 references without introducing public Mesh, Scene, Entity, or Material APIs.
 
@@ -37,5 +38,5 @@ Depth testing is enabled with `GL_DEPTH_TEST` and `GL_LESS` from this milestone
 because depth is part of the renderer's 3D semantics.
 
 Shader compilation/link diagnostics and per-context function ownership remain
-unchanged. No indices, mesh abstraction, lighting, PBR, mipmaps, material
+unchanged. No external meshes, mesh manager, lighting, PBR, mipmaps, material
 cache, filesystem access in Renderer, animation, or scene API are introduced.

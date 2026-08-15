@@ -23,12 +23,27 @@ typedef enum {
 } HTHWorldVisualClass;
 
 typedef enum {
+    HTH_WORLD_COLLISION_NONE = 0,
+    HTH_WORLD_COLLISION_AABB,
+    HTH_WORLD_COLLISION_COUNT
+} HTHWorldCollisionShape;
+
+typedef enum {
+    HTH_WORLD_RENDER_NONE = 0,
+    HTH_WORLD_RENDER_BOX,
+    HTH_WORLD_RENDER_WEDGE,
+    HTH_WORLD_RENDER_COUNT
+} HTHWorldRenderShape;
+
+typedef enum {
     HTH_WORLD_OBJECT_COLLIDABLE = 1U << 0,
     HTH_WORLD_OBJECT_VISIBLE = 1U << 1
 } HTHWorldObjectFlags;
 
 typedef struct {
     HTHAABB bounds;
+    HTHWorldCollisionShape collision_shape;
+    HTHWorldRenderShape render_shape;
     uint32_t flags;
     HTHWorldVisualClass visual_class;
 } HTHWorldStaticObject;
@@ -52,6 +67,8 @@ typedef struct HTHWorld {
 bool hth_world_init(HTHWorld *world);
 void hth_world_shutdown(HTHWorld *world);
 bool hth_world_add_static_object(HTHWorld *world, HTHAABB bounds,
+                                 HTHWorldCollisionShape collision_shape,
+                                 HTHWorldRenderShape render_shape,
                                  uint32_t flags,
                                  HTHWorldVisualClass visual_class);
 bool hth_world_set_default_spawn(HTHWorld *world, HTHWorldSpawn spawn);

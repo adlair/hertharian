@@ -38,7 +38,9 @@ The temporary bootstrap material layer eagerly maps every
 materials, and decodes every referenced image. This bridge is internal and
 contains IDs only, never colors. Engine resolves visible World objects into
 renderer-ready bounds, base colors, and optional image views. Renderer sees no
-Resource ID or visual-class mapping.
+Resource ID or visual-class mapping. The same resolved material can be applied
+to BOX or WEDGE geometry; primitive selection does not change material format
+1.
 
 Headless initialization performs the same material loads, parses, texture
 loads, and image decodes as graphical initialization; it skips only GPU upload
@@ -50,6 +52,6 @@ per-frame I/O, decoding, or allocation.
 
 There is no registry, cache, deduplication, refcounting, lazy loading, hot
 reload, PBR, lighting, blending, sampler resource, or direct material field in
-`hthlevel` v1. Duplicate texture upload is acceptable in this bootstrap.
+`hthlevel` v2. Duplicate texture upload is acceptable in this bootstrap.
 Future Level formats may reference materials directly and future content
 pipelines may replace the visual-class compatibility bridge.

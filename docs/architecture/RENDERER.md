@@ -20,29 +20,31 @@ View Dynamics and simply uses the resulting view and effective radian FOV.
 
 ## 3D Bootstrap Frame
 
-Each drawable frame clears color, depth, and stencil, submits several instances
-of one static local-space cube through the MVP/UV shader path, and presents.
+Each drawable frame clears color, depth, and stencil, submits BOX and WEDGE
+instances through the indexed MVP/UV shader path, and presents.
 The clear color is `(0.05, 0.02, 0.08, 1.0)`. Each draw supplies an externally
 resolved base color and optional RGB8 image. The fragment shader multiplies a
 texture sample by the base color when a texture exists and otherwise uses the
 base color alone. These materials and textures are bootstrap diagnostics, not
 Hertharian final art direction. Depth testing uses `GL_LESS`.
 
-The frontend refreshes View from the engine camera before drawing. As of
-v0.2.4, Engine and the Material layer resolve visible World objects before they
-reach Renderer. Renderer contains no visual-class palette or Resource lookup;
-it receives AABB/base-color/optional-image draw records once during
-initialization. The OpenGL backend builds private model matrices and uploads
-textures synchronously. It includes neither World nor Collision headers, and
-GPU texture names never leave the backend.
+The frontend refreshes View from the engine camera before drawing. Engine
+extracts only visible objects and translates explicit World render shapes to
+built-in Geometry primitives while the Material layer resolves appearance.
+Renderer receives primitive/bounds/base-color/optional-image draw records once
+during initialization. It never receives collision shape or Collision state,
+and it no longer assumes that an AABB implies a visible box.
 
-The static cube stores position plus UV. Every face maps the full `[0,1]`
-square independently; consistent mirroring is accepted for this bootstrap.
+BOX and WEDGE store position plus UV and indexed triangles. The backend uploads
+one VAO/VBO/EBO set per primitive, reuses it across objects, and draws with
+`glDrawElements(GL_TRIANGLES, ..., GL_UNSIGNED_INT, NULL)`. Model transforms
+scale canonical `[-0.5,0.5]` geometry to bounds and translate it to their
+center. Every face uses simple `[0,1]` primitive-local UVs.
 Textures use one texture unit, `GL_NEAREST` minification/magnification,
 `GL_REPEAT`, and no mipmaps. Upload temporarily sets `GL_UNPACK_ALIGNMENT` to
 1 for tightly packed RGB rows and restores the previous value afterward.
-Renderer shutdown deletes every texture before destroying the graphics
-context.
+Renderer shutdown deletes every texture and primitive VAO/VBO/EBO before
+destroying the graphics context.
 
 Rendering and presentation happen before work timing is measured, so both are
 included in `frame_work_seconds`.

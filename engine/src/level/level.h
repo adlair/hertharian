@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define HTH_LEVEL_FORMAT_VERSION 1U
+#define HTH_LEVEL_FORMAT_VERSION 2U
 #define HTH_LEVEL_ERROR_MESSAGE_CAPACITY 160U
 
 typedef struct {

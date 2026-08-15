@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.4 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.5 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -38,6 +38,7 @@ add_executable(hertharian-engine
     src/collision/collision_trace.c
     src/collision/collision_world.c
     src/input/input.c
+    src/geometry/geometry.c
     src/image/image.c
     src/level/level.c
     src/material/bootstrap_materials.c
@@ -60,6 +61,7 @@ target_include_directories(hertharian-engine PRIVATE
     src/common
     src/collision
     src/input
+    src/geometry
     src/image
     src/level
     src/material
@@ -316,6 +318,14 @@ if(BUILD_TESTING)
     target_compile_features(image_tests PRIVATE c_std_11)
     set_target_properties(image_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(geometry_tests
+        tests/geometry_tests.c
+        src/geometry/geometry.c
+    )
+    target_include_directories(geometry_tests PRIVATE src/geometry)
+    target_compile_features(geometry_tests PRIVATE c_std_11)
+    set_target_properties(geometry_tests PROPERTIES C_EXTENSIONS OFF)
+
     add_executable(view_dynamics_tests
         tests/view_dynamics_tests.c
         src/view/view_dynamics.c
@@ -354,6 +364,7 @@ if(BUILD_TESTING)
         target_link_libraries(world_tests PRIVATE m)
         target_link_libraries(level_tests PRIVATE m)
         target_link_libraries(material_tests PRIVATE m)
+        target_link_libraries(geometry_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -416,6 +427,9 @@ if(BUILD_TESTING)
         target_compile_options(image_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(geometry_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
@@ -439,4 +453,5 @@ if(BUILD_TESTING)
     add_test(NAME level_loading_foundation COMMAND level_tests)
     add_test(NAME material_foundation COMMAND material_tests)
     add_test(NAME image_loading_foundation COMMAND image_tests)
+    add_test(NAME geometry_foundation COMMAND geometry_tests)
 endif()

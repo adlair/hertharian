@@ -11,8 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef void (APIENTRYP HTHPFNGLDRAWARRAYSPROC)(GLenum mode, GLint first,
-                                                GLsizei count);
+typedef void (APIENTRYP HTHPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count,
+                                                  GLenum type,
+                                                  const void *indices);
 
 typedef struct {
     PFNGLCREATESHADERPROC create_shader;
@@ -42,15 +43,18 @@ typedef struct {
     PFNGLDELETEBUFFERSPROC delete_buffers;
     PFNGLENABLEVERTEXATTRIBARRAYPROC enable_vertex_attrib_array;
     PFNGLVERTEXATTRIBPOINTERPROC vertex_attrib_pointer;
-    HTHPFNGLDRAWARRAYSPROC draw_arrays;
+    HTHPFNGLDRAWELEMENTSPROC draw_elements;
 } HTHOpenGLFunctions;
 
 typedef struct {
-    GLfloat position[3];
-    GLfloat uv[2];
-} HTHBootstrapVertex;
+    GLuint vao;
+    GLuint vbo;
+    GLuint ebo;
+    GLsizei index_count;
+} HTHOpenGLGeometry;
 
 typedef struct {
+    HTHGeometryPrimitive primitive;
     float base_color[4];
     GLuint texture;
     bool has_texture;
@@ -61,8 +65,7 @@ struct HTHOpenGLBackend {
     HTHPlatformGraphicsContext *context;
     HTHOpenGLFunctions gl;
     GLuint program;
-    GLuint vao;
-    GLuint vbo;
+    HTHOpenGLGeometry geometries[HTH_GEOMETRY_PRIMITIVE_COUNT];
     GLint model_location;
     GLint view_location;
     GLint projection_location;
@@ -106,45 +109,6 @@ static const GLchar fragment_shader_source[] =
     "    }\n"
     "    fragment_color = surface;\n"
     "}\n";
-
-static const HTHBootstrapVertex bootstrap_vertices[] = {
-    {{-0.5F, -0.5F,  0.5F}, {0.0F, 0.0F}},
-    {{ 0.5F, -0.5F,  0.5F}, {1.0F, 0.0F}},
-    {{ 0.5F,  0.5F,  0.5F}, {1.0F, 1.0F}},
-    {{-0.5F, -0.5F,  0.5F}, {0.0F, 0.0F}},
-    {{ 0.5F,  0.5F,  0.5F}, {1.0F, 1.0F}},
-    {{-0.5F,  0.5F,  0.5F}, {0.0F, 1.0F}},
-    {{ 0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
-    {{-0.5F, -0.5F, -0.5F}, {1.0F, 0.0F}},
-    {{-0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
-    {{ 0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
-    {{-0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
-    {{ 0.5F,  0.5F, -0.5F}, {0.0F, 1.0F}},
-    {{-0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
-    {{-0.5F, -0.5F,  0.5F}, {1.0F, 0.0F}},
-    {{-0.5F,  0.5F,  0.5F}, {1.0F, 1.0F}},
-    {{-0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
-    {{-0.5F,  0.5F,  0.5F}, {1.0F, 1.0F}},
-    {{-0.5F,  0.5F, -0.5F}, {0.0F, 1.0F}},
-    {{ 0.5F, -0.5F,  0.5F}, {0.0F, 0.0F}},
-    {{ 0.5F, -0.5F, -0.5F}, {1.0F, 0.0F}},
-    {{ 0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
-    {{ 0.5F, -0.5F,  0.5F}, {0.0F, 0.0F}},
-    {{ 0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
-    {{ 0.5F,  0.5F,  0.5F}, {0.0F, 1.0F}},
-    {{-0.5F,  0.5F,  0.5F}, {0.0F, 0.0F}},
-    {{ 0.5F,  0.5F,  0.5F}, {1.0F, 0.0F}},
-    {{ 0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
-    {{-0.5F,  0.5F,  0.5F}, {0.0F, 0.0F}},
-    {{ 0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
-    {{-0.5F,  0.5F, -0.5F}, {0.0F, 1.0F}},
-    {{-0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
-    {{ 0.5F, -0.5F, -0.5F}, {1.0F, 0.0F}},
-    {{ 0.5F, -0.5F,  0.5F}, {1.0F, 1.0F}},
-    {{-0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
-    {{ 0.5F, -0.5F,  0.5F}, {1.0F, 1.0F}},
-    {{-0.5F, -0.5F,  0.5F}, {0.0F, 1.0F}},
-};
 
 #define HTH_LOAD_GL_FUNCTION(backend, member, type, name)                   \
     do {                                                                    \
@@ -222,8 +186,8 @@ static bool load_gl_functions(HTHOpenGLBackend *backend)
                          "glEnableVertexAttribArray");
     HTH_LOAD_GL_FUNCTION(backend, vertex_attrib_pointer,
                          PFNGLVERTEXATTRIBPOINTERPROC, "glVertexAttribPointer");
-    HTH_LOAD_GL_FUNCTION(backend, draw_arrays,
-                         HTHPFNGLDRAWARRAYSPROC, "glDrawArrays");
+    HTH_LOAD_GL_FUNCTION(backend, draw_elements,
+                         HTHPFNGLDRAWELEMENTSPROC, "glDrawElements");
     return true;
 }
 
@@ -333,34 +297,72 @@ static GLuint create_program(HTHOpenGLBackend *backend)
     return program;
 }
 
-static bool create_geometry(HTHOpenGLBackend *backend)
+static bool upload_geometry(HTHOpenGLBackend *backend,
+                            HTHGeometryPrimitive primitive)
 {
-    backend->gl.gen_vertex_arrays(1, &backend->vao);
-    backend->gl.gen_buffers(1, &backend->vbo);
-    if (backend->vao == 0 || backend->vbo == 0) {
-        fputs("Renderer initialization failed: VAO/VBO creation failed.\n",
+    HTHGeometryView source;
+    HTHOpenGLGeometry *geometry;
+    size_t index_bytes;
+    size_t vertex_bytes;
+
+    if (primitive < HTH_GEOMETRY_PRIMITIVE_BOX ||
+        primitive >= HTH_GEOMETRY_PRIMITIVE_COUNT ||
+        !hth_geometry_get(primitive, &source) ||
+        source.vertex_count > SIZE_MAX / sizeof(*source.vertices) ||
+        source.index_count > SIZE_MAX / sizeof(*source.indices)) {
+        return false;
+    }
+    vertex_bytes = source.vertex_count * sizeof(*source.vertices);
+    index_bytes = source.index_count * sizeof(*source.indices);
+    if (vertex_bytes > (size_t)PTRDIFF_MAX ||
+        index_bytes > (size_t)PTRDIFF_MAX || source.index_count > INT_MAX) {
+        return false;
+    }
+    geometry = &backend->geometries[primitive];
+    backend->gl.gen_vertex_arrays(1, &geometry->vao);
+    backend->gl.gen_buffers(1, &geometry->vbo);
+    backend->gl.gen_buffers(1, &geometry->ebo);
+    if (geometry->vao == 0 || geometry->vbo == 0 || geometry->ebo == 0) {
+        fputs("Renderer initialization failed: VAO/VBO/EBO creation failed.\n",
               stderr);
         return false;
     }
 
-    backend->gl.bind_vertex_array(backend->vao);
-    backend->gl.bind_buffer(GL_ARRAY_BUFFER, backend->vbo);
-    backend->gl.buffer_data(GL_ARRAY_BUFFER,
-                            (GLsizeiptr)sizeof(bootstrap_vertices),
-                            bootstrap_vertices, GL_STATIC_DRAW);
+    backend->gl.bind_vertex_array(geometry->vao);
+    backend->gl.bind_buffer(GL_ARRAY_BUFFER, geometry->vbo);
+    backend->gl.buffer_data(GL_ARRAY_BUFFER, (GLsizeiptr)vertex_bytes,
+                            source.vertices, GL_STATIC_DRAW);
+    backend->gl.bind_buffer(GL_ELEMENT_ARRAY_BUFFER, geometry->ebo);
+    backend->gl.buffer_data(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)index_bytes,
+                            source.indices, GL_STATIC_DRAW);
     backend->gl.enable_vertex_attrib_array(0);
     backend->gl.vertex_attrib_pointer(
-        0, 3, GL_FLOAT, GL_FALSE, (GLsizei)sizeof(HTHBootstrapVertex),
-        (const void *)offsetof(HTHBootstrapVertex, position));
+        0, 3, GL_FLOAT, GL_FALSE, (GLsizei)sizeof(HTHRenderVertex),
+        (const void *)offsetof(HTHRenderVertex, position));
     backend->gl.enable_vertex_attrib_array(1);
     backend->gl.vertex_attrib_pointer(
-        1, 2, GL_FLOAT, GL_FALSE, (GLsizei)sizeof(HTHBootstrapVertex),
-        (const void *)offsetof(HTHBootstrapVertex, uv));
-    backend->gl.bind_buffer(GL_ARRAY_BUFFER, 0);
+        1, 2, GL_FLOAT, GL_FALSE, (GLsizei)sizeof(HTHRenderVertex),
+        (const void *)offsetof(HTHRenderVertex, uv));
     backend->gl.bind_vertex_array(0);
+    backend->gl.bind_buffer(GL_ARRAY_BUFFER, 0);
+    geometry->index_count = (GLsizei)source.index_count;
     if (glGetError() != GL_NO_ERROR) {
-        fputs("Renderer initialization failed: vertex setup failed.\n", stderr);
+        fputs("Renderer initialization failed: indexed geometry setup "
+              "failed.\n", stderr);
         return false;
+    }
+    return true;
+}
+
+static bool create_geometry(HTHOpenGLBackend *backend)
+{
+    int primitive;
+
+    for (primitive = 0; primitive < (int)HTH_GEOMETRY_PRIMITIVE_COUNT;
+         ++primitive) {
+        if (!upload_geometry(backend, (HTHGeometryPrimitive)primitive)) {
+            return false;
+        }
     }
     return true;
 }
@@ -434,6 +436,10 @@ static bool create_static_models(HTHOpenGLBackend *backend,
         if (!hth_aabb_is_valid(bounds)) {
             return false;
         }
+        if (draws[index].primitive < HTH_GEOMETRY_PRIMITIVE_BOX ||
+            draws[index].primitive >= HTH_GEOMETRY_PRIMITIVE_COUNT) {
+            return false;
+        }
         for (component = 0U; component < 4U; ++component) {
             if (!isfinite(draws[index].base_color[component]) ||
                 draws[index].base_color[component] < 0.0F ||
@@ -444,6 +450,7 @@ static bool create_static_models(HTHOpenGLBackend *backend,
         memcpy(backend->static_draws[index].base_color,
                draws[index].base_color,
                sizeof(backend->static_draws[index].base_color));
+        backend->static_draws[index].primitive = draws[index].primitive;
         backend->static_draws[index].has_texture = draws[index].has_texture;
         if (draws[index].has_texture &&
             !upload_texture(backend, &draws[index],
@@ -588,6 +595,7 @@ HTHOpenGLBackend *hth_renderer_opengl_create(
 
 void hth_renderer_opengl_destroy(HTHOpenGLBackend *backend)
 {
+    size_t geometry_index;
     size_t index;
 
     if (backend == NULL) {
@@ -603,11 +611,22 @@ void hth_renderer_opengl_destroy(HTHOpenGLBackend *backend)
                 glDeleteTextures(1, &backend->static_draws[index].texture);
             }
         }
-        if (backend->vbo != 0 && backend->gl.delete_buffers != NULL) {
-            backend->gl.delete_buffers(1, &backend->vbo);
-        }
-        if (backend->vao != 0 && backend->gl.delete_vertex_arrays != NULL) {
-            backend->gl.delete_vertex_arrays(1, &backend->vao);
+        for (geometry_index = 0U;
+             geometry_index < HTH_GEOMETRY_PRIMITIVE_COUNT;
+             ++geometry_index) {
+            HTHOpenGLGeometry *geometry =
+                &backend->geometries[geometry_index];
+
+            if (geometry->ebo != 0U && backend->gl.delete_buffers != NULL) {
+                backend->gl.delete_buffers(1, &geometry->ebo);
+            }
+            if (geometry->vbo != 0U && backend->gl.delete_buffers != NULL) {
+                backend->gl.delete_buffers(1, &geometry->vbo);
+            }
+            if (geometry->vao != 0U &&
+                backend->gl.delete_vertex_arrays != NULL) {
+                backend->gl.delete_vertex_arrays(1, &geometry->vao);
+            }
         }
         if (backend->program != 0 && backend->gl.delete_program != NULL) {
             backend->gl.delete_program(backend->program);
@@ -659,24 +678,25 @@ bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     backend->gl.use_program(backend->program);
-    backend->gl.bind_vertex_array(backend->vao);
     backend->gl.active_texture(GL_TEXTURE0);
     for (index = 0; index < backend->static_draw_count; ++index) {
+        const HTHOpenGLRuntimeDraw *draw = &backend->static_draws[index];
+        const HTHOpenGLGeometry *geometry =
+            &backend->geometries[draw->primitive];
+
+        backend->gl.bind_vertex_array(geometry->vao);
         backend->gl.uniform_matrix_4fv(
             backend->model_location, 1, GL_FALSE,
             backend->static_models[index].elements);
         backend->gl.uniform_4fv(
             backend->base_color_location, 1,
-            backend->static_draws[index].base_color);
+            draw->base_color);
         backend->gl.uniform_1i(
             backend->use_texture_location,
-            backend->static_draws[index].has_texture ? 1 : 0);
-        glBindTexture(GL_TEXTURE_2D,
-                      backend->static_draws[index].texture);
-        backend->gl.draw_arrays(
-            GL_TRIANGLES, 0,
-            (GLsizei)(sizeof(bootstrap_vertices) /
-                      sizeof(bootstrap_vertices[0])));
+            draw->has_texture ? 1 : 0);
+        glBindTexture(GL_TEXTURE_2D, draw->texture);
+        backend->gl.draw_elements(GL_TRIANGLES, geometry->index_count,
+                                  GL_UNSIGNED_INT, NULL);
     }
     glBindTexture(GL_TEXTURE_2D, 0);
     backend->gl.bind_vertex_array(0);

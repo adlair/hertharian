@@ -53,13 +53,19 @@ path and disables only Renderer. The build-generated absolute development
 Resource Root remains independent of the current working directory but is not
 a binary-relocatable packaging solution.
 
+As of v0.2.5, Level format v2 stores explicit collision and render shapes in
+the intermediate description. The builder transfers both to World, whose
+shape/flag validation remains authoritative. Historical format v1 is rejected
+rather than upgraded.
+
 ## Current Limits
 
 The loader is synchronous, single-threaded, read-only, and uncached. Level
 description storage has no arbitrary small object cap, but the current
 Collision backend still rejects more than 16 collidable objects rather than
-truncating them. Version 1 supports only static AABBs, the existing flags,
-diagnostic visual classes, and one spawn.
+truncating them. Version 2 supports only static objects with shared AABB
+bounds, the existing flags and diagnostic visual classes, explicit AABB/none
+collision, box/wedge/none render shapes, and one spawn.
 
 There is no BSP, polygon geometry, entities, dynamic objects, materials,
 textures, audio, multiple-level management, hot reload, serialization, map

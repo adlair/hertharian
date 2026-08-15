@@ -6,6 +6,7 @@
 #include "hth_resource_config.h"
 #include "bootstrap_materials.h"
 #include "fps_camera_controller.h"
+#include "geometry.h"
 #include "collision_trace.h"
 #include "collision_world.h"
 #include "input_internal.h"
@@ -125,6 +126,23 @@ static bool build_renderer_draws(
         }
         if ((object->flags & HTH_WORLD_OBJECT_VISIBLE) == 0U) {
             continue;
+        }
+        switch (object->render_shape) {
+        case HTH_WORLD_RENDER_BOX:
+            draws[draw_count].primitive = HTH_GEOMETRY_PRIMITIVE_BOX;
+            break;
+        case HTH_WORLD_RENDER_WEDGE:
+            draws[draw_count].primitive = HTH_GEOMETRY_PRIMITIVE_WEDGE;
+            break;
+        case HTH_WORLD_RENDER_NONE:
+        case HTH_WORLD_RENDER_COUNT:
+        default:
+            fprintf(stderr,
+                    "Renderer draw resolution failed: render shape %d is "
+                    "not drawable.\n",
+                    (int)object->render_shape);
+            free(draws);
+            return false;
         }
         if (!hth_bootstrap_materials_get(
                 materials, object->visual_class, &material)) {
@@ -276,6 +294,11 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     if (engine->storage_state == NULL ||
         engine->storage_state->resources == NULL) {
         fputs("Failed to initialize resource system.\n", stderr);
+        destroy_storage(engine);
+        return false;
+    }
+    if (!hth_geometry_library_is_valid()) {
+        fputs("Failed to validate built-in geometry.\n", stderr);
         destroy_storage(engine);
         return false;
     }

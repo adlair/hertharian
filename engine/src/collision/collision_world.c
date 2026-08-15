@@ -19,7 +19,8 @@ bool hth_collision_world_build_from_world(HTHCollisionWorld *collision,
         if (object == NULL) {
             return false;
         }
-        if ((object->flags & HTH_WORLD_OBJECT_COLLIDABLE) == 0U) {
+        if ((object->flags & HTH_WORLD_OBJECT_COLLIDABLE) == 0U ||
+            object->collision_shape != HTH_WORLD_COLLISION_AABB) {
             continue;
         }
         if (collision->obstacle_count ==

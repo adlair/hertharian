@@ -23,10 +23,12 @@ static void test_collision_extraction_from_world(void)
     assert(hth_world_init(&source));
     assert(hth_world_add_static_object(
         &source, (HTHAABB){{-2.0F, -1.0F, -2.0F}, {2.0F, 0.0F, 2.0F}},
+        HTH_WORLD_COLLISION_AABB, HTH_WORLD_RENDER_BOX,
         HTH_WORLD_OBJECT_COLLIDABLE | HTH_WORLD_OBJECT_VISIBLE,
         HTH_WORLD_VISUAL_FLOOR));
     assert(hth_world_add_static_object(
         &source, (HTHAABB){{1.0F, 0.0F, -1.0F}, {2.0F, 2.0F, 1.0F}},
+        HTH_WORLD_COLLISION_AABB, HTH_WORLD_RENDER_NONE,
         HTH_WORLD_OBJECT_COLLIDABLE, HTH_WORLD_VISUAL_NONE));
     assert(hth_world_finalize(&source));
     assert(hth_collision_world_build_from_world(&collision, &source));

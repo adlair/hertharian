@@ -1,63 +1,48 @@
 # World Representation Foundation
 
-v0.2.1 introduces `HTHWorld` as the engine-internal source of truth for static
-bootstrap-world content. A World is built once, finalized before use, and then
-read as immutable data for the remainder of its lifetime. It is owned by the
-Engine and destroyed only after its consumers.
+`HTHWorld` is the engine-internal source of truth for static world content. It
+is built once, finalized before use, and then read as immutable data. Engine
+owns it and destroys it only after its consumers.
 
 ## Static Objects
 
-Each static object contains:
+As of v0.2.5 each static object contains shared world-space `HTHAABB` bounds,
+an explicit collision shape, an explicit render shape, flags, and a bootstrap
+visual class. Collision supports `none` or `aabb`; rendering supports `none`,
+`box`, or `wedge`. The common bounds define canonical extents: Collision may
+interpret them as an AABB while Renderer scales the selected unit primitive
+into the same volume.
 
-- an `HTHAABB` with its physical world-space bounds;
-- independent `collidable` and `visible` flags;
-- a small bootstrap diagnostic visual class.
+Flags and shapes must agree. A collidable object has collision shape `aabb`,
+and a non-collidable object has `none`. A visible object has `box` or `wedge`,
+and a non-visible object has render shape `none`. World validates these rules,
+enum ranges, bounds, flags, visual classes, spawn state, and aggregate bounds
+during construction/finalization.
 
-The flags are deliberately independent. A visible-only object does not enter
-Collision, while a collidable-only object does not enter Renderer. `HTHAABB`
-remains pure geometry and carries no color, rendering handle, or gameplay
-classification. The visual class is descriptive metadata, not RGBA or a
-Material system.
-
-World storage grows dynamically only while building. Finalization validates
-the contents, computes aggregate bounds, and closes all mutation APIs. Read
-access is index-based and const. Empty finalized worlds are valid, although
-the current Collision bootstrap requires at least one collidable object.
-
-## Bootstrap Content
-
-As of v0.2.3, the Level subsystem constructs World through the existing builder
-API from `levels/bootstrap.hthlevel`. That asset reproduces the prior physical
-scene exactly: floor, walls/corridor, inside corner, generic box, 0.20 low
-step, exact 0.30 step, 0.60 high ledge, platform/drop reference, and
-corridor-corner reference. It also defines the default player spawn at
-`(0, 0.05, 3)` with yaw `0` radians.
-
-The Engine reads this spawn instead of embedding it in lifecycle code. It then
-builds Collision from the collidable subset and verifies the Player Body does
-not start solid. World remains unaware of the Level Description, parser,
-Resource System, filesystem, and persistent format.
+World bounds remain the union of every valid static object's bounds,
+independent of flags or shapes. `HTHAABB` remains geometry-only and contains no
+render metadata, color, material, or GPU handle.
 
 ## Consumer Boundaries
 
 ```text
-Level Description → World builder/finalize → finalized HTHWorld
-                         ├── collidable objects → CollisionWorld copy
-                         └── visible objects → Renderer frontend draw data
+Level v2 → World builder/finalize → finalized HTHWorld
+                                      ├── collision state → CollisionWorld
+                                      └── render state → Engine draw extraction
+                                                            ├── Geometry
+                                                            └── Material
 ```
 
-Collision copies only AABBs and owns its trace-local obstacle indices. They do
-not promise stable World-object identity. Renderer frontend maps diagnostic
-visual classes to the existing bootstrap colors and sends only derived bounds
-and colors to the OpenGL backend. The backend includes no World or Collision
-types.
+Collision copies only objects marked collidable with `aabb` collision shape.
+It ignores render shape and visual class. Engine extracts visible objects from
+render shape, bounds, and visual class; Renderer receives no collision shape.
+Visible-only and collision-only objects are both valid.
 
-The World boundary itself contains no persistence, parser, entities, dynamic
-objects, scene graphs, materials, textures, BSP data, serialization, or
-gameplay object model. Level Loading now targets this boundary from above.
-Future World/Scene/Material work can replace the bootstrap visual metadata
-without changing the current collision geometry. The World abstraction is the
-runtime ownership/content boundary. The AABB primitive is the current
-bootstrap representation, not a promise that future worlds will remain lists
-of AABBs; a future map compiler or BSP-backed representation can target the
-same boundary.
+The bootstrap level contains the ten historical collidable/visible boxes plus
+one visible-only wedge. The wedge intentionally has no collision and exists to
+demonstrate that visible geometry no longer implies collision geometry.
+
+World contains no persistence, parser, Resource IDs, renderer handles,
+OpenGL, entities, dynamic objects, scene graph, BSP, or gameplay object model.
+The current collision implementation remains AABB-only and the current render
+shapes remain built-in bootstrap primitives.

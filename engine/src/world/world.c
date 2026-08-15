@@ -13,11 +13,37 @@ static bool valid_visual_class(HTHWorldVisualClass visual_class)
            visual_class < HTH_WORLD_VISUAL_COUNT;
 }
 
+static bool valid_collision_shape(HTHWorldCollisionShape shape)
+{
+    return shape >= HTH_WORLD_COLLISION_NONE &&
+           shape < HTH_WORLD_COLLISION_COUNT;
+}
+
+static bool valid_render_shape(HTHWorldRenderShape shape)
+{
+    return shape >= HTH_WORLD_RENDER_NONE && shape < HTH_WORLD_RENDER_COUNT;
+}
+
 static bool valid_static_object(const HTHWorldStaticObject *object)
 {
-    return object != NULL && hth_aabb_is_valid(&object->bounds) &&
-           (object->flags & ~known_flags) == 0U &&
-           valid_visual_class(object->visual_class);
+    bool collidable;
+    bool visible;
+
+    if (object == NULL || !hth_aabb_is_valid(&object->bounds) ||
+        (object->flags & ~known_flags) != 0U ||
+        !valid_collision_shape(object->collision_shape) ||
+        !valid_render_shape(object->render_shape) ||
+        !valid_visual_class(object->visual_class)) {
+        return false;
+    }
+    collidable = (object->flags & HTH_WORLD_OBJECT_COLLIDABLE) != 0U;
+    visible = (object->flags & HTH_WORLD_OBJECT_VISIBLE) != 0U;
+    return (collidable
+                ? object->collision_shape == HTH_WORLD_COLLISION_AABB
+                : object->collision_shape == HTH_WORLD_COLLISION_NONE) &&
+           (visible
+                ? object->render_shape != HTH_WORLD_RENDER_NONE
+                : object->render_shape == HTH_WORLD_RENDER_NONE);
 }
 
 bool hth_world_init(HTHWorld *world)
@@ -39,12 +65,16 @@ void hth_world_shutdown(HTHWorld *world)
 }
 
 bool hth_world_add_static_object(HTHWorld *world, HTHAABB bounds,
+                                 HTHWorldCollisionShape collision_shape,
+                                 HTHWorldRenderShape render_shape,
                                  uint32_t flags,
                                  HTHWorldVisualClass visual_class)
 {
     HTHWorldStaticObject object;
 
     object.bounds = bounds;
+    object.collision_shape = collision_shape;
+    object.render_shape = render_shape;
     object.flags = flags;
     object.visual_class = visual_class;
     if (world == NULL || world->finalized || !valid_static_object(&object)) {

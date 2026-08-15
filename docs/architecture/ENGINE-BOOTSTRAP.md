@@ -71,9 +71,9 @@ current frame's Input before Renderer sees the followed camera. Input end advanc
 short relative-mode transition guard; Timing finish then marks the whole frame
 complete.
 
-As of v0.2.3, initialization creates the internal Resource System, loads the
+Initialization creates the internal Resource System, loads the
 canonical `levels/bootstrap.hthlevel` resource, parses it into a temporary
-Level Description, and builds/finalizes the engine-owned World. Resource bytes
+Level v2 Description, and builds/finalizes the engine-owned World. Resource bytes
 and the description are released before Collision, Player, Platform, or
 Renderer initialization continues. The World supplies the default spawn and
 content consumed by Collision and Renderer; the spawn is checked against the
@@ -92,6 +92,12 @@ renderer draw inputs; OpenGL uploads the image bytes synchronously and owns the
 resulting textures. Material/image bytes never become World or Level state,
 and missing or malformed appearance resources fail without a compiled palette
 fallback.
+
+As of v0.2.5, Engine also validates immutable built-in BOX/WEDGE geometry in
+headless and graphical modes. World objects carry independent collision and
+render shapes over shared bounds. Collision extracts only explicit AABBs;
+Engine translates visible render shapes into primitive/material draw inputs.
+The bootstrap wedge is deliberately visible-only and pass-through.
 
 ## Tests
 

@@ -49,15 +49,17 @@ the physical step directly.
 
 ## Bootstrap World and Limits
 
-As of v0.2.1, `HTHWorld` owns bootstrap content. Collision builds its private,
-fixed-capacity array by copying only static objects marked collidable from the
-finalized World. Trace obstacle indices identify that Collision-owned copy and
-are not stable World-object identifiers. Collision never consumes visual
-classes or visibility flags.
+As of v0.2.5, Collision builds its private fixed-capacity array by copying only
+finalized World objects that are marked collidable and explicitly select AABB
+collision. It consumes only shared bounds, collision shape, and the collidable
+flag; it ignores render shape, visual class, materials, and geometry
+primitives. Trace obstacle indices identify that Collision-owned copy and are
+not stable World-object identifiers.
 
 The bootstrap content contains a floor, long walls and corridor, an
 inside corner, a box, a 0.20-unit low step, an exact 0.30-unit platform, and a
-0.60-unit high ledge. The physical bounds are unchanged from v0.1.8.
+0.60-unit high ledge. The physical bounds are unchanged from v0.1.8. The
+additional diagnostic wedge is visible-only and never enters this array.
 
 Collision remains axis-aligned and static. There is no general depenetration,
 rotation, capsule, slope, stair flight, dynamic body, moving platform,

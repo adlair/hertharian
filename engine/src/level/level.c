@@ -346,6 +346,65 @@ static bool parse_visual(HTHLevelScanner *scanner,
     return true;
 }
 
+static bool parse_collision_shape(HTHLevelScanner *scanner,
+                                  HTHWorldCollisionShape *out_shape,
+                                  HTHLevelError *error)
+{
+    HTHLevelToken token;
+
+    if (!scanner_read_token(scanner, &token)) {
+        return fail_at(error, scanner->line, scanner->column,
+                       "expected collision shape");
+    }
+    if (token_equals(token, "none")) {
+        *out_shape = HTH_WORLD_COLLISION_NONE;
+    } else if (token_equals(token, "aabb")) {
+        *out_shape = HTH_WORLD_COLLISION_AABB;
+    } else {
+        return fail_at(error, token.line, token.column,
+                       "unknown collision shape");
+    }
+    return true;
+}
+
+static bool parse_render_shape(HTHLevelScanner *scanner,
+                               HTHWorldRenderShape *out_shape,
+                               HTHLevelError *error)
+{
+    HTHLevelToken token;
+
+    if (!scanner_read_token(scanner, &token)) {
+        return fail_at(error, scanner->line, scanner->column,
+                       "expected render shape");
+    }
+    if (token_equals(token, "none")) {
+        *out_shape = HTH_WORLD_RENDER_NONE;
+    } else if (token_equals(token, "box")) {
+        *out_shape = HTH_WORLD_RENDER_BOX;
+    } else if (token_equals(token, "wedge")) {
+        *out_shape = HTH_WORLD_RENDER_WEDGE;
+    } else {
+        return fail_at(error, token.line, token.column,
+                       "unknown render shape");
+    }
+    return true;
+}
+
+static bool shape_flags_are_consistent(
+    const HTHWorldStaticObject *object)
+{
+    bool collidable =
+        (object->flags & HTH_WORLD_OBJECT_COLLIDABLE) != 0U;
+    bool visible = (object->flags & HTH_WORLD_OBJECT_VISIBLE) != 0U;
+
+    return (collidable
+                ? object->collision_shape == HTH_WORLD_COLLISION_AABB
+                : object->collision_shape == HTH_WORLD_COLLISION_NONE) &&
+           (visible
+                ? object->render_shape != HTH_WORLD_RENDER_NONE
+                : object->render_shape == HTH_WORLD_RENDER_NONE);
+}
+
 static bool token_is_flag(HTHLevelToken token)
 {
     return token_equals(token, "none") || token_equals(token, "collidable") ||
@@ -441,11 +500,20 @@ static bool parse_static_object(HTHLevelScanner *scanner,
         !read_float(scanner, locale, &object.object.bounds.max.x, error) ||
         !read_float(scanner, locale, &object.object.bounds.max.y, error) ||
         !read_float(scanner, locale, &object.object.bounds.max.z, error) ||
+        !expect_token(scanner, "collision", "expected 'collision'", error) ||
+        !parse_collision_shape(scanner, &object.object.collision_shape,
+                               error) ||
+        !expect_token(scanner, "render", "expected 'render'", error) ||
+        !parse_render_shape(scanner, &object.object.render_shape, error) ||
         !expect_token(scanner, "flags", "expected 'flags'", error) ||
         !parse_flags_and_visual(scanner, &object.object.flags,
                                 &object.object.visual_class, error) ||
         !expect_token(scanner, "end", "expected 'end'", error)) {
         return false;
+    }
+    if (!shape_flags_are_consistent(&object.object)) {
+        return fail_at(error, object.source_line, object.source_column,
+                       "object shapes are inconsistent with flags");
     }
     return append_object(description, object, error);
 }
@@ -482,7 +550,7 @@ bool hth_level_parse(const unsigned char *data, size_t size,
         }
         goto cleanup;
     }
-    if (!token_equals(token, "1")) {
+    if (!token_equals(token, "2")) {
         (void)fail_at(out_error, token.line, token.column,
                       "unsupported level format version");
         goto cleanup;
@@ -565,7 +633,9 @@ bool hth_level_build_world(const HTHLevelDescription *description,
             &description->objects[index];
 
         if (!hth_world_add_static_object(
-                &world, object->object.bounds, object->object.flags,
+                &world, object->object.bounds,
+                object->object.collision_shape,
+                object->object.render_shape, object->object.flags,
                 object->object.visual_class)) {
             hth_world_shutdown(&world);
             return fail_at(out_error, object->source_line,

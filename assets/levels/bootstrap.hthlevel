@@ -1,4 +1,4 @@
-hthlevel 1
+hthlevel 2
 
 # Default player spawn: x y z yaw-radians.
 spawn 0 0.05 3 0
@@ -6,6 +6,8 @@ spawn 0 0.05 3 0
 # Floor.
 static_object
 bounds -20 -1 -20 20 0 20
+collision aabb
+render box
 flags collidable visible
 visual floor
 end
@@ -13,6 +15,8 @@ end
 # Long left wall.
 static_object
 bounds -6 0 -14 -5 3 2
+collision aabb
+render box
 flags collidable visible
 visual wall
 end
@@ -20,6 +24,8 @@ end
 # Long right wall.
 static_object
 bounds 5 0 -14 6 3 2
+collision aabb
+render box
 flags collidable visible
 visual wall
 end
@@ -27,6 +33,8 @@ end
 # Inside corner.
 static_object
 bounds -6 0 -14 1 3 -13
+collision aabb
+render box
 flags collidable visible
 visual corner
 end
@@ -34,6 +42,8 @@ end
 # Low step: 0.20 units.
 static_object
 bounds -1 0 -2.5 1 0.20 -1
+collision aabb
+render box
 flags collidable visible
 visual low_step
 end
@@ -41,6 +51,8 @@ end
 # High ledge: 0.60 units.
 static_object
 bounds 2 0 -3.5 4 0.60 -2
+collision aabb
+render box
 flags collidable visible
 visual high_ledge
 end
@@ -48,6 +60,8 @@ end
 # Generic box.
 static_object
 bounds -4 0 -5.5 -2.5 1.20 -4
+collision aabb
+render box
 flags collidable visible
 visual box
 end
@@ -55,6 +69,8 @@ end
 # Exact movement-limit step: 0.30 units.
 static_object
 bounds -1 0 -7 1 0.30 -5
+collision aabb
+render box
 flags collidable visible
 visual limit_step
 end
@@ -62,6 +78,8 @@ end
 # Platform/drop reference.
 static_object
 bounds 2.5 0 -10 3.5 2.5 -5
+collision aabb
+render box
 flags collidable visible
 visual platform
 end
@@ -69,6 +87,17 @@ end
 # Corridor-corner reference.
 static_object
 bounds 0.5 0 -10 1.5 2.5 -9
+collision aabb
+render box
 flags collidable visible
 visual corridor_corner
+end
+
+# Visible-only wedge: intentionally non-collidable geometry separation proof.
+static_object
+bounds -4.5 0 -11 -2.5 1.5 -9
+collision none
+render wedge
+flags visible
+visual box
 end
