@@ -1,75 +1,41 @@
 #include "hth_engine.h"
+#include "engine_internal.h"
+#include "runtime_options.h"
 
-#include <errno.h>
-#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-static bool parse_frame_limit(const char *text, uint64_t *frame_limit)
+static void print_usage(const char *program)
 {
-    char *end = NULL;
-    uintmax_t value;
-
-    if (text == NULL || frame_limit == NULL || text[0] == '\0' || text[0] == '-') {
-        return false;
-    }
-
-    errno = 0;
-    value = strtoumax(text, &end, 10);
-    if (errno == ERANGE || *end != '\0' || value == 0 || value > UINT64_MAX) {
-        return false;
-    }
-
-    *frame_limit = (uint64_t)value;
-    return true;
-}
-
-static bool parse_arguments(int argc, char **argv, HTHEngineConfig *config)
-{
-    int index = 1;
-
-    while (index < argc) {
-        if (strcmp(argv[index], "--headless") == 0 && !config->headless) {
-            config->headless = true;
-            index++;
-        } else if (strcmp(argv[index], "--debug-fps-input") == 0 &&
-                   !config->debug_fps_input) {
-            config->debug_fps_input = true;
-            index++;
-        } else if (strcmp(argv[index], "--frames") == 0 &&
-                   index + 1 < argc && config->frame_limit == 0 &&
-                   parse_frame_limit(argv[index + 1], &config->frame_limit)) {
-            index += 2;
-        } else {
-            return false;
-        }
-    }
-    return true;
+    fprintf(stderr, "Usage: %s [--headless] [--frames N] "
+            "[--debug-fps-input] [--level ID]\n", program);
 }
 
 int main(int argc, char **argv)
 {
-    HTHEngineConfig config = {
-        .frame_limit = 0,
-        .window_title = "Hertharian",
-        .window_width = 1280,
-        .window_height = 720,
-        .target_fps = 60,
-        .headless = false,
-        .debug_fps_input = false,
-    };
+    HTHRuntimeOptions options;
+    HTHRuntimeOptionsError error;
     HTHEngine engine = {0};
 
-    if (!parse_arguments(argc, argv, &config)) {
-        fprintf(stderr, "Usage: %s [--headless] [--frames N] "
-                "[--debug-fps-input]\n", argv[0]);
+    if (!hth_runtime_options_parse(argc, argv, &options, &error)) {
+        if (error.code == HTH_RUNTIME_OPTIONS_ERROR_INVALID_LEVEL_ID) {
+            fprintf(stderr, "Invalid level ID '%s'.\n", error.argument);
+        } else if (error.code ==
+                   HTH_RUNTIME_OPTIONS_ERROR_DUPLICATE_LEVEL) {
+            fputs("Duplicate --level option.\n", stderr);
+        } else if (error.code ==
+                   HTH_RUNTIME_OPTIONS_ERROR_MISSING_LEVEL_VALUE) {
+            fputs("Missing value for --level.\n", stderr);
+        }
+        print_usage(argv != NULL && argv[0] != NULL ? argv[0]
+                                                   : "hertharian-engine");
         return EXIT_FAILURE;
     }
 
     printf("Hertharian Engine %s\n", hth_engine_version());
 
-    if (!hth_engine_init(&engine, &config)) {
+    if (!hth_engine_init_with_level_id(
+            &engine, &options.engine, options.level_id)) {
         fputs("Failed to initialize engine.\n", stderr);
         return EXIT_FAILURE;
     }

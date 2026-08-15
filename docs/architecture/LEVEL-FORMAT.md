@@ -2,7 +2,7 @@
 
 `.hthlevel` is the minimal text representation used to persist the current
 static `HTHWorld`. Version 2 separates collision and render shape selection.
-It is independent of engine version 0.2.5 and material format version 1.
+It is independent of engine version 0.2.6 and material format version 1.
 Version 1 is historical to v0.2.3/v0.2.4 and is no longer accepted; there is
 no compatibility parser or automatic upgrade.
 
@@ -79,4 +79,5 @@ The Level-to-World builder performs a second authoritative validation.
 
 Version 2 has no object rotation, custom UVs, material IDs, external meshes,
 entities, dynamic objects, BSP, slopes, triangle collision, lights, scripts,
-or serialization.
+or serialization. Logical Level identity is external runtime state and is not
+encoded in `hthlevel 2`.

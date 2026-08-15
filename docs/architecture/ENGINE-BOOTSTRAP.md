@@ -50,7 +50,9 @@ Run exactly three frames with:
 
 The command-line interface accepts optional `--frames N`, where `N` is a
 positive integer, plus `--headless` and the focused development diagnostic
-`--debug-fps-input`. Running without arguments continues until window close.
+`--debug-fps-input`. As of v0.2.6, `--level <id>` selects a logical Level ID at
+startup; omitting it selects `bootstrap`. Running without arguments continues
+until window close.
 
 The current frame order is:
 
@@ -71,13 +73,15 @@ current frame's Input before Renderer sees the followed camera. Input end advanc
 short relative-mode transition guard; Timing finish then marks the whole frame
 complete.
 
-Initialization creates the internal Resource System, loads the
-canonical `levels/bootstrap.hthlevel` resource, parses it into a temporary
-Level v2 Description, and builds/finalizes the engine-owned World. Resource bytes
-and the description are released before Collision, Player, Platform, or
-Renderer initialization continues. The World supplies the default spawn and
-content consumed by Collision and Renderer; the spawn is checked against the
-derived Collision World before Platform startup.
+Initialization resolves runtime options to a logical Level ID, creates an
+owned Level Selection, and deterministically maps it to a canonical Resource
+ID. Engine then creates the internal Resource System, loads that resource,
+parses it into a temporary Level v2 Description, and builds/finalizes the
+engine-owned World. Resource bytes and the description are released before
+Collision, Player, Platform, or Renderer initialization continues. The World
+supplies the default spawn and content consumed by Collision and Renderer; the
+spawn is checked against the derived Collision World before Platform startup.
+Headless and graphical modes use the same selected Level.
 
 Shutdown destroys current consumers and World before Resources, then Platform.
 Every failure path unwinds the resources already acquired. Missing, malformed,
@@ -98,6 +102,11 @@ headless and graphical modes. World objects carry independent collision and
 render shapes over shared bounds. Collision extracts only explicit AABBs;
 Engine translates visible render shapes into primitive/material draw inputs.
 The bootstrap wedge is deliberately visible-only and pass-through.
+
+As of v0.2.6, logical Level ID, canonical Resource ID, Level Description, and
+World are distinct states. The internal startup selection owns copies of the
+Level ID and its mapped Resource ID throughout Engine lifetime. There is no
+registry, metadata, reload, transition, or current-level public API.
 
 ## Tests
 

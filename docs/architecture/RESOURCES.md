@@ -18,9 +18,12 @@ canonical Resource ID → Resource System → filesystem root → raw bytes
 ```
 
 Typed format loaders belong above this boundary. Level, Material, and Image
-loaders consume `HTHResourceData` without opening files themselves. A future cached Asset
-Manager could likewise sit above Resources; Resource System is not that
-manager.
+loaders consume `HTHResourceData` without opening files themselves. Level
+Selection is another external consumer: it produces a canonical Resource ID
+from a logical Level ID, then Engine passes that Resource ID to Resource
+System. Resource neither receives nor interprets logical Level IDs. A future
+cached Asset Manager could likewise sit above Resources; Resource System is not
+that manager.
 
 ## Resource Root and CWD Independence
 
@@ -79,10 +82,11 @@ reads the file again.
 
 ## Lifecycle and Execution Model
 
-Engine initializes Resources before Level Loading and World. The Level parser
-consumes raw bytes without depending on Resource System, and World and Renderer
-remain unaware of storage. During shutdown, current runtime consumers and World
-are destroyed before Resources, then Platform shuts down.
+Engine establishes and retains Level Selection before initializing Resources,
+Level Loading, and World. The Level parser consumes raw bytes without depending
+on Resource System, and World and Renderer remain unaware of identity and
+storage. During shutdown, current runtime consumers and World are destroyed
+before Resources and the owned selection, then Platform shuts down.
 
 Loading is whole-file, synchronous, and designed for the current single-thread
 engine. It makes no thread-safety guarantee, performs no asynchronous I/O, and

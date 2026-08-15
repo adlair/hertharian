@@ -4,7 +4,9 @@ v0.2.3 connects the Resource and World boundaries without making either one
 responsible for the other:
 
 ```text
-levels/bootstrap.hthlevel
+logical Level ID
+        ↓
+Level Selection → canonical Resource ID
         ↓
 Resource System → caller-owned raw bytes
         ↓
@@ -19,11 +21,13 @@ HTHWorld finalize
 Collision and Renderer
 ```
 
-Resource System knows only the canonical Resource ID and raw bytes. The Level
-parser receives only `const unsigned char *` plus a size; it has no filesystem
-or Resource dependency. The builder receives a description and exercises the
-existing World mutation/finalization API. World remains ignorant of storage,
-resource IDs, parsing, and persistence.
+Level Selection validates logical identity and constructs the Resource ID but
+performs no I/O. Resource System knows only the canonical Resource ID and raw
+bytes. The Level parser receives only `const unsigned char *` plus a size; it
+has no selection, identity, filesystem, or Resource dependency. The builder
+receives a description and exercises the existing World mutation/finalization
+API. World remains ignorant of selection, storage, resource IDs, parsing, and
+persistence.
 
 ## Ownership and Transactionality
 
@@ -42,11 +46,15 @@ prints the failure.
 
 ## Engine Lifecycle
 
-Engine creates Resources, synchronously loads
-`levels/bootstrap.hthlevel`, parses and builds World, then continues the
-existing Collision, Player, Platform, and Renderer initialization. Missing,
-malformed, unsupported, or World-invalid content makes initialization fail
-cleanly. There is deliberately no compiled-C fallback.
+Engine retains an owned startup Level Selection, creates Resources,
+synchronously loads its derived Resource ID, parses and builds World, then
+continues the existing Collision, Player, Platform, and Renderer
+initialization. Without `--level`, runtime policy selects logical ID
+`bootstrap`; `--level <id>` selects any syntactically valid ID. Invalid IDs
+fail before Resource lookup, while valid IDs whose resource is missing fail at
+the Resource boundary. Missing, malformed, unsupported, or World-invalid
+content makes initialization fail cleanly. There is deliberately no compiled-C
+fallback.
 
 Headless mode follows the same Resource → Level → World → Collision/Player
 path and disables only Renderer. The build-generated absolute development
@@ -67,7 +75,8 @@ truncating them. Version 2 supports only static objects with shared AABB
 bounds, the existing flags and diagnostic visual classes, explicit AABB/none
 collision, box/wedge/none render shapes, and one spawn.
 
-There is no BSP, polygon geometry, entities, dynamic objects, materials,
-textures, audio, multiple-level management, hot reload, serialization, map
-compiler, or final install-root discovery. Editing the asset is observed on
-the next process start without recompiling; it is not watched during runtime.
+There is no BSP, polygon geometry, entities, dynamic objects, audio, runtime
+level transition, registry, enumeration, hot reload, serialization, map
+compiler, or final install-root discovery. Editing a selected asset is observed
+on the next process start without recompiling; it is not watched during
+runtime.

@@ -5,17 +5,20 @@
 #include "hth_version.h"
 #include "hth_resource_config.h"
 #include "bootstrap_materials.h"
+#include "engine_internal.h"
 #include "fps_camera_controller.h"
 #include "geometry.h"
 #include "collision_trace.h"
 #include "collision_world.h"
 #include "input_internal.h"
 #include "level.h"
+#include "level_selection.h"
 #include "platform.h"
 #include "player_body.h"
 #include "player_movement.h"
 #include "renderer.h"
 #include "resource.h"
+#include "runtime_options.h"
 #include "timing_internal.h"
 #include "view_dynamics.h"
 #include "world.h"
@@ -45,10 +48,8 @@ struct HTHEngineWorldState {
 struct HTHEngineStorageState {
     HTHResourceSystem *resources;
     HTHBootstrapMaterialSet *materials;
+    HTHLevelSelection level_selection;
 };
-
-static const char bootstrap_level_resource_id[] =
-    "levels/bootstrap.hthlevel";
 
 static bool physical_state_spawn_is_clear(
     const struct HTHEnginePhysicalState *state)
@@ -91,6 +92,8 @@ static void destroy_storage(HTHEngine *engine)
     if (engine->storage_state != NULL) {
         hth_bootstrap_materials_destroy(engine->storage_state->materials);
         hth_resource_system_destroy(engine->storage_state->resources);
+        hth_level_selection_destroy(
+            &engine->storage_state->level_selection);
         free(engine->storage_state);
         engine->storage_state = NULL;
     }
@@ -171,22 +174,24 @@ static bool build_renderer_draws(
     return true;
 }
 
-static bool load_bootstrap_world(HTHResourceSystem *resources,
-                                 HTHWorld *out_world)
+static bool load_selected_world(HTHResourceSystem *resources,
+                                const HTHLevelSelection *selection,
+                                HTHWorld *out_world)
 {
     HTHLevelDescription description = {0};
     HTHLevelError error = {0};
     HTHResourceData data = {0};
     bool success;
 
-    if (!hth_resource_load(resources, bootstrap_level_resource_id, &data)) {
-        fprintf(stderr, "Failed to load level resource:\n  %s\n",
-                bootstrap_level_resource_id);
+    printf("Loading level '%s'...\n", selection->level_id);
+    if (!hth_resource_load(resources, selection->resource_id, &data)) {
+        fprintf(stderr, "Failed to load level '%s':\n  resource: %s\n",
+                selection->level_id, selection->resource_id);
         return false;
     }
     if (!hth_level_parse(data.data, data.size, &description, &error)) {
         fprintf(stderr, "Level parse failed: %s:%zu:%zu:\n  %s\n",
-                bootstrap_level_resource_id, error.line, error.column,
+                selection->resource_id, error.line, error.column,
                 error.message);
         hth_resource_data_release(&data);
         return false;
@@ -196,7 +201,7 @@ static bool load_bootstrap_world(HTHResourceSystem *resources,
     hth_level_description_destroy(&description);
     if (!success) {
         fprintf(stderr, "Level build failed: %s:%zu:%zu:\n  %s\n",
-                bootstrap_level_resource_id, error.line, error.column,
+                selection->resource_id, error.line, error.column,
                 error.message);
     }
     return success;
@@ -251,6 +256,14 @@ const char *hth_engine_version(void)
 
 bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
 {
+    return hth_engine_init_with_level_id(
+        engine, config, hth_runtime_options_default_level_id());
+}
+
+bool hth_engine_init_with_level_id(HTHEngine *engine,
+                                   const HTHEngineConfig *config,
+                                   const char *level_id)
+{
     const char *window_title;
     uint32_t window_width;
     uint32_t window_height;
@@ -287,10 +300,19 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     hth_camera_init_default(&engine->camera);
     resource_config.root_path = HTH_DEVELOPMENT_RESOURCE_ROOT;
     engine->storage_state = calloc(1, sizeof(*engine->storage_state));
-    if (engine->storage_state != NULL) {
-        engine->storage_state->resources =
-            hth_resource_system_create(&resource_config);
+    if (engine->storage_state == NULL) {
+        fputs("Failed to initialize engine storage state.\n", stderr);
+        return false;
     }
+    if (!hth_level_selection_init(
+            &engine->storage_state->level_selection, level_id)) {
+        fprintf(stderr, "Invalid level ID '%s'.\n",
+                level_id != NULL ? level_id : "(null)");
+        destroy_storage(engine);
+        return false;
+    }
+    engine->storage_state->resources =
+        hth_resource_system_create(&resource_config);
     if (engine->storage_state == NULL ||
         engine->storage_state->resources == NULL) {
         fputs("Failed to initialize resource system.\n", stderr);
@@ -304,8 +326,10 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     }
     engine->world_state = calloc(1, sizeof(*engine->world_state));
     if (engine->world_state == NULL ||
-        !load_bootstrap_world(engine->storage_state->resources,
-                              &engine->world_state->world) ||
+        !load_selected_world(
+            engine->storage_state->resources,
+            &engine->storage_state->level_selection,
+            &engine->world_state->world) ||
         !hth_world_default_spawn(&engine->world_state->world, &spawn)) {
         fputs("Failed to initialize level World.\n", stderr);
         destroy_world(engine);

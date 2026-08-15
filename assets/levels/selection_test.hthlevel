@@ -1,0 +1,58 @@
+hthlevel 2
+
+# Alternate startup-selection test arena: x y z yaw-radians.
+spawn 0 0.05 5 0
+
+# Floor.
+static_object
+bounds -8 -1 -8 8 0 8
+collision aabb
+render box
+flags collidable visible
+visual floor
+end
+
+# Left wall.
+static_object
+bounds -8 0 -8 -7 3 8
+collision aabb
+render box
+flags collidable visible
+visual wall
+end
+
+# Right wall.
+static_object
+bounds 7 0 -8 8 3 8
+collision aabb
+render box
+flags collidable visible
+visual wall
+end
+
+# Rear wall.
+static_object
+bounds -7 0 -8 7 3 -7
+collision aabb
+render box
+flags collidable visible
+visual wall
+end
+
+# Front wall.
+static_object
+bounds -7 0 7 7 3 8
+collision aabb
+render box
+flags collidable visible
+visual wall
+end
+
+# Large center landmark.
+static_object
+bounds -1.5 0 -1.5 1.5 2.5 1.5
+collision aabb
+render box
+flags collidable visible
+visual box
+end

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.5 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.6 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -33,6 +33,7 @@ add_executable(hertharian-engine
     src/common/math.c
     src/common/camera.c
     src/common/fps_camera_controller.c
+    src/common/runtime_options.c
     src/common/timing.c
     src/collision/aabb.c
     src/collision/collision_trace.c
@@ -41,6 +42,7 @@ add_executable(hertharian-engine
     src/geometry/geometry.c
     src/image/image.c
     src/level/level.c
+    src/level/level_selection.c
     src/material/bootstrap_materials.c
     src/material/material.c
     src/player/player_body.c
@@ -296,6 +298,27 @@ if(BUILD_TESTING)
     target_compile_features(level_tests PRIVATE c_std_11)
     set_target_properties(level_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(level_selection_tests
+        tests/level_selection_tests.c
+        src/common/runtime_options.c
+        src/level/level_selection.c
+        src/level/level.c
+        src/resource/resource.c
+        src/world/world.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/player/player_body.c
+        src/common/math.c
+    )
+    target_include_directories(level_selection_tests PRIVATE
+        include src/common src/collision src/level src/player src/resource
+        src/world
+        "${PROJECT_BINARY_DIR}/generated"
+    )
+    target_compile_features(level_selection_tests PRIVATE c_std_11)
+    set_target_properties(level_selection_tests PROPERTIES C_EXTENSIONS OFF)
+
     add_executable(material_tests
         tests/material_tests.c
         src/material/bootstrap_materials.c
@@ -363,6 +386,7 @@ if(BUILD_TESTING)
         target_link_libraries(collision_tests PRIVATE m)
         target_link_libraries(world_tests PRIVATE m)
         target_link_libraries(level_tests PRIVATE m)
+        target_link_libraries(level_selection_tests PRIVATE m)
         target_link_libraries(material_tests PRIVATE m)
         target_link_libraries(geometry_tests PRIVATE m)
     endif()
@@ -421,6 +445,9 @@ if(BUILD_TESTING)
         target_compile_options(level_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(level_selection_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
         target_compile_options(material_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
@@ -451,6 +478,7 @@ if(BUILD_TESTING)
     add_test(NAME world_representation_foundation COMMAND world_tests)
     add_test(NAME resource_foundation COMMAND resource_tests)
     add_test(NAME level_loading_foundation COMMAND level_tests)
+    add_test(NAME level_selection_foundation COMMAND level_selection_tests)
     add_test(NAME material_foundation COMMAND material_tests)
     add_test(NAME image_loading_foundation COMMAND image_tests)
     add_test(NAME geometry_foundation COMMAND geometry_tests)
