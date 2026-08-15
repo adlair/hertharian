@@ -1,9 +1,9 @@
 # Resource Path Foundation
 
-v0.2.2 introduces the internal Resource System as the boundary between runtime
+v0.2.2 introduced the internal Resource System as the boundary between runtime
 consumers and external storage. It implements only synchronous filesystem
-storage to raw bytes. It does not interpret formats or load levels, textures,
-models, audio, or shaders.
+storage to raw bytes. As of v0.2.3, Level Loading is its first typed consumer,
+but Resource still does not interpret level or any other format.
 
 ## Terminology and Boundary
 
@@ -16,8 +16,8 @@ absolute filesystem path:
 canonical Resource ID → Resource System → filesystem root → raw bytes
 ```
 
-Typed format loaders belong above this boundary. The future Level Loader may
-consume `HTHResourceData` without opening files itself. A future cached Asset
+Typed format loaders belong above this boundary. The v0.2.3 Level Loader
+consumes `HTHResourceData` without opening files itself. A future cached Asset
 Manager could likewise sit above Resources; Resource System is not that
 manager.
 
@@ -78,10 +78,10 @@ reads the file again.
 
 ## Lifecycle and Execution Model
 
-Engine initializes Resources before World so future consumers can depend on
-the storage boundary. v0.2.2 World and Renderer do not consume it and bootstrap
-content remains compiled C data. During shutdown, current runtime consumers and
-World are destroyed before Resources, then Platform shuts down.
+Engine initializes Resources before Level Loading and World. The Level parser
+consumes raw bytes without depending on Resource System, and World and Renderer
+remain unaware of storage. During shutdown, current runtime consumers and World
+are destroyed before Resources, then Platform shuts down.
 
 Loading is whole-file, synchronous, and designed for the current single-thread
 engine. It makes no thread-safety guarantee, performs no asynchronous I/O, and
@@ -89,9 +89,9 @@ exposes no file handle.
 
 ## Explicit Non-goals
 
-v0.2.2 includes no Level Loader or level format, typed resources, cache,
-handles, hashing, manifest, registry, VFS, pak/archive support, compression,
-streaming, async work, hot reload, watcher, asset pipeline, symlink sandbox,
-or install-root autodetection. Filesystem is the initial storage backend; the
-canonical Resource ID boundary allows a future backend to change without
-passing absolute paths to typed loaders.
+Resource System includes no typed parsing, cache, handles, hashing, manifest,
+registry, VFS, pak/archive support, compression, streaming, async work, hot
+reload, watcher, asset pipeline, symlink sandbox, or install-root autodetection.
+Filesystem is the initial storage backend; the canonical Resource ID boundary
+allows a future backend to change without passing absolute paths to typed
+loaders.

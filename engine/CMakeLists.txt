@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.2 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.3 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -38,6 +38,7 @@ add_executable(hertharian-engine
     src/collision/collision_trace.c
     src/collision/collision_world.c
     src/input/input.c
+    src/level/level.c
     src/player/player_body.c
     src/player/player_locomotion.c
     src/player/player_movement.c
@@ -48,7 +49,6 @@ add_executable(hertharian-engine
     src/renderer/renderer.c
     src/renderer/renderer_opengl.c
     src/view/view_dynamics.c
-    src/world/bootstrap_world.c
     src/world/world.c
 )
 
@@ -57,6 +57,7 @@ target_include_directories(hertharian-engine PRIVATE
     src/common
     src/collision
     src/input
+    src/level
     src/platform
     src/player
     src/renderer
@@ -210,7 +211,6 @@ if(BUILD_TESTING)
         src/collision/aabb.c
         src/collision/collision_trace.c
         src/collision/collision_world.c
-        src/world/bootstrap_world.c
         src/world/world.c
         src/input/input.c
         src/common/math.c
@@ -240,7 +240,6 @@ if(BUILD_TESTING)
         tests/collision_tests.c
         src/collision/aabb.c
         src/collision/collision_world.c
-        src/world/bootstrap_world.c
         src/world/world.c
     )
     target_include_directories(collision_tests PRIVATE
@@ -251,7 +250,6 @@ if(BUILD_TESTING)
 
     add_executable(world_tests
         tests/world_tests.c
-        src/world/bootstrap_world.c
         src/world/world.c
         src/collision/aabb.c
         src/collision/collision_trace.c
@@ -272,6 +270,24 @@ if(BUILD_TESTING)
     target_include_directories(resource_tests PRIVATE src/resource)
     target_compile_features(resource_tests PRIVATE c_std_11)
     set_target_properties(resource_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(level_tests
+        tests/level_tests.c
+        src/level/level.c
+        src/resource/resource.c
+        src/world/world.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/player/player_body.c
+        src/common/math.c
+    )
+    target_include_directories(level_tests PRIVATE
+        include src/collision src/level src/player src/resource src/world
+        "${PROJECT_BINARY_DIR}/generated"
+    )
+    target_compile_features(level_tests PRIVATE c_std_11)
+    set_target_properties(level_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(view_dynamics_tests
         tests/view_dynamics_tests.c
@@ -309,6 +325,7 @@ if(BUILD_TESTING)
         target_link_libraries(view_dynamics_tests PRIVATE m)
         target_link_libraries(collision_tests PRIVATE m)
         target_link_libraries(world_tests PRIVATE m)
+        target_link_libraries(level_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -362,6 +379,9 @@ if(BUILD_TESTING)
         target_compile_options(resource_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(level_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
@@ -382,4 +402,5 @@ if(BUILD_TESTING)
     add_test(NAME view_dynamics_foundation COMMAND view_dynamics_tests)
     add_test(NAME world_representation_foundation COMMAND world_tests)
     add_test(NAME resource_foundation COMMAND resource_tests)
+    add_test(NAME level_loading_foundation COMMAND level_tests)
 endif()

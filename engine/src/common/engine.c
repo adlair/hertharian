@@ -8,6 +8,7 @@
 #include "collision_trace.h"
 #include "collision_world.h"
 #include "input_internal.h"
+#include "level.h"
 #include "platform.h"
 #include "player_body.h"
 #include "player_movement.h"
@@ -15,7 +16,6 @@
 #include "resource.h"
 #include "timing_internal.h"
 #include "view_dynamics.h"
-#include "bootstrap_world.h"
 #include "world.h"
 
 #include <inttypes.h>
@@ -42,6 +42,9 @@ struct HTHEngineWorldState {
 struct HTHEngineStorageState {
     HTHResourceSystem *resources;
 };
+
+static const char bootstrap_level_resource_id[] =
+    "levels/bootstrap.hthlevel";
 
 static bool physical_state_spawn_is_clear(
     const struct HTHEnginePhysicalState *state)
@@ -86,6 +89,37 @@ static void destroy_storage(HTHEngine *engine)
         free(engine->storage_state);
         engine->storage_state = NULL;
     }
+}
+
+static bool load_bootstrap_world(HTHResourceSystem *resources,
+                                 HTHWorld *out_world)
+{
+    HTHLevelDescription description = {0};
+    HTHLevelError error = {0};
+    HTHResourceData data = {0};
+    bool success;
+
+    if (!hth_resource_load(resources, bootstrap_level_resource_id, &data)) {
+        fprintf(stderr, "Failed to load level resource:\n  %s\n",
+                bootstrap_level_resource_id);
+        return false;
+    }
+    if (!hth_level_parse(data.data, data.size, &description, &error)) {
+        fprintf(stderr, "Level parse failed: %s:%zu:%zu:\n  %s\n",
+                bootstrap_level_resource_id, error.line, error.column,
+                error.message);
+        hth_resource_data_release(&data);
+        return false;
+    }
+    hth_resource_data_release(&data);
+    success = hth_level_build_world(&description, out_world, &error);
+    hth_level_description_destroy(&description);
+    if (!success) {
+        fprintf(stderr, "Level build failed: %s:%zu:%zu:\n  %s\n",
+                bootstrap_level_resource_id, error.line, error.column,
+                error.message);
+    }
+    return success;
 }
 
 static void clear_debugged_mouse_delta(HTHEngine *engine, const char *reason)
@@ -183,9 +217,10 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     }
     engine->world_state = calloc(1, sizeof(*engine->world_state));
     if (engine->world_state == NULL ||
-        !hth_bootstrap_world_create(&engine->world_state->world) ||
+        !load_bootstrap_world(engine->storage_state->resources,
+                              &engine->world_state->world) ||
         !hth_world_default_spawn(&engine->world_state->world, &spawn)) {
-        fputs("Failed to initialize bootstrap world.\n", stderr);
+        fputs("Failed to initialize level World.\n", stderr);
         destroy_world(engine);
         destroy_storage(engine);
         return false;

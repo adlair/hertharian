@@ -1,5 +1,5 @@
 #include "collision_world.h"
-#include "bootstrap_world.h"
+#include "world.h"
 
 #include <assert.h>
 
@@ -14,13 +14,21 @@ static void test_aabb_touching(void)
     assert(hth_aabb_intersects(&left, &penetrating));
 }
 
-static void test_bootstrap_world(void)
+static void test_collision_extraction_from_world(void)
 {
     HTHWorld source;
     HTHCollisionWorld collision;
     size_t index;
 
-    assert(hth_bootstrap_world_create(&source));
+    assert(hth_world_init(&source));
+    assert(hth_world_add_static_object(
+        &source, (HTHAABB){{-2.0F, -1.0F, -2.0F}, {2.0F, 0.0F, 2.0F}},
+        HTH_WORLD_OBJECT_COLLIDABLE | HTH_WORLD_OBJECT_VISIBLE,
+        HTH_WORLD_VISUAL_FLOOR));
+    assert(hth_world_add_static_object(
+        &source, (HTHAABB){{1.0F, 0.0F, -1.0F}, {2.0F, 2.0F, 1.0F}},
+        HTH_WORLD_OBJECT_COLLIDABLE, HTH_WORLD_VISUAL_NONE));
+    assert(hth_world_finalize(&source));
     assert(hth_collision_world_build_from_world(&collision, &source));
     assert(hth_collision_world_is_valid(&collision));
     assert(collision.obstacle_count > 1);
@@ -35,6 +43,6 @@ static void test_bootstrap_world(void)
 int main(void)
 {
     test_aabb_touching();
-    test_bootstrap_world();
+    test_collision_extraction_from_world();
     return 0;
 }

@@ -26,19 +26,22 @@ the current Collision bootstrap requires at least one collidable object.
 
 ## Bootstrap Content
 
-The current builder reproduces the pre-v0.2.1 physical scene exactly: floor,
-walls/corridor, inside corner, generic box, 0.20 low step, exact 0.30 step,
-0.60 high ledge, platform/drop reference, and corridor-corner reference. It
-also defines the default player spawn at `(0, 0.05, 3)` with yaw `0` radians.
+As of v0.2.3, the Level subsystem constructs World through the existing builder
+API from `levels/bootstrap.hthlevel`. That asset reproduces the prior physical
+scene exactly: floor, walls/corridor, inside corner, generic box, 0.20 low
+step, exact 0.30 step, 0.60 high ledge, platform/drop reference, and
+corridor-corner reference. It also defines the default player spawn at
+`(0, 0.05, 3)` with yaw `0` radians.
 
 The Engine reads this spawn instead of embedding it in lifecycle code. It then
 builds Collision from the collidable subset and verifies the Player Body does
-not start solid.
+not start solid. World remains unaware of the Level Description, parser,
+Resource System, filesystem, and persistent format.
 
 ## Consumer Boundaries
 
 ```text
-Bootstrap builder → finalized HTHWorld
+Level Description → World builder/finalize → finalized HTHWorld
                          ├── collidable objects → CollisionWorld copy
                          └── visible objects → Renderer frontend draw data
 ```
@@ -49,11 +52,12 @@ visual classes to the existing bootstrap colors and sends only derived bounds
 and colors to the OpenGL backend. The backend includes no World or Collision
 types.
 
-This milestone does not introduce map loading, entities, dynamic objects,
-scene graphs, materials, textures, assets, BSP data, serialization, or a
-gameplay object model. Future World/Scene/Material work can replace the
-bootstrap visual metadata without changing the current collision geometry.
-The World abstraction is the ownership/content boundary. The AABB primitive is
-the current bootstrap representation, not a promise that future loaded worlds
-will be lists of AABBs; a future loader or BSP-backed representation can target
-the same boundary.
+The World boundary itself contains no persistence, parser, entities, dynamic
+objects, scene graphs, materials, textures, BSP data, serialization, or
+gameplay object model. Level Loading now targets this boundary from above.
+Future World/Scene/Material work can replace the bootstrap visual metadata
+without changing the current collision geometry. The World abstraction is the
+runtime ownership/content boundary. The AABB primitive is the current
+bootstrap representation, not a promise that future worlds will remain lists
+of AABBs; a future map compiler or BSP-backed representation can target the
+same boundary.

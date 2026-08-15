@@ -1,4 +1,3 @@
-#include "bootstrap_world.h"
 #include "collision_trace.h"
 #include "collision_world.h"
 #include "player_body.h"
@@ -157,61 +156,11 @@ static void test_collision_extraction_and_trace(void)
     assert(trace.obstacle_index == 1U);
 }
 
-static void test_bootstrap_world_content_and_spawn(void)
-{
-    HTHWorld world;
-    HTHWorldSpawn spawn;
-    HTHAABB bounds;
-    HTHCollisionWorld collision;
-    HTHPlayerBody body;
-    HTHTrace trace;
-    HTHVec3 player_mins;
-    HTHVec3 player_maxs;
-    size_t index;
-    bool required_classes[HTH_WORLD_VISUAL_COUNT] = {false};
-
-    assert(hth_bootstrap_world_create(&world));
-    assert(hth_world_is_finalized(&world));
-    assert(hth_world_static_object_count(&world) == 10U);
-    assert(hth_world_bounds(&world, &bounds));
-    assert_vec3(bounds.min, hth_vec3(-20.0F, -1.0F, -20.0F));
-    assert_vec3(bounds.max, hth_vec3(20.0F, 3.0F, 20.0F));
-    assert(hth_world_default_spawn(&world, &spawn));
-    assert_vec3(spawn.position, hth_vec3(0.0F, 0.05F, 3.0F));
-    assert(close_enough(spawn.yaw_radians, 0.0F));
-    for (index = 0; index < hth_world_static_object_count(&world); ++index) {
-        const HTHWorldStaticObject *object =
-            hth_world_static_object(&world, index);
-
-        assert(object != NULL);
-        assert(object->flags == (HTH_WORLD_OBJECT_COLLIDABLE |
-                                 HTH_WORLD_OBJECT_VISIBLE));
-        assert(object->visual_class != HTH_WORLD_VISUAL_NONE);
-        required_classes[object->visual_class] = true;
-    }
-    assert(required_classes[HTH_WORLD_VISUAL_FLOOR]);
-    assert(required_classes[HTH_WORLD_VISUAL_WALL]);
-    assert(required_classes[HTH_WORLD_VISUAL_LOW_STEP]);
-    assert(required_classes[HTH_WORLD_VISUAL_LIMIT_STEP]);
-    assert(required_classes[HTH_WORLD_VISUAL_HIGH_LEDGE]);
-    assert(hth_collision_world_build_from_world(&collision, &world));
-    assert(collision.obstacle_count == 10U);
-    assert(hth_player_body_init(&body, spawn.position));
-    player_mins = hth_vec3(-body.half_width, 0.0F, -body.half_width);
-    player_maxs = hth_vec3(body.half_width, body.height, body.half_width);
-    assert(hth_collision_world_trace_aabb(
-        &collision, body.position, body.position,
-        player_mins, player_maxs, &trace));
-    assert(!trace.start_solid);
-    hth_world_shutdown(&world);
-}
-
 int main(void)
 {
     test_empty_world_lifecycle();
     test_validation_and_immutability();
     test_bounds_and_independent_flags();
     test_collision_extraction_and_trace();
-    test_bootstrap_world_content_and_spawn();
     return 0;
 }

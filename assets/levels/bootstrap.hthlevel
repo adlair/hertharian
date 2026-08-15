@@ -1,0 +1,74 @@
+hthlevel 1
+
+# Default player spawn: x y z yaw-radians.
+spawn 0 0.05 3 0
+
+# Floor.
+static_object
+bounds -20 -1 -20 20 0 20
+flags collidable visible
+visual floor
+end
+
+# Long left wall.
+static_object
+bounds -6 0 -14 -5 3 2
+flags collidable visible
+visual wall
+end
+
+# Long right wall.
+static_object
+bounds 5 0 -14 6 3 2
+flags collidable visible
+visual wall
+end
+
+# Inside corner.
+static_object
+bounds -6 0 -14 1 3 -13
+flags collidable visible
+visual corner
+end
+
+# Low step: 0.20 units.
+static_object
+bounds -1 0 -2.5 1 0.20 -1
+flags collidable visible
+visual low_step
+end
+
+# High ledge: 0.60 units.
+static_object
+bounds 2 0 -3.5 4 0.60 -2
+flags collidable visible
+visual high_ledge
+end
+
+# Generic box.
+static_object
+bounds -4 0 -5.5 -2.5 1.20 -4
+flags collidable visible
+visual box
+end
+
+# Exact movement-limit step: 0.30 units.
+static_object
+bounds -1 0 -7 1 0.30 -5
+flags collidable visible
+visual limit_step
+end
+
+# Platform/drop reference.
+static_object
+bounds 2.5 0 -10 3.5 2.5 -5
+flags collidable visible
+visual platform
+end
+
+# Corridor-corner reference.
+static_object
+bounds 0.5 0 -10 1.5 2.5 -9
+flags collidable visible
+visual corridor_corner
+end

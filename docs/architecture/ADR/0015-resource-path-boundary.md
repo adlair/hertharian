@@ -19,7 +19,7 @@ Root, validates IDs, resolves them against the root, and returns caller-owned
 raw bytes. Consumers receive neither absolute paths nor `FILE *` handles.
 
 Resource System owns only the storage/path boundary. Typed loaders interpret
-the returned bytes above it. The v0.2.3 Level Loader will consume this boundary
+the returned bytes above it. The v0.2.3 Level Loader consumes this boundary
 rather than performing filesystem I/O directly.
 
 ## Consequences

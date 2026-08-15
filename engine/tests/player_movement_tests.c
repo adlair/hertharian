@@ -3,7 +3,6 @@
 #include "keyboard_reconciliation.h"
 #include "player_movement.h"
 #include "collision_trace.h"
-#include "bootstrap_world.h"
 
 #include <assert.h>
 #include <math.h>
@@ -13,14 +12,15 @@ static bool close_enough(float left, float right)
     return fabsf(left - right) <= 1.0e-4F;
 }
 
-static HTHCollisionWorld bootstrap_collision_world(void)
+static HTHCollisionWorld floor_collision_world(void)
 {
-    HTHWorld source;
-    HTHCollisionWorld collision;
+    HTHCollisionWorld collision = {0};
 
-    assert(hth_bootstrap_world_create(&source));
-    assert(hth_collision_world_build_from_world(&collision, &source));
-    hth_world_shutdown(&source);
+    collision.obstacles[0] = (HTHAABB){
+        {-20.0F, -1.0F, -20.0F}, {20.0F, 0.0F, 20.0F}
+    };
+    collision.obstacle_count = 1U;
+    assert(hth_collision_world_is_valid(&collision));
     return collision;
 }
 
@@ -217,7 +217,7 @@ static void test_integration(void)
         {0.0F, 0.0F, 0.0F}, 0.0F, false
     };
 
-    world = bootstrap_collision_world();
+    world = floor_collision_world();
     assert(hth_player_body_init(&body, hth_vec3(0.0F, 5.0F, 3.0F)));
     assert(hth_player_movement_step(&body, &world, &forward, 0.05));
     assert(body.position.z < 3.0F);
@@ -247,7 +247,7 @@ static void test_gravity_lands_on_floor(void)
     };
     unsigned int step;
 
-    world = bootstrap_collision_world();
+    world = floor_collision_world();
     assert(hth_player_body_init(&body, hth_vec3(0.0F, 1.0F, 3.0F)));
     for (step = 0; step < 120 && !body.grounded; ++step) {
         assert(hth_player_movement_step(&body, &world, &none, 1.0 / 60.0));
