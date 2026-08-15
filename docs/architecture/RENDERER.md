@@ -7,9 +7,9 @@ Engine → Renderer frontend → OpenGL backend → Platform presentation → SD
 ```
 
 Platform owns the SDL window and opaque graphics-context services. The renderer
-frontend owns a backend and consumes the final engine camera plus finalized
-World content at initialization. It obtains framebuffer pixel dimensions,
-builds HTH Model/View/Projection matrices, and gives derived draw data and
+frontend owns a backend and consumes the final engine camera plus resolved
+static draw inputs at initialization. It obtains framebuffer pixel dimensions,
+builds HTH Model/View/Projection matrices, and gives draw data and
 matrices to the backend. The OpenGL backend owns context, pipeline, geometry,
 uniform locations, and draw state. Public headers expose neither SDL nor
 OpenGL.
@@ -21,22 +21,28 @@ View Dynamics and simply uses the resulting view and effective radian FOV.
 ## 3D Bootstrap Frame
 
 Each drawable frame clears color, depth, and stencil, submits several instances
-of one static local-space cube through the MVP shader path, and presents. The
-clear color is `(0.05, 0.02, 0.08, 1.0)`. A per-draw `u_color` uniform assigns
-bootstrap diagnostic colors: dark gray floor, blue-gray walls, violet corner,
-green 0.20 step, gold 0.30 exact-limit step, orange-red 0.60 ledge, pink-red
-generic box, and cyan/purple corridor references. These colors distinguish
-manual physics test cases and are explicitly not Hertharian final art
-direction. Depth testing uses `GL_LESS` as the baseline 3D semantic.
+of one static local-space cube through the MVP/UV shader path, and presents.
+The clear color is `(0.05, 0.02, 0.08, 1.0)`. Each draw supplies an externally
+resolved base color and optional RGB8 image. The fragment shader multiplies a
+texture sample by the base color when a texture exists and otherwise uses the
+base color alone. These materials and textures are bootstrap diagnostics, not
+Hertharian final art direction. Depth testing uses `GL_LESS`.
 
 The frontend refreshes View from the engine camera before drawing. As of
-v0.2.1, it iterates only World objects marked visible and maps their bootstrap
-visual class to the diagnostic color above. It passes derived AABB/color draw
-records to the backend once during initialization. The OpenGL backend builds
-private model matrices from those records and includes neither World nor
-Collision headers. Physical AABBs remain the bootstrap source of truth, while
-future Scene and Material systems will replace the temporary visual-class
-mapping.
+v0.2.4, Engine and the Material layer resolve visible World objects before they
+reach Renderer. Renderer contains no visual-class palette or Resource lookup;
+it receives AABB/base-color/optional-image draw records once during
+initialization. The OpenGL backend builds private model matrices and uploads
+textures synchronously. It includes neither World nor Collision headers, and
+GPU texture names never leave the backend.
+
+The static cube stores position plus UV. Every face maps the full `[0,1]`
+square independently; consistent mirroring is accepted for this bootstrap.
+Textures use one texture unit, `GL_NEAREST` minification/magnification,
+`GL_REPEAT`, and no mipmaps. Upload temporarily sets `GL_UNPACK_ALIGNMENT` to
+1 for tightly packed RGB rows and restores the previous value afterward.
+Renderer shutdown deletes every texture before destroying the graphics
+context.
 
 Rendering and presentation happen before work timing is measured, so both are
 included in `frame_work_seconds`.
@@ -52,8 +58,8 @@ division by zero, then resume on a valid resize.
 ## Context and Function Loading
 
 Graphical mode requests OpenGL 3.3 Core, double buffering, 24 depth bits, and
-8 stencil bits. Programmable-pipeline entry points plus the two required matrix
-uniform functions are resolved after the context is current and stored per
+8 stencil bits. Programmable-pipeline entry points, texture-unit selection,
+and required uniform functions are resolved after the context is current and stored per
 backend instance. Bootstrap calls exported by the system OpenGL library remain
 linked through `OpenGL::GL`; no external loader is added.
 
@@ -74,6 +80,7 @@ request Wayland/X11. No backend is hardcoded and no fallback is implemented.
 
 ## Deliberately Excluded
 
-The renderer still excludes public mesh/shader/buffer resources, textures,
-materials, lighting, world/BSP rendering, scene graphs, animation, gameplay,
-and camera input or movement.
+The renderer still excludes public mesh/shader/buffer/material/texture APIs,
+filesystem loading, material parsing, lighting, world/BSP rendering, scene
+graphs, animation, gameplay, and camera input or movement. It supports only
+resolved bootstrap base color plus one optional texture per draw.

@@ -84,6 +84,15 @@ Every failure path unwinds the resources already acquired. Missing, malformed,
 or World-invalid level content fails initialization without compiled fallback
 geometry.
 
+As of v0.2.4, Engine also eagerly loads one external bootstrap material for
+every World visual class and decodes each referenced PPM texture. Headless mode
+performs this complete content validation while skipping only Renderer/GPU
+creation. In graphical mode Engine resolves visible World objects to transient
+renderer draw inputs; OpenGL uploads the image bytes synchronously and owns the
+resulting textures. Material/image bytes never become World or Level state,
+and missing or malformed appearance resources fail without a compiled palette
+fallback.
+
 ## Tests
 
 After configuring and building, run:

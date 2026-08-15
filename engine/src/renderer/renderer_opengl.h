@@ -2,21 +2,16 @@
 #define HTH_RENDERER_OPENGL_H
 
 #include "hth_math.h"
-#include "aabb.h"
 #include "platform.h"
+#include "renderer_types.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 
 typedef struct HTHOpenGLBackend HTHOpenGLBackend;
 
-typedef struct {
-    HTHAABB bounds;
-    float color[4];
-} HTHOpenGLStaticDraw;
-
 HTHOpenGLBackend *hth_renderer_opengl_create(
-    HTHPlatform *platform, const HTHOpenGLStaticDraw *draws,
+    HTHPlatform *platform, const HTHRendererStaticDraw *draws,
     size_t draw_count);
 void hth_renderer_opengl_destroy(HTHOpenGLBackend *backend);
 bool hth_renderer_opengl_resize(HTHOpenGLBackend *backend,

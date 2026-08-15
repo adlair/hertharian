@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.3 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.4 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -38,7 +38,10 @@ add_executable(hertharian-engine
     src/collision/collision_trace.c
     src/collision/collision_world.c
     src/input/input.c
+    src/image/image.c
     src/level/level.c
+    src/material/bootstrap_materials.c
+    src/material/material.c
     src/player/player_body.c
     src/player/player_locomotion.c
     src/player/player_movement.c
@@ -57,7 +60,9 @@ target_include_directories(hertharian-engine PRIVATE
     src/common
     src/collision
     src/input
+    src/image
     src/level
+    src/material
     src/platform
     src/player
     src/renderer
@@ -289,6 +294,28 @@ if(BUILD_TESTING)
     target_compile_features(level_tests PRIVATE c_std_11)
     set_target_properties(level_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(material_tests
+        tests/material_tests.c
+        src/material/bootstrap_materials.c
+        src/material/material.c
+        src/image/image.c
+        src/resource/resource.c
+    )
+    target_include_directories(material_tests PRIVATE
+        include src/collision src/image src/material src/resource src/world
+        "${PROJECT_BINARY_DIR}/generated"
+    )
+    target_compile_features(material_tests PRIVATE c_std_11)
+    set_target_properties(material_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(image_tests
+        tests/image_tests.c
+        src/image/image.c
+    )
+    target_include_directories(image_tests PRIVATE src/image)
+    target_compile_features(image_tests PRIVATE c_std_11)
+    set_target_properties(image_tests PROPERTIES C_EXTENSIONS OFF)
+
     add_executable(view_dynamics_tests
         tests/view_dynamics_tests.c
         src/view/view_dynamics.c
@@ -326,6 +353,7 @@ if(BUILD_TESTING)
         target_link_libraries(collision_tests PRIVATE m)
         target_link_libraries(world_tests PRIVATE m)
         target_link_libraries(level_tests PRIVATE m)
+        target_link_libraries(material_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -382,6 +410,12 @@ if(BUILD_TESTING)
         target_compile_options(level_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(material_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(image_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
@@ -403,4 +437,6 @@ if(BUILD_TESTING)
     add_test(NAME world_representation_foundation COMMAND world_tests)
     add_test(NAME resource_foundation COMMAND resource_tests)
     add_test(NAME level_loading_foundation COMMAND level_tests)
+    add_test(NAME material_foundation COMMAND material_tests)
+    add_test(NAME image_loading_foundation COMMAND image_tests)
 endif()

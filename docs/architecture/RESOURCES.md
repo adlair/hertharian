@@ -2,8 +2,9 @@
 
 v0.2.2 introduced the internal Resource System as the boundary between runtime
 consumers and external storage. It implements only synchronous filesystem
-storage to raw bytes. As of v0.2.3, Level Loading is its first typed consumer,
-but Resource still does not interpret level or any other format.
+storage to raw bytes. Level Loading became its first typed consumer in v0.2.3;
+as of v0.2.4, material and texture-image loading consume the same boundary.
+Resource still interprets none of those formats.
 
 ## Terminology and Boundary
 
@@ -16,8 +17,8 @@ absolute filesystem path:
 canonical Resource ID → Resource System → filesystem root → raw bytes
 ```
 
-Typed format loaders belong above this boundary. The v0.2.3 Level Loader
-consumes `HTHResourceData` without opening files itself. A future cached Asset
+Typed format loaders belong above this boundary. Level, Material, and Image
+loaders consume `HTHResourceData` without opening files themselves. A future cached Asset
 Manager could likewise sit above Resources; Resource System is not that
 manager.
 

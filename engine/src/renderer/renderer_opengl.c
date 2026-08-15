@@ -4,10 +4,12 @@
 #include <GL/glext.h>
 
 #include <limits.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef void (APIENTRYP HTHPFNGLDRAWARRAYSPROC)(GLenum mode, GLint first,
                                                 GLsizei count);
@@ -29,6 +31,8 @@ typedef struct {
     PFNGLGETUNIFORMLOCATIONPROC get_uniform_location;
     PFNGLUNIFORMMATRIX4FVPROC uniform_matrix_4fv;
     PFNGLUNIFORM4FVPROC uniform_4fv;
+    PFNGLUNIFORM1IPROC uniform_1i;
+    PFNGLACTIVETEXTUREPROC active_texture;
     PFNGLGENVERTEXARRAYSPROC gen_vertex_arrays;
     PFNGLBINDVERTEXARRAYPROC bind_vertex_array;
     PFNGLDELETEVERTEXARRAYSPROC delete_vertex_arrays;
@@ -43,7 +47,14 @@ typedef struct {
 
 typedef struct {
     GLfloat position[3];
+    GLfloat uv[2];
 } HTHBootstrapVertex;
+
+typedef struct {
+    float base_color[4];
+    GLuint texture;
+    bool has_texture;
+} HTHOpenGLRuntimeDraw;
 
 struct HTHOpenGLBackend {
     HTHPlatform *platform;
@@ -55,8 +66,10 @@ struct HTHOpenGLBackend {
     GLint model_location;
     GLint view_location;
     GLint projection_location;
-    GLint color_location;
-    HTHOpenGLStaticDraw *static_draws;
+    GLint base_color_location;
+    GLint use_texture_location;
+    GLint base_texture_location;
+    HTHOpenGLRuntimeDraw *static_draws;
     HTHMat4 *static_models;
     size_t static_draw_count;
     uint32_t framebuffer_width;
@@ -66,37 +79,71 @@ struct HTHOpenGLBackend {
 static const GLchar vertex_shader_source[] =
     "#version 330 core\n"
     "layout(location = 0) in vec3 a_position;\n"
+    "layout(location = 1) in vec2 a_uv;\n"
     "uniform mat4 u_model;\n"
     "uniform mat4 u_view;\n"
     "uniform mat4 u_projection;\n"
+    "out vec2 v_uv;\n"
     "void main()\n"
     "{\n"
+    "    v_uv = a_uv;\n"
     "    gl_Position = u_projection * u_view * u_model *\n"
     "                  vec4(a_position, 1.0);\n"
     "}\n";
 
 static const GLchar fragment_shader_source[] =
     "#version 330 core\n"
-    "uniform vec4 u_color;\n"
+    "uniform vec4 u_base_color;\n"
+    "uniform int u_use_texture;\n"
+    "uniform sampler2D u_base_texture;\n"
+    "in vec2 v_uv;\n"
     "out vec4 fragment_color;\n"
     "void main()\n"
     "{\n"
-    "    fragment_color = u_color;\n"
+    "    vec4 surface = u_base_color;\n"
+    "    if (u_use_texture == 1) {\n"
+    "        surface *= texture(u_base_texture, v_uv);\n"
+    "    }\n"
+    "    fragment_color = surface;\n"
     "}\n";
 
 static const HTHBootstrapVertex bootstrap_vertices[] = {
-    {{-0.5F, -0.5F,  0.5F}}, {{ 0.5F, -0.5F,  0.5F}}, {{ 0.5F,  0.5F,  0.5F}},
-    {{-0.5F, -0.5F,  0.5F}}, {{ 0.5F,  0.5F,  0.5F}}, {{-0.5F,  0.5F,  0.5F}},
-    {{ 0.5F, -0.5F, -0.5F}}, {{-0.5F, -0.5F, -0.5F}}, {{-0.5F,  0.5F, -0.5F}},
-    {{ 0.5F, -0.5F, -0.5F}}, {{-0.5F,  0.5F, -0.5F}}, {{ 0.5F,  0.5F, -0.5F}},
-    {{-0.5F, -0.5F, -0.5F}}, {{-0.5F, -0.5F,  0.5F}}, {{-0.5F,  0.5F,  0.5F}},
-    {{-0.5F, -0.5F, -0.5F}}, {{-0.5F,  0.5F,  0.5F}}, {{-0.5F,  0.5F, -0.5F}},
-    {{ 0.5F, -0.5F,  0.5F}}, {{ 0.5F, -0.5F, -0.5F}}, {{ 0.5F,  0.5F, -0.5F}},
-    {{ 0.5F, -0.5F,  0.5F}}, {{ 0.5F,  0.5F, -0.5F}}, {{ 0.5F,  0.5F,  0.5F}},
-    {{-0.5F,  0.5F,  0.5F}}, {{ 0.5F,  0.5F,  0.5F}}, {{ 0.5F,  0.5F, -0.5F}},
-    {{-0.5F,  0.5F,  0.5F}}, {{ 0.5F,  0.5F, -0.5F}}, {{-0.5F,  0.5F, -0.5F}},
-    {{-0.5F, -0.5F, -0.5F}}, {{ 0.5F, -0.5F, -0.5F}}, {{ 0.5F, -0.5F,  0.5F}},
-    {{-0.5F, -0.5F, -0.5F}}, {{ 0.5F, -0.5F,  0.5F}}, {{-0.5F, -0.5F,  0.5F}},
+    {{-0.5F, -0.5F,  0.5F}, {0.0F, 0.0F}},
+    {{ 0.5F, -0.5F,  0.5F}, {1.0F, 0.0F}},
+    {{ 0.5F,  0.5F,  0.5F}, {1.0F, 1.0F}},
+    {{-0.5F, -0.5F,  0.5F}, {0.0F, 0.0F}},
+    {{ 0.5F,  0.5F,  0.5F}, {1.0F, 1.0F}},
+    {{-0.5F,  0.5F,  0.5F}, {0.0F, 1.0F}},
+    {{ 0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
+    {{-0.5F, -0.5F, -0.5F}, {1.0F, 0.0F}},
+    {{-0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
+    {{ 0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
+    {{-0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
+    {{ 0.5F,  0.5F, -0.5F}, {0.0F, 1.0F}},
+    {{-0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
+    {{-0.5F, -0.5F,  0.5F}, {1.0F, 0.0F}},
+    {{-0.5F,  0.5F,  0.5F}, {1.0F, 1.0F}},
+    {{-0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
+    {{-0.5F,  0.5F,  0.5F}, {1.0F, 1.0F}},
+    {{-0.5F,  0.5F, -0.5F}, {0.0F, 1.0F}},
+    {{ 0.5F, -0.5F,  0.5F}, {0.0F, 0.0F}},
+    {{ 0.5F, -0.5F, -0.5F}, {1.0F, 0.0F}},
+    {{ 0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
+    {{ 0.5F, -0.5F,  0.5F}, {0.0F, 0.0F}},
+    {{ 0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
+    {{ 0.5F,  0.5F,  0.5F}, {0.0F, 1.0F}},
+    {{-0.5F,  0.5F,  0.5F}, {0.0F, 0.0F}},
+    {{ 0.5F,  0.5F,  0.5F}, {1.0F, 0.0F}},
+    {{ 0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
+    {{-0.5F,  0.5F,  0.5F}, {0.0F, 0.0F}},
+    {{ 0.5F,  0.5F, -0.5F}, {1.0F, 1.0F}},
+    {{-0.5F,  0.5F, -0.5F}, {0.0F, 1.0F}},
+    {{-0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
+    {{ 0.5F, -0.5F, -0.5F}, {1.0F, 0.0F}},
+    {{ 0.5F, -0.5F,  0.5F}, {1.0F, 1.0F}},
+    {{-0.5F, -0.5F, -0.5F}, {0.0F, 0.0F}},
+    {{ 0.5F, -0.5F,  0.5F}, {1.0F, 1.0F}},
+    {{-0.5F, -0.5F,  0.5F}, {0.0F, 1.0F}},
 };
 
 #define HTH_LOAD_GL_FUNCTION(backend, member, type, name)                   \
@@ -152,6 +199,10 @@ static bool load_gl_functions(HTHOpenGLBackend *backend)
                          PFNGLUNIFORMMATRIX4FVPROC, "glUniformMatrix4fv");
     HTH_LOAD_GL_FUNCTION(backend, uniform_4fv,
                          PFNGLUNIFORM4FVPROC, "glUniform4fv");
+    HTH_LOAD_GL_FUNCTION(backend, uniform_1i,
+                         PFNGLUNIFORM1IPROC, "glUniform1i");
+    HTH_LOAD_GL_FUNCTION(backend, active_texture,
+                         PFNGLACTIVETEXTUREPROC, "glActiveTexture");
     HTH_LOAD_GL_FUNCTION(backend, gen_vertex_arrays,
                          PFNGLGENVERTEXARRAYSPROC, "glGenVertexArrays");
     HTH_LOAD_GL_FUNCTION(backend, bind_vertex_array,
@@ -301,6 +352,10 @@ static bool create_geometry(HTHOpenGLBackend *backend)
     backend->gl.vertex_attrib_pointer(
         0, 3, GL_FLOAT, GL_FALSE, (GLsizei)sizeof(HTHBootstrapVertex),
         (const void *)offsetof(HTHBootstrapVertex, position));
+    backend->gl.enable_vertex_attrib_array(1);
+    backend->gl.vertex_attrib_pointer(
+        1, 2, GL_FLOAT, GL_FALSE, (GLsizei)sizeof(HTHBootstrapVertex),
+        (const void *)offsetof(HTHBootstrapVertex, uv));
     backend->gl.bind_buffer(GL_ARRAY_BUFFER, 0);
     backend->gl.bind_vertex_array(0);
     if (glGetError() != GL_NO_ERROR) {
@@ -310,8 +365,45 @@ static bool create_geometry(HTHOpenGLBackend *backend)
     return true;
 }
 
+static bool upload_texture(HTHOpenGLBackend *backend,
+                           const HTHRendererStaticDraw *draw,
+                           GLuint *out_texture)
+{
+    GLint previous_unpack_alignment = 4;
+    GLuint texture = 0;
+
+    if (draw->texture_pixels == NULL || draw->texture_width == 0U ||
+        draw->texture_height == 0U || draw->texture_width > INT_MAX ||
+        draw->texture_height > INT_MAX) {
+        return false;
+    }
+    glGenTextures(1, &texture);
+    if (texture == 0U) {
+        return false;
+    }
+    backend->gl.active_texture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, (GLsizei)draw->texture_width,
+                 (GLsizei)draw->texture_height, 0, GL_RGB,
+                 GL_UNSIGNED_BYTE, draw->texture_pixels);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    if (glGetError() != GL_NO_ERROR) {
+        glDeleteTextures(1, &texture);
+        return false;
+    }
+    *out_texture = texture;
+    return true;
+}
+
 static bool create_static_models(HTHOpenGLBackend *backend,
-                                 const HTHOpenGLStaticDraw *draws,
+                                 const HTHRendererStaticDraw *draws,
                                  size_t draw_count)
 {
     size_t index;
@@ -326,8 +418,8 @@ static bool create_static_models(HTHOpenGLBackend *backend,
         draw_count > SIZE_MAX / sizeof(*backend->static_models)) {
         return false;
     }
-    backend->static_draws = malloc(
-        draw_count * sizeof(*backend->static_draws));
+    backend->static_draws = calloc(
+        draw_count, sizeof(*backend->static_draws));
     backend->static_models = malloc(
         draw_count * sizeof(*backend->static_models));
     if (backend->static_draws == NULL || backend->static_models == NULL) {
@@ -337,11 +429,27 @@ static bool create_static_models(HTHOpenGLBackend *backend,
     for (index = 0; index < draw_count; ++index) {
         const HTHAABB *bounds = &draws[index].bounds;
         HTHMat4 model = hth_mat4_identity();
+        size_t component;
 
         if (!hth_aabb_is_valid(bounds)) {
             return false;
         }
-        backend->static_draws[index] = draws[index];
+        for (component = 0U; component < 4U; ++component) {
+            if (!isfinite(draws[index].base_color[component]) ||
+                draws[index].base_color[component] < 0.0F ||
+                draws[index].base_color[component] > 1.0F) {
+                return false;
+            }
+        }
+        memcpy(backend->static_draws[index].base_color,
+               draws[index].base_color,
+               sizeof(backend->static_draws[index].base_color));
+        backend->static_draws[index].has_texture = draws[index].has_texture;
+        if (draws[index].has_texture &&
+            !upload_texture(backend, &draws[index],
+                            &backend->static_draws[index].texture)) {
+            return false;
+        }
         model.elements[0] = bounds->max.x - bounds->min.x;
         model.elements[5] = bounds->max.y - bounds->min.y;
         model.elements[10] = bounds->max.z - bounds->min.z;
@@ -391,22 +499,40 @@ static bool cache_uniform_locations(HTHOpenGLBackend *backend)
         backend->gl.get_uniform_location(backend->program, "u_view");
     backend->projection_location =
         backend->gl.get_uniform_location(backend->program, "u_projection");
-    backend->color_location =
-        backend->gl.get_uniform_location(backend->program, "u_color");
+    backend->base_color_location =
+        backend->gl.get_uniform_location(backend->program, "u_base_color");
+    backend->use_texture_location =
+        backend->gl.get_uniform_location(backend->program, "u_use_texture");
+    backend->base_texture_location =
+        backend->gl.get_uniform_location(backend->program, "u_base_texture");
     if (backend->model_location < 0 || backend->view_location < 0 ||
-        backend->projection_location < 0 || backend->color_location < 0) {
+        backend->projection_location < 0 ||
+        backend->base_color_location < 0 ||
+        backend->use_texture_location < 0 ||
+        backend->base_texture_location < 0) {
         fprintf(stderr,
                 "Renderer initialization failed: required uniform missing "
-                "(model=%d, view=%d, projection=%d, color=%d).\n",
+                "(model=%d, view=%d, projection=%d, color=%d, use=%d, "
+                "sampler=%d).\n",
                 backend->model_location, backend->view_location,
-                backend->projection_location, backend->color_location);
+                backend->projection_location, backend->base_color_location,
+                backend->use_texture_location,
+                backend->base_texture_location);
         return false;
     }
     return true;
 }
 
+static bool initialize_sampler(HTHOpenGLBackend *backend)
+{
+    backend->gl.use_program(backend->program);
+    backend->gl.uniform_1i(backend->base_texture_location, 0);
+    backend->gl.use_program(0);
+    return glGetError() == GL_NO_ERROR;
+}
+
 HTHOpenGLBackend *hth_renderer_opengl_create(
-    HTHPlatform *platform, const HTHOpenGLStaticDraw *draws,
+    HTHPlatform *platform, const HTHRendererStaticDraw *draws,
     size_t draw_count)
 {
     HTHOpenGLBackend *backend = calloc(1, sizeof(*backend));
@@ -441,6 +567,7 @@ HTHOpenGLBackend *hth_renderer_opengl_create(
     glDepthFunc(GL_LESS);
     backend->program = create_program(backend);
     if (backend->program == 0 || !cache_uniform_locations(backend) ||
+        !initialize_sampler(backend) ||
         !create_geometry(backend) ||
         !create_static_models(backend, draws, draw_count) ||
         glGetError() != GL_NO_ERROR) {
@@ -461,12 +588,20 @@ HTHOpenGLBackend *hth_renderer_opengl_create(
 
 void hth_renderer_opengl_destroy(HTHOpenGLBackend *backend)
 {
+    size_t index;
+
     if (backend == NULL) {
         return;
     }
     if (backend->context != NULL) {
         if (backend->gl.use_program != NULL) {
             backend->gl.use_program(0);
+        }
+        for (index = 0U; index < backend->static_draw_count; ++index) {
+            if (backend->static_draws != NULL &&
+                backend->static_draws[index].texture != 0U) {
+                glDeleteTextures(1, &backend->static_draws[index].texture);
+            }
         }
         if (backend->vbo != 0 && backend->gl.delete_buffers != NULL) {
             backend->gl.delete_buffers(1, &backend->vbo);
@@ -525,18 +660,25 @@ bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     backend->gl.use_program(backend->program);
     backend->gl.bind_vertex_array(backend->vao);
+    backend->gl.active_texture(GL_TEXTURE0);
     for (index = 0; index < backend->static_draw_count; ++index) {
         backend->gl.uniform_matrix_4fv(
             backend->model_location, 1, GL_FALSE,
             backend->static_models[index].elements);
         backend->gl.uniform_4fv(
-            backend->color_location, 1,
-            backend->static_draws[index].color);
+            backend->base_color_location, 1,
+            backend->static_draws[index].base_color);
+        backend->gl.uniform_1i(
+            backend->use_texture_location,
+            backend->static_draws[index].has_texture ? 1 : 0);
+        glBindTexture(GL_TEXTURE_2D,
+                      backend->static_draws[index].texture);
         backend->gl.draw_arrays(
             GL_TRIANGLES, 0,
             (GLsizei)(sizeof(bootstrap_vertices) /
                       sizeof(bootstrap_vertices[0])));
     }
+    glBindTexture(GL_TEXTURE_2D, 0);
     backend->gl.bind_vertex_array(0);
     backend->gl.use_program(0);
     if (glGetError() != GL_NO_ERROR) {

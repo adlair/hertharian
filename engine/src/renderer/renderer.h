@@ -3,15 +3,17 @@
 
 #include "hth_camera.h"
 #include "platform.h"
-#include "world.h"
+#include "renderer_types.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef struct HTHRenderer HTHRenderer;
 
 HTHRenderer *hth_renderer_create(HTHPlatform *platform,
                                  const HTHCamera *camera,
-                                 const HTHWorld *world);
+                                 const HTHRendererStaticDraw *draws,
+                                 size_t draw_count);
 void hth_renderer_destroy(HTHRenderer *renderer);
 bool hth_renderer_resize(HTHRenderer *renderer);
 bool hth_renderer_set_camera(HTHRenderer *renderer,

@@ -4,6 +4,7 @@
 #include "hth_timing.h"
 #include "hth_version.h"
 #include "hth_resource_config.h"
+#include "bootstrap_materials.h"
 #include "fps_camera_controller.h"
 #include "collision_trace.h"
 #include "collision_world.h"
@@ -22,6 +23,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct HTHEnginePhysicalState {
     HTHPlayerBody body;
@@ -41,6 +43,7 @@ struct HTHEngineWorldState {
 
 struct HTHEngineStorageState {
     HTHResourceSystem *resources;
+    HTHBootstrapMaterialSet *materials;
 };
 
 static const char bootstrap_level_resource_id[] =
@@ -85,10 +88,69 @@ static void destroy_world(HTHEngine *engine)
 static void destroy_storage(HTHEngine *engine)
 {
     if (engine->storage_state != NULL) {
+        hth_bootstrap_materials_destroy(engine->storage_state->materials);
         hth_resource_system_destroy(engine->storage_state->resources);
         free(engine->storage_state);
         engine->storage_state = NULL;
     }
+}
+
+static bool build_renderer_draws(
+    const HTHWorld *world, const HTHBootstrapMaterialSet *materials,
+    HTHRendererStaticDraw **out_draws, size_t *out_draw_count)
+{
+    HTHRendererStaticDraw *draws;
+    size_t draw_count = 0U;
+    size_t index;
+    size_t object_count;
+
+    if (!hth_world_is_finalized(world) || materials == NULL ||
+        out_draws == NULL || *out_draws != NULL || out_draw_count == NULL ||
+        *out_draw_count != 0U) {
+        return false;
+    }
+    object_count = hth_world_static_object_count(world);
+    draws = calloc(object_count, sizeof(*draws));
+    if (draws == NULL && object_count > 0U) {
+        return false;
+    }
+    for (index = 0U; index < object_count; ++index) {
+        const HTHWorldStaticObject *object =
+            hth_world_static_object(world, index);
+        HTHBootstrapMaterial material;
+
+        if (object == NULL) {
+            free(draws);
+            return false;
+        }
+        if ((object->flags & HTH_WORLD_OBJECT_VISIBLE) == 0U) {
+            continue;
+        }
+        if (!hth_bootstrap_materials_get(
+                materials, object->visual_class, &material)) {
+            fprintf(stderr,
+                    "Renderer draw resolution failed: visual class %d has "
+                    "no bootstrap material.\n",
+                    (int)object->visual_class);
+            free(draws);
+            return false;
+        }
+        draws[draw_count].bounds = object->bounds;
+        memcpy(draws[draw_count].base_color,
+               material.description->base_color,
+               sizeof(draws[draw_count].base_color));
+        draws[draw_count].has_texture =
+            material.description->has_texture;
+        if (material.description->has_texture) {
+            draws[draw_count].texture_pixels = material.image->pixels;
+            draws[draw_count].texture_width = material.image->width;
+            draws[draw_count].texture_height = material.image->height;
+        }
+        draw_count++;
+    }
+    *out_draws = draws;
+    *out_draw_count = draw_count;
+    return true;
 }
 
 static bool load_bootstrap_world(HTHResourceSystem *resources,
@@ -178,6 +240,8 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     uint64_t frequency;
     HTHPlatformConfig platform_config;
     HTHResourceConfig resource_config;
+    HTHRendererStaticDraw *renderer_draws = NULL;
+    size_t renderer_draw_count = 0U;
     HTHWorldSpawn spawn;
 
     if (engine == NULL || config == NULL) {
@@ -221,6 +285,14 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
                               &engine->world_state->world) ||
         !hth_world_default_spawn(&engine->world_state->world, &spawn)) {
         fputs("Failed to initialize level World.\n", stderr);
+        destroy_world(engine);
+        destroy_storage(engine);
+        return false;
+    }
+    engine->storage_state->materials = hth_bootstrap_materials_load(
+        engine->storage_state->resources);
+    if (engine->storage_state->materials == NULL) {
+        fputs("Failed to initialize bootstrap materials.\n", stderr);
         destroy_world(engine);
         destroy_storage(engine);
         return false;
@@ -300,9 +372,17 @@ bool hth_engine_init(HTHEngine *engine, const HTHEngineConfig *config)
     }
 
     if (!config->headless) {
-        engine->renderer = hth_renderer_create(engine->platform,
-                                               &engine->camera,
-                                               &engine->world_state->world);
+        if (!build_renderer_draws(
+                &engine->world_state->world,
+                engine->storage_state->materials,
+                &renderer_draws, &renderer_draw_count)) {
+            fputs("Failed to resolve renderer material draws.\n", stderr);
+        } else {
+            engine->renderer = hth_renderer_create(
+                engine->platform, &engine->camera,
+                renderer_draws, renderer_draw_count);
+        }
+        free(renderer_draws);
         if (engine->renderer == NULL) {
             destroy_physical_state(engine);
             destroy_view_state(engine);
