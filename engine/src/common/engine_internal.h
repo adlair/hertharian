@@ -5,6 +5,7 @@
 #include "actor.h"
 #include "dynamic_body.h"
 #include "entity.h"
+#include "health.h"
 #include "spatial.h"
 #include "world.h"
 
@@ -16,6 +17,7 @@ struct HTHEngineWorldState {
     HTHSpatialStore *spatial_store;
     HTHDynamicBodyStore *dynamic_body_store;
     HTHActorStore *actor_store;
+    HTHHealthStore *health_store;
 };
 
 bool hth_engine_init_with_level_id(HTHEngine *engine,

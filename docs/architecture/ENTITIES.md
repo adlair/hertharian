@@ -82,6 +82,8 @@ milestone.
 Spatial, Dynamic Body, and Actor state reference an Entity handle while
 remaining separate from identity rather than being embedded in the handle or
 Registry slot. Spatial owns optional world-space position and yaw; Dynamic
-Body owns optional physical shape and velocity; as of v0.3.0, the presence-only
-Actor association identifies gameplay participation. Each validates handles
-against the Entity Registry without changing Entity identity or lifetime.
+Body owns optional physical shape and velocity; the presence-only Actor
+association identifies gameplay participation. As of v0.3.1, optional Health
+is separate gameplay state that additionally requires Actor. Each validates
+handles against the Entity Registry without changing Entity identity or
+lifetime.

@@ -21,8 +21,9 @@ Store, its entry is present, and the stored generation matches. Entity remains
 the sole runtime identity and lifetime authority.
 
 Actor is presence-only in v0.3.0. An entry contains only a generation and a
-presence flag. There is no payload, kind/type enum, type string, name, health,
-team, AI state, callback, transform, physics state, or render state.
+presence flag. There is no payload, kind/type enum, type string, name, embedded
+health, team, AI state, callback, transform, physics state, or render state.
+As of v0.3.1, optional Health remains in its own Actor-dependent Store.
 
 Attach requires only a live Entity and rejects a duplicate current
 association. It does not require or create Spatial or Dynamic Body state. A
@@ -75,7 +76,7 @@ current Player remains outside Entity/Actor/Spatial/Body composition, and
 Level v2 declares no Actors.
 
 This foundation adds no Actor taxonomy, Enemy, Pickup, Projectile,
-health/damage, faction/team, AI, behavior callbacks, rendering ownership,
+embedded health, faction/team, AI, behavior callbacks, rendering ownership,
 automatic physics integration, spawn framework, Actor resource format, names,
 persistent IDs, savegames, networking, scripting, cascade lifecycle, or ECS.
 Those concerns remain deferred rather than being encoded into Actor presence.

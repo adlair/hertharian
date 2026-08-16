@@ -131,6 +131,12 @@ Spatial, Entity identity, and World. Production creates zero Actors and the
 frame lifecycle performs no Actor traversal, ticking, behavior, rendering, or
 physics work, so runtime behavior remains unchanged beyond the Engine version.
 
+As of v0.3.1, Engine creates one empty Health Store after Actor and destroys it
+before Actor. Health is optional Actor-dependent gameplay state with
+generation-safe damage and healing operations. Production attaches no Health
+and performs no Health work per frame; no Player, Level, World, physics, or
+rendering behavior changes beyond the Engine version.
+
 ## Tests
 
 After configuring and building, run:

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.0 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.1 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -40,6 +40,7 @@ add_executable(hertharian-engine
     src/collision/collision_trace.c
     src/collision/collision_world.c
     src/entity/entity.c
+    src/gameplay/health.c
     src/input/input.c
     src/geometry/geometry.c
     src/image/image.c
@@ -69,6 +70,7 @@ target_include_directories(hertharian-engine PRIVATE
     src/common
     src/collision
     src/entity
+    src/gameplay
     src/input
     src/geometry
     src/image
@@ -212,6 +214,20 @@ if(BUILD_TESTING)
     )
     target_compile_features(actor_tests PRIVATE c_std_11)
     set_target_properties(actor_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(health_tests
+        tests/health_tests.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+    )
+    target_include_directories(health_tests PRIVATE
+        include src/actor src/entity src/gameplay src/physics src/spatial
+    )
+    target_compile_features(health_tests PRIVATE c_std_11)
+    set_target_properties(health_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(math_tests
         tests/math_tests.c
@@ -473,6 +489,7 @@ if(BUILD_TESTING)
         target_link_libraries(dynamic_body_tests PRIVATE m)
         target_link_libraries(dynamic_collision_tests PRIVATE m)
         target_link_libraries(actor_tests PRIVATE m)
+        target_link_libraries(health_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -495,6 +512,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(actor_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(health_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(math_tests PRIVATE
@@ -565,6 +585,7 @@ if(BUILD_TESTING)
     add_test(NAME dynamic_body_foundation COMMAND dynamic_body_tests)
     add_test(NAME dynamic_collision_foundation COMMAND dynamic_collision_tests)
     add_test(NAME actor_foundation COMMAND actor_tests)
+    add_test(NAME health_damage_foundation COMMAND health_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)
