@@ -106,7 +106,13 @@ The bootstrap wedge is deliberately visible-only and pass-through.
 As of v0.2.6, logical Level ID, canonical Resource ID, Level Description, and
 World are distinct states. The internal startup selection owns copies of the
 Level ID and its mapped Resource ID throughout Engine lifetime. There is no
-registry, metadata, reload, transition, or current-level public API.
+Level registry, metadata, reload, transition, or current-level public API.
+
+As of v0.2.7, each Engine also owns one private Entity Registry. It is created
+empty after the selected Level has produced its finalized static World and is
+destroyed before that World during shutdown. No Level content, Player state,
+or static World object is converted into an Entity, so production maintains
+zero live Entities and the frame lifecycle performs no Entity traversal.
 
 ## Tests
 

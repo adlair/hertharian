@@ -41,10 +41,6 @@ struct HTHEngineViewState {
     float base_vertical_fov_radians;
 };
 
-struct HTHEngineWorldState {
-    HTHWorld world;
-};
-
 struct HTHEngineStorageState {
     HTHResourceSystem *resources;
     HTHBootstrapMaterialSet *materials;
@@ -81,6 +77,8 @@ static void destroy_view_state(HTHEngine *engine)
 static void destroy_world(HTHEngine *engine)
 {
     if (engine->world_state != NULL) {
+        hth_entity_registry_destroy(engine->world_state->entity_registry);
+        engine->world_state->entity_registry = NULL;
         hth_world_shutdown(&engine->world_state->world);
         free(engine->world_state);
         engine->world_state = NULL;
@@ -332,6 +330,15 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
             &engine->world_state->world) ||
         !hth_world_default_spawn(&engine->world_state->world, &spawn)) {
         fputs("Failed to initialize level World.\n", stderr);
+        destroy_world(engine);
+        destroy_storage(engine);
+        return false;
+    }
+    engine->world_state->entity_registry = hth_entity_registry_create();
+    if (engine->world_state->entity_registry == NULL ||
+        hth_entity_registry_live_count(
+            engine->world_state->entity_registry) != 0U) {
+        fputs("Failed to initialize Entity Registry.\n", stderr);
         destroy_world(engine);
         destroy_storage(engine);
         return false;

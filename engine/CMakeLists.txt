@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.6 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.7 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -38,6 +38,7 @@ add_executable(hertharian-engine
     src/collision/aabb.c
     src/collision/collision_trace.c
     src/collision/collision_world.c
+    src/entity/entity.c
     src/input/input.c
     src/geometry/geometry.c
     src/image/image.c
@@ -62,6 +63,7 @@ target_include_directories(hertharian-engine PRIVATE
     include
     src/common
     src/collision
+    src/entity
     src/input
     src/geometry
     src/image
@@ -122,6 +124,15 @@ if(BUILD_TESTING)
     )
     target_compile_features(input_tests PRIVATE c_std_11)
     set_target_properties(input_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(entity_tests
+        tests/entity_tests.c
+        src/entity/entity.c
+    )
+    target_include_directories(entity_tests PRIVATE src/entity)
+    target_compile_definitions(entity_tests PRIVATE HTH_ENTITY_TESTING=1)
+    target_compile_features(entity_tests PRIVATE c_std_11)
+    set_target_properties(entity_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(timing_tests
         tests/timing_tests.c
@@ -395,6 +406,9 @@ if(BUILD_TESTING)
         target_compile_options(input_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(entity_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
         target_compile_options(timing_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
@@ -460,6 +474,7 @@ if(BUILD_TESTING)
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
+    add_test(NAME entity_foundation COMMAND entity_tests)
     add_test(NAME timing_state COMMAND timing_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
