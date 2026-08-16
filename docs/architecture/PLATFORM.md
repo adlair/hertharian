@@ -34,6 +34,11 @@ translated keys it has already reported as down. After fully draining the SDL
 event queue, it compares only that set with the active backend observation and
 emits a single normalized HTH key-up for each stale entry. Normal key events
 remain the source of pressed edges and the primary source of released edges.
+Each newly reported key-down must pass one backend observation before a later
+observed-up discrepancy is allowed to normalize its release. This prevents a
+temporarily lagging X11 snapshot from cancelling a fresh post-interruption
+press during the same logical input update, while a genuinely missing release
+is still recovered on the following observation.
 
 The reconciliation policy is backend-independent and never synthesizes
 key-down, polls into Input directly, grabs the keyboard, uses a timeout, or
@@ -41,6 +46,10 @@ names a desktop environment. Focus loss clears Platform's reported set as
 Input clears held state; focus gain does not infer presses from observation.
 Each normalized release traverses the ordinary HTH event and Input route. A
 late real key-up is idempotent and a later real key-down starts a new press.
+If SDL subsequently reports a repeat key-down for a still-held key, that event
+re-establishes HTH held state but does not synthesize a `pressed` edge.
+The single-observation confirmation is state-based rather than a timer,
+threshold, key-specific rule, or synthesized key-down.
 
 The X11 backend can keep both its SDL event state and SDL keyboard snapshot
 stale when a release is intercepted outside the application. Builds with Xlib
@@ -50,8 +59,10 @@ SDL's backend passes the native X keycode through `SDL_KeyboardEvent.raw`, so
 the observer records that value alongside the translated SDL scancode instead
 of assuming a numeric offset. The X11 server bitmap is the independent
 authority for recovering exclusively lost releases; SDL's cached state remains
-diagnostic in this path. Debug mode reports the discrepancy and its single
-normalized release.
+diagnostic in this path. An X11-up/SDL-cached-down pair is explicitly a
+disagreement, not proof that both sources concur. Debug mode reports both
+states, reconciliation arming, its normalized action, and the HTH logical
+state before and after event processing.
 
 Xlib is a private, target-scoped optional dependency. The observer is compiled
 only when X11 development support is available and activated only when SDL's
@@ -65,7 +76,26 @@ a device whose name has the stable `xwayland-relative-pointer` prefix, without
 depending on its generated suffix or numeric ID. While window-relative mode is
 active and that explicit source is known, only motion from the selected source
 crosses into `HTHPlatformEvent`; other SDL motion remains visible in debug logs
-but is not translated.
+but is not translated. A foreign-source motion in this state also establishes
+an observed re-entry discontinuity. Platform discards exactly the next motion
+from the selected relative source as its transition compensation, then returns
+immediately to steady-state acceptance. Pending transition state is cleared on
+focus and mouse-focus changes; the reconstructed sample baseline is retained
+while relative mode remains active and reset on mode or selected-device changes.
+The policy does not inspect motion magnitude. For SDL/X11 combinations that
+report this explicit source as the
+difference between consecutive relative samples, the same private state also
+integrates those delivered differences to recover each directional sample.
+Consequently sustained motion remains sustained and a genuine sign change is
+applied immediately; no alternating-event or direction heuristic is involved.
+Hertharian observed this delta-of-delta delivery with SDL 3.4.14 under
+X11/XWayland/XInput2. The `xwayland-relative-pointer` device name selects this
+compatibility path, but does not independently prove at runtime that the
+device currently exhibits delta-of-delta behavior. Reconstruction is therefore
+a compatibility rule based on that observed SDL/XInput2 behavior, not a
+universal semantic guarantee for future SDL versions. If SDL changes or fixes
+the delivery behavior while retaining the same device naming, this rule must
+be reevaluated to avoid reconstructing already-correct relative samples.
 
 Mouse add/remove events refresh this private selection. If enumeration fails or
 no explicit relative-pointer device exists, Platform preserves generic SDL

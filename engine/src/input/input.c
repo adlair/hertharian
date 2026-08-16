@@ -129,10 +129,14 @@ void hth_input_handle_event(HTHInput *input, const HTHPlatformEvent *event)
     switch (event->type) {
     case HTH_PLATFORM_EVENT_KEY_DOWN:
         key = event->data.keyboard.key;
-        if (valid_key(key) && !event->data.keyboard.repeat &&
-            !input->keys_down[key]) {
+        if (valid_key(key)) {
+            if (!event->data.keyboard.repeat && !input->keys_down[key]) {
+                input->keys_pressed[key] = true;
+            }
+            /* A repeat is still a KEY_DOWN observation. It may restore held
+             * state after a conservative reconciled release, but it never
+             * creates a new pressed edge. */
             input->keys_down[key] = true;
-            input->keys_pressed[key] = true;
         }
         break;
     case HTH_PLATFORM_EVENT_KEY_UP:

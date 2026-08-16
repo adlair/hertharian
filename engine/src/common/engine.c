@@ -77,6 +77,8 @@ static void destroy_view_state(HTHEngine *engine)
 static void destroy_world(HTHEngine *engine)
 {
     if (engine->world_state != NULL) {
+        hth_actor_store_destroy(engine->world_state->actor_store);
+        engine->world_state->actor_store = NULL;
         hth_dynamic_body_store_destroy(
             engine->world_state->dynamic_body_store);
         engine->world_state->dynamic_body_store = NULL;
@@ -363,6 +365,13 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
         destroy_storage(engine);
         return false;
     }
+    engine->world_state->actor_store = hth_actor_store_create();
+    if (engine->world_state->actor_store == NULL) {
+        fputs("Failed to initialize Actor Store.\n", stderr);
+        destroy_world(engine);
+        destroy_storage(engine);
+        return false;
+    }
     engine->storage_state->materials = hth_bootstrap_materials_load(
         engine->storage_state->resources);
     if (engine->storage_state->materials == NULL) {
@@ -542,9 +551,14 @@ void hth_engine_frame(HTHEngine *engine)
     HTHViewDynamicsOutput view_output;
     HTHVec3 camera_right;
     HTHVec3 physical_eye;
+    double accumulated_mouse_x;
+    double accumulated_mouse_y;
     uint64_t counter;
     uint64_t sleep_ns;
     bool discard_mouse_delta = false;
+    bool debug_key_event;
+    bool debug_key_down_before;
+    HTHKey debug_key;
 
     if (engine == NULL || !engine->initialized || !engine->running) {
         return;
@@ -555,6 +569,9 @@ void hth_engine_frame(HTHEngine *engine)
     hth_input_begin_frame(engine->input);
 
     while (hth_platform_poll_event(engine->platform, &event)) {
+        debug_key_event = false;
+        debug_key = HTH_KEY_UNKNOWN;
+        debug_key_down_before = false;
         if (engine->debug_fps_input) {
             if (event.type == HTH_PLATFORM_EVENT_MOUSE_MOTION) {
                 printf("HTH translated mouse:\n  dx=%.17g\n  dy=%.17g\n",
@@ -578,6 +595,13 @@ void hth_engine_frame(HTHEngine *engine)
             } else if (event.type == HTH_PLATFORM_EVENT_FOCUS_LOST) {
                 puts("HTH focus:\n  lost");
             }
+            if (event.type == HTH_PLATFORM_EVENT_KEY_DOWN ||
+                event.type == HTH_PLATFORM_EVENT_KEY_UP) {
+                debug_key_event = true;
+                debug_key = event.data.keyboard.key;
+                debug_key_down_before =
+                    hth_input_key_down(engine->input, debug_key);
+            }
         }
         if (event.type == HTH_PLATFORM_EVENT_QUIT) {
             engine->running = false;
@@ -600,6 +624,37 @@ void hth_engine_frame(HTHEngine *engine)
         }
 
         hth_input_handle_event(engine->input, &event);
+        if (debug_key_event) {
+            printf("HTH logical key state:\n"
+                   "  key=%d\n"
+                   "  action=%s\n"
+                   "  repeat=%s\n"
+                   "  down before=%s\n"
+                   "  down after=%s\n"
+                   "  pressed=%s\n"
+                   "  released=%s\n",
+                   (int)debug_key,
+                   event.type == HTH_PLATFORM_EVENT_KEY_DOWN ? "down" : "up",
+                   event.type == HTH_PLATFORM_EVENT_KEY_DOWN &&
+                           event.data.keyboard.repeat
+                       ? "true" : "false",
+                   debug_key_down_before ? "true" : "false",
+                   hth_input_key_down(engine->input, debug_key) ? "true"
+                                                                : "false",
+                   hth_input_key_pressed(engine->input, debug_key) ? "true"
+                                                                   : "false",
+                   hth_input_key_released(engine->input, debug_key) ? "true"
+                                                                    : "false");
+        }
+        if (engine->debug_fps_input &&
+            event.type == HTH_PLATFORM_EVENT_MOUSE_MOTION) {
+            hth_input_mouse_delta(engine->input, &accumulated_mouse_x,
+                                  &accumulated_mouse_y);
+            printf("HTH frame mouse accumulation:\n"
+                   "  dx=%.17g\n"
+                   "  dy=%.17g\n",
+                   accumulated_mouse_x, accumulated_mouse_y);
+        }
     }
 
     if (!engine->running) {

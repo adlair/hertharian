@@ -79,9 +79,9 @@ state. There is no ECS decision, component model, Actor hierarchy, Entity
 update/render/collision pass, serialization, or public Entity API in this
 milestone.
 
-Future spatial, dynamic-body, or Actor state may reference an Entity handle,
-but such state will remain separate from identity rather than being embedded
-in the handle or Registry slot. As of v0.2.8, the independent optional Spatial
-Store is the first such state owner: it validates handles against the Entity
-Registry and stores world-space position and yaw without changing Entity
-identity or lifetime. Dynamic-body and Actor models remain deferred.
+Spatial, Dynamic Body, and Actor state reference an Entity handle while
+remaining separate from identity rather than being embedded in the handle or
+Registry slot. Spatial owns optional world-space position and yaw; Dynamic
+Body owns optional physical shape and velocity; as of v0.3.0, the presence-only
+Actor association identifies gameplay participation. Each validates handles
+against the Entity Registry without changing Entity identity or lifetime.

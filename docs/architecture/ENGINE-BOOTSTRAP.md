@@ -124,6 +124,13 @@ destroys it before Spatial, Entity identity, and World. Production creates no
 Bodies and performs no Dynamic Collision work per frame; the foundation has no
 visible runtime effect beyond the Engine version.
 
+As of v0.3.0, Engine creates one empty Actor Store after Dynamic Body. Actor is
+only a gameplay-participation association over Entity identity; it owns no
+Spatial or physics state. Shutdown destroys Actor before Dynamic Body,
+Spatial, Entity identity, and World. Production creates zero Actors and the
+frame lifecycle performs no Actor traversal, ticking, behavior, rendering, or
+physics work, so runtime behavior remains unchanged beyond the Engine version.
+
 ## Tests
 
 After configuring and building, run:

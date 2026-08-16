@@ -14,8 +14,10 @@ not define gameplay actions or bindings.
 
 ## Frame State
 
-Held keys and mouse buttons persist as `down`. A transition to down sets
-`pressed` for that frame; a transition to up sets `released`. At the beginning
+Held keys and mouse buttons persist as `down`. Every valid key-down establishes
+`down`; it sets `pressed` for that frame only when it is non-repeat and the
+previous logical state was up. A repeat key-down may therefore restore `down`
+without setting `pressed`. A transition to up sets `released`. At the beginning
 of the next frame, pressed/released edges are cleared while down state remains.
 
 Mouse state includes absolute position, accumulated relative delta, five
@@ -31,7 +33,14 @@ the native event queue. If a normal key-up is unavailable but the backend's
 observed state says that a reported key is up, Platform emits exactly one
 normalized HTH key-up through the regular event path. It never synthesizes a
 key-down or `pressed`, and a later real key-up is harmless because release is
-idempotent. A fresh non-repeat key-down works normally after recovery.
+idempotent. Any later SDL key-down is current down-state evidence, including a
+repeat key-down from a key that remained physically held. Input therefore
+restores `down` from that event immediately, but a repeat never creates a
+`pressed` edge. A fresh non-repeat key-down works normally after recovery. A newly
+reported down is protected from one immediately lagging backend observation;
+only a subsequent observed-up discrepancy may normalize it as released. This
+keeps the first physical press after an interruption active in the same input
+update without restoring keys held before focus loss.
 
 SDL's cached keyboard snapshot is used by the general backend path, but is not
 an independent authority under an X11 global interruption: it can remain down
@@ -39,6 +48,10 @@ together with the missing SDL key-up. The optional X11 Platform path therefore
 uses `XQueryKeymap` as its release-recovery authority. It associates each HTH
 key with the native X11 keycode carried by the real SDL key-down event and
 recovers only missing releases. Native Wayland does not use this path.
+An X11-up/SDL-cached-down observation is treated as a disagreement: the
+state-based confirmation can still recover a truly lost release, while a
+subsequent SDL key-down repeat supersedes the normalized release without an
+extra physical press.
 
 ## FPS Camera Consumption
 
@@ -74,6 +87,17 @@ still receives the same device-independent `HTHPlatformEvent` and knows no SDL
 device IDs or names. This filtering is distinct from Input's short capture-
 transition guard: filtering chooses the valid relative stream, while the guard
 suppresses asynchronous residue around any successful mode change.
+
+On XWayland, a non-relative re-entry motion can be followed by an opposite
+compensating motion from the otherwise valid relative source. Platform treats
+that observed cross-source pair as one pointer-state discontinuity: the foreign
+motion arms a one-event compensation discard, the following relative motion is
+consumed, and the next relative motion is accepted immediately. SDL's X11
+backend can additionally expose this explicit source as differences between
+successive relative samples. Platform integrates that representation back into
+the original directional samples before producing HTH events. Both corrections
+use source identity and event order, never delta magnitude or sign; Input and
+the FPS controller remain unaware of the backend detail.
 
 These physical controls are not a semantic binding system. Rebinding, action
 maps, menus, attack semantics, and final gameplay bindings remain excluded.

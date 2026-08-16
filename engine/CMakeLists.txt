@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.9 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.0 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -29,6 +29,7 @@ configure_file(
 
 add_executable(hertharian-engine
     src/main.c
+    src/actor/actor.c
     src/common/engine.c
     src/common/math.c
     src/common/camera.c
@@ -64,6 +65,7 @@ add_executable(hertharian-engine
 
 target_include_directories(hertharian-engine PRIVATE
     include
+    src/actor
     src/common
     src/collision
     src/entity
@@ -191,6 +193,26 @@ if(BUILD_TESTING)
     target_compile_features(dynamic_collision_tests PRIVATE c_std_11)
     set_target_properties(dynamic_collision_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(actor_tests
+        tests/actor_tests.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/physics/dynamic_collision.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+        src/world/world.c
+    )
+    target_include_directories(actor_tests PRIVATE
+        include src/actor src/collision src/entity src/physics src/spatial
+        src/world
+    )
+    target_compile_features(actor_tests PRIVATE c_std_11)
+    set_target_properties(actor_tests PROPERTIES C_EXTENSIONS OFF)
+
     add_executable(math_tests
         tests/math_tests.c
         src/common/math.c
@@ -214,11 +236,13 @@ if(BUILD_TESTING)
         src/common/camera.c
         src/common/math.c
         src/input/input.c
+        src/platform/mouse_source.c
     )
     target_include_directories(fps_camera_controller_tests PRIVATE
         include
         src/common
         src/input
+        src/platform
     )
     target_compile_features(fps_camera_controller_tests PRIVATE c_std_11)
     set_target_properties(fps_camera_controller_tests PROPERTIES
@@ -448,6 +472,7 @@ if(BUILD_TESTING)
         target_link_libraries(geometry_tests PRIVATE m)
         target_link_libraries(dynamic_body_tests PRIVATE m)
         target_link_libraries(dynamic_collision_tests PRIVATE m)
+        target_link_libraries(actor_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -467,6 +492,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(dynamic_collision_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(actor_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(math_tests PRIVATE
@@ -536,6 +564,7 @@ if(BUILD_TESTING)
     add_test(NAME spatial_entity_foundation COMMAND spatial_tests)
     add_test(NAME dynamic_body_foundation COMMAND dynamic_body_tests)
     add_test(NAME dynamic_collision_foundation COMMAND dynamic_collision_tests)
+    add_test(NAME actor_foundation COMMAND actor_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)

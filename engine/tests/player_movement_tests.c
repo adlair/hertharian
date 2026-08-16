@@ -74,6 +74,15 @@ static void inject_key(HTHInput *input, HTHKey key)
     hth_input_handle_event(input, &event);
 }
 
+static void inject_repeat_key(HTHInput *input, HTHKey key)
+{
+    HTHPlatformEvent event = {0};
+    event.type = HTH_PLATFORM_EVENT_KEY_DOWN;
+    event.data.keyboard.key = key;
+    event.data.keyboard.repeat = true;
+    hth_input_handle_event(input, &event);
+}
+
 static void release_key(HTHInput *input, HTHKey key)
 {
     HTHPlatformEvent event = {0};
@@ -161,6 +170,12 @@ static void test_normalized_release_clears_directional_intent(void)
             hth_vec3(0.0F, 1.0F, 0.0F), true, &intent));
         assert(intent.magnitude > 0.0F);
 
+        assert(!hth_keyboard_reconciliation_next_release(
+            &reconciliation, physical_down, &released));
+        assert(hth_player_movement_build_intent(
+            input, hth_vec3(0.0F, 0.0F, -1.0F),
+            hth_vec3(0.0F, 1.0F, 0.0F), true, &intent));
+        assert(intent.magnitude > 0.0F);
         assert(hth_keyboard_reconciliation_next_release(
             &reconciliation, physical_down, &released));
         release.type = HTH_PLATFORM_EVENT_KEY_UP;
@@ -173,6 +188,89 @@ static void test_normalized_release_clears_directional_intent(void)
         assert(!hth_input_key_down(input, movement_keys[index]));
         hth_input_destroy(input);
     }
+}
+
+static void test_repeat_restores_directional_intent_after_reconciliation(void)
+{
+    static const HTHKey movement_keys[] = {
+        HTH_KEY_W, HTH_KEY_A, HTH_KEY_S, HTH_KEY_D
+    };
+    size_t index;
+
+    for (index = 0U; index < sizeof(movement_keys) /
+                                sizeof(movement_keys[0]); ++index) {
+        HTHKeyboardReconciliation reconciliation = {0};
+        bool observed_down[HTH_KEY_COUNT] = {false};
+        HTHPlayerMovementIntent intent;
+        HTHInput *input = hth_input_create();
+        HTHKey released = HTH_KEY_UNKNOWN;
+
+        assert(input != NULL);
+        hth_input_begin_frame(input);
+        inject_key(input, movement_keys[index]);
+        hth_keyboard_reconciliation_report_down(
+            &reconciliation, movement_keys[index]);
+        assert(!hth_keyboard_reconciliation_next_release(
+            &reconciliation, observed_down, &released));
+        assert(hth_keyboard_reconciliation_next_release(
+            &reconciliation, observed_down, &released));
+        assert(released == movement_keys[index]);
+        release_key(input, released);
+        assert(!hth_input_key_down(input, movement_keys[index]));
+
+        hth_input_begin_frame(input);
+        hth_keyboard_reconciliation_report_down(
+            &reconciliation, movement_keys[index]);
+        inject_repeat_key(input, movement_keys[index]);
+        assert(hth_input_key_down(input, movement_keys[index]));
+        assert(!hth_input_key_pressed(input, movement_keys[index]));
+        assert(hth_player_movement_build_intent(
+            input, hth_vec3(0.0F, 0.0F, -1.0F),
+            hth_vec3(0.0F, 1.0F, 0.0F), true, &intent));
+        assert(intent.magnitude > 0.0F);
+        hth_input_destroy(input);
+    }
+}
+
+static void test_repeat_restores_diagonal_intent_after_reconciliation(void)
+{
+    HTHKeyboardReconciliation reconciliation = {0};
+    bool observed_down[HTH_KEY_COUNT] = {false};
+    HTHPlayerMovementIntent intent;
+    HTHInput *input = hth_input_create();
+    HTHKey released = HTH_KEY_UNKNOWN;
+    unsigned int release_count = 0U;
+
+    assert(input != NULL);
+    hth_input_begin_frame(input);
+    inject_key(input, HTH_KEY_W);
+    inject_key(input, HTH_KEY_D);
+    hth_keyboard_reconciliation_report_down(&reconciliation, HTH_KEY_W);
+    hth_keyboard_reconciliation_report_down(&reconciliation, HTH_KEY_D);
+    assert(!hth_keyboard_reconciliation_next_release(
+        &reconciliation, observed_down, &released));
+    while (hth_keyboard_reconciliation_next_release(
+               &reconciliation, observed_down, &released)) {
+        release_key(input, released);
+        release_count++;
+    }
+    assert(release_count == 2U);
+    assert(!hth_input_key_down(input, HTH_KEY_W));
+    assert(!hth_input_key_down(input, HTH_KEY_D));
+
+    hth_input_begin_frame(input);
+    hth_keyboard_reconciliation_report_down(&reconciliation, HTH_KEY_W);
+    inject_repeat_key(input, HTH_KEY_W);
+    hth_keyboard_reconciliation_report_down(&reconciliation, HTH_KEY_D);
+    inject_repeat_key(input, HTH_KEY_D);
+    assert(hth_player_movement_build_intent(
+        input, hth_vec3(0.0F, 0.0F, -1.0F),
+        hth_vec3(0.0F, 1.0F, 0.0F), true, &intent));
+    assert(intent.magnitude > 0.0F);
+    assert(intent.direction.x > 0.0F && intent.direction.z < 0.0F);
+    assert(!hth_input_key_pressed(input, HTH_KEY_W));
+    assert(!hth_input_key_pressed(input, HTH_KEY_D));
+    hth_input_destroy(input);
 }
 
 static void test_jump_intent_uses_pressed_transition(void)
@@ -775,6 +873,8 @@ int main(void)
 {
     test_intent();
     test_normalized_release_clears_directional_intent();
+    test_repeat_restores_directional_intent_after_reconciliation();
+    test_repeat_restores_diagonal_intent_after_reconciliation();
     test_jump_intent_uses_pressed_transition();
     test_integration();
     test_gravity_lands_on_floor();

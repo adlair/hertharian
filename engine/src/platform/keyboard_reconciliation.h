@@ -7,6 +7,7 @@
 
 typedef struct {
     bool reported_down[HTH_KEY_COUNT];
+    bool release_armed[HTH_KEY_COUNT];
 } HTHKeyboardReconciliation;
 
 void hth_keyboard_reconciliation_report_down(

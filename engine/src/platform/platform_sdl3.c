@@ -16,6 +16,7 @@
 struct HTHPlatform {
     SDL_Window *window;
     SDL_MouseID relative_mouse_source_id;
+    HTHRelativeMouseFilter relative_mouse_filter;
     HTHKeyboardReconciliation keyboard_reconciliation;
     SDL_Scancode reported_scancodes[HTH_KEY_COUNT];
 #if defined(HTH_HAVE_X11_OBSERVER)
@@ -194,6 +195,7 @@ static bool reconcile_sdl_keyboard(HTHPlatform *platform,
 static bool reconcile_x11_keyboard(HTHPlatform *platform,
                                    HTHPlatformEvent *event)
 {
+    bool armed_before[HTH_KEY_COUNT];
     bool x11_down[HTH_X11_KEYCODE_COUNT];
     bool observed_down[HTH_KEY_COUNT] = {false};
     bool sdl_down[HTH_KEY_COUNT] = {false};
@@ -218,8 +220,35 @@ static bool reconcile_x11_keyboard(HTHPlatform *platform,
         }
     }
 
+    memcpy(armed_before,
+           platform->keyboard_reconciliation.release_armed,
+           sizeof(armed_before));
+
     if (!hth_keyboard_reconciliation_next_release(
             &platform->keyboard_reconciliation, observed_down, &key)) {
+        if (platform->debug_fps_input) {
+            (void)observe_sdl_keyboard(sdl_down);
+            for (index = (size_t)HTH_KEY_UNKNOWN + 1U;
+                 index < (size_t)HTH_KEY_COUNT; ++index) {
+                if (platform->keyboard_reconciliation.reported_down[index] &&
+                    !observed_down[index]) {
+                    printf("X11 keyboard reconciliation observation:\n"
+                           "  HTH key=%zu\n"
+                           "  reported=down\n"
+                           "  X11 state=up\n"
+                           "  SDL cached state=%s\n"
+                           "  release armed before=%s\n"
+                           "  release armed after=%s\n"
+                           "  normalized action=none\n",
+                           index,
+                           sdl_down[index] ? "down" : "up",
+                           armed_before[index] ? "true" : "false",
+                           platform->keyboard_reconciliation
+                                   .release_armed[index]
+                               ? "true" : "false");
+                }
+            }
+        }
         return false;
     }
 
@@ -234,12 +263,15 @@ static bool reconcile_x11_keyboard(HTHPlatform *platform,
                "  reported=down\n"
                "  X11 state=up\n"
                "  SDL cached state=%s\n"
+               "  release armed before=%s\n"
+               "  release armed after=false\n"
                "  normalized action=release\n"
                "HTH translated/reconciled key:\n"
                "  key=%d\n"
                "  action=up\n",
                (int)key, (int)scancode, x11_keycode,
-               sdl_down[key] ? "down" : "up", (int)key);
+               sdl_down[key] ? "down" : "up",
+               armed_before[key] ? "true" : "false", (int)key);
     }
     make_reconciled_key_up(platform, event, key);
     return true;
@@ -286,6 +318,11 @@ static void refresh_relative_mouse_source(HTHPlatform *platform,
         }
     }
     SDL_free(mice);
+
+    if (previous_known != platform->relative_mouse_source_known ||
+        (previous_known && previous_id != platform->relative_mouse_source_id)) {
+        hth_relative_mouse_filter_reset(&platform->relative_mouse_filter);
+    }
 
     if (platform->debug_fps_input &&
         (print_inventory ||
@@ -407,6 +444,9 @@ void hth_platform_shutdown(HTHPlatform *platform)
 bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
 {
     SDL_Event native_event;
+    HTHRelativeMouseMotionDecision mouse_motion_decision;
+    double corrected_delta_x;
+    double corrected_delta_y;
     double wheel_direction;
 
     if (platform == NULL || event == NULL) {
@@ -469,12 +509,18 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
                 SDL_WindowFlags flags = SDL_GetWindowFlags(platform->window);
 
                 printf("SDL raw mouse:\n"
+                       "  timestamp_ns=%" PRIu64 "\n"
+                       "  x=%.17g\n"
+                       "  y=%.17g\n"
                        "  xrel=%.17g\n"
                        "  yrel=%.17g\n"
                        "  which=%" PRIu32 "\n"
                        "  relative_mode=%s\n"
                        "  mouse_focus=%s\n"
                        "  input_focus=%s\n",
+                       (uint64_t)native_event.motion.timestamp,
+                       (double)native_event.motion.x,
+                       (double)native_event.motion.y,
                        (double)native_event.motion.xrel,
                        (double)native_event.motion.yrel,
                        (uint32_t)native_event.motion.which,
@@ -485,21 +531,44 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
                        (flags & SDL_WINDOW_INPUT_FOCUS) != 0
                            ? "true" : "false");
             }
-            if (SDL_GetWindowRelativeMouseMode(platform->window) &&
-                platform->relative_mouse_source_known &&
-                native_event.motion.which !=
-                    platform->relative_mouse_source_id) {
+            mouse_motion_decision = hth_relative_mouse_filter_motion(
+                &platform->relative_mouse_filter,
+                SDL_GetWindowRelativeMouseMode(platform->window),
+                platform->relative_mouse_source_known,
+                (uint32_t)platform->relative_mouse_source_id,
+                (uint32_t)native_event.motion.which,
+                (double)native_event.motion.xrel,
+                (double)native_event.motion.yrel,
+                &corrected_delta_x,
+                &corrected_delta_y);
+            if (mouse_motion_decision != HTH_RELATIVE_MOUSE_MOTION_ACCEPT) {
                 if (platform->debug_fps_input) {
-                    puts("SDL mouse motion ignored: non-relative source "
-                         "while relative mode active");
+                    if (mouse_motion_decision ==
+                        HTH_RELATIVE_MOUSE_MOTION_DISCARD_FOREIGN_SOURCE) {
+                        puts("FPS input: mouse motion discarded: "
+                             "non-relative source during relative mode; "
+                             "re-entry compensation armed");
+                    } else {
+                        puts("FPS input: mouse motion discarded: "
+                             "relative re-entry compensation; "
+                             "relative input primed");
+                        printf("FPS input: reconstructed relative sample: "
+                               "dx=%.17g dy=%.17g\n",
+                               corrected_delta_x, corrected_delta_y);
+                    }
                 }
                 break;
+            }
+            if (platform->debug_fps_input) {
+                printf("FPS input: mouse motion accepted by platform: "
+                       "dx=%.17g dy=%.17g\n",
+                       corrected_delta_x, corrected_delta_y);
             }
             event->type = HTH_PLATFORM_EVENT_MOUSE_MOTION;
             event->data.motion.x = native_event.motion.x;
             event->data.motion.y = native_event.motion.y;
-            event->data.motion.delta_x = native_event.motion.xrel;
-            event->data.motion.delta_y = native_event.motion.yrel;
+            event->data.motion.delta_x = corrected_delta_x;
+            event->data.motion.delta_y = corrected_delta_y;
             return true;
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
         case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -533,12 +602,16 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
             event->data.wheel.y = (double)native_event.wheel.y * wheel_direction;
             return true;
         case SDL_EVENT_WINDOW_FOCUS_GAINED:
+            hth_relative_mouse_filter_cancel_transition(
+                &platform->relative_mouse_filter);
             if (platform->debug_fps_input) {
                 print_focus_event("input_focus", "gained");
             }
             event->type = HTH_PLATFORM_EVENT_FOCUS_GAINED;
             return true;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
+            hth_relative_mouse_filter_cancel_transition(
+                &platform->relative_mouse_filter);
             if (platform->debug_fps_input) {
                 print_focus_event("input_focus", "lost");
             }
@@ -553,11 +626,15 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
 #endif
             return true;
         case SDL_EVENT_WINDOW_MOUSE_ENTER:
+            hth_relative_mouse_filter_cancel_transition(
+                &platform->relative_mouse_filter);
             if (platform->debug_fps_input) {
                 print_focus_event("mouse_focus", "gained");
             }
             break;
         case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+            hth_relative_mouse_filter_cancel_transition(
+                &platform->relative_mouse_filter);
             if (platform->debug_fps_input) {
                 print_focus_event("mouse_focus", "lost");
             }
@@ -620,6 +697,7 @@ bool hth_platform_set_relative_mouse_mode(HTHPlatform *platform,
                 enabled ? "enable" : "disable", SDL_GetError());
         return false;
     }
+    hth_relative_mouse_filter_reset(&platform->relative_mouse_filter);
     return true;
 }
 
