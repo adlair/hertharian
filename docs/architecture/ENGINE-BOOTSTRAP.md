@@ -119,6 +119,11 @@ the Entity Registry. It owns no Entity lifetime and retains no Registry
 pointer. Shutdown destroys Spatial before Entity identity and World. Production
 creates no Spatial associations and performs no Spatial work per frame.
 
+As of v0.2.9, Engine then creates one empty Dynamic Body Store. Shutdown
+destroys it before Spatial, Entity identity, and World. Production creates no
+Bodies and performs no Dynamic Collision work per frame; the foundation has no
+visible runtime effect beyond the Engine version.
+
 ## Tests
 
 After configuring and building, run:

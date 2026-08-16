@@ -77,6 +77,9 @@ static void destroy_view_state(HTHEngine *engine)
 static void destroy_world(HTHEngine *engine)
 {
     if (engine->world_state != NULL) {
+        hth_dynamic_body_store_destroy(
+            engine->world_state->dynamic_body_store);
+        engine->world_state->dynamic_body_store = NULL;
         hth_spatial_store_destroy(engine->world_state->spatial_store);
         engine->world_state->spatial_store = NULL;
         hth_entity_registry_destroy(engine->world_state->entity_registry);
@@ -348,6 +351,14 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
     engine->world_state->spatial_store = hth_spatial_store_create();
     if (engine->world_state->spatial_store == NULL) {
         fputs("Failed to initialize Spatial Store.\n", stderr);
+        destroy_world(engine);
+        destroy_storage(engine);
+        return false;
+    }
+    engine->world_state->dynamic_body_store =
+        hth_dynamic_body_store_create();
+    if (engine->world_state->dynamic_body_store == NULL) {
+        fputs("Failed to initialize Dynamic Body Store.\n", stderr);
         destroy_world(engine);
         destroy_storage(engine);
         return false;

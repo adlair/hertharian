@@ -84,3 +84,9 @@ The current Player remains separate. Spatial state is internal, runtime-only,
 single-threaded, and nonpersistent. It is not an ECS component framework and
 has no public API, Level syntax, serialization, physics, collision, rendering,
 gameplay, events, callbacks, or filesystem/platform dependency.
+
+As of v0.2.9, optional Dynamic Bodies may consume Spatial position as their
+authoritative AABB center. Body association remains separate: removing Spatial
+temporarily prevents simulation but does not remove the Body, and reattaching
+Spatial to the same live Entity restores simulation without duplicating
+position inside physics state.

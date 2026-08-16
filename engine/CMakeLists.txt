@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.8 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.9 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -49,6 +49,8 @@ add_executable(hertharian-engine
     src/player/player_body.c
     src/player/player_locomotion.c
     src/player/player_movement.c
+    src/physics/dynamic_body.c
+    src/physics/dynamic_collision.c
     src/resource/resource.c
     src/spatial/spatial.c
     src/platform/keyboard_reconciliation.c
@@ -72,6 +74,7 @@ target_include_directories(hertharian-engine PRIVATE
     src/material
     src/platform
     src/player
+    src/physics
     src/renderer
     src/resource
     src/spatial
@@ -157,6 +160,36 @@ if(BUILD_TESTING)
     )
     target_compile_features(spatial_tests PRIVATE c_std_11)
     set_target_properties(spatial_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(dynamic_body_tests
+        tests/dynamic_body_tests.c
+        src/physics/dynamic_body.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+    )
+    target_include_directories(dynamic_body_tests PRIVATE
+        include src/entity src/physics src/spatial
+    )
+    target_compile_features(dynamic_body_tests PRIVATE c_std_11)
+    set_target_properties(dynamic_body_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(dynamic_collision_tests
+        tests/dynamic_collision_tests.c
+        src/physics/dynamic_body.c
+        src/physics/dynamic_collision.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+        src/world/world.c
+    )
+    target_include_directories(dynamic_collision_tests PRIVATE
+        include src/collision src/entity src/physics src/spatial src/world
+    )
+    target_compile_features(dynamic_collision_tests PRIVATE c_std_11)
+    set_target_properties(dynamic_collision_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(math_tests
         tests/math_tests.c
@@ -413,6 +446,8 @@ if(BUILD_TESTING)
         target_link_libraries(level_selection_tests PRIVATE m)
         target_link_libraries(material_tests PRIVATE m)
         target_link_libraries(geometry_tests PRIVATE m)
+        target_link_libraries(dynamic_body_tests PRIVATE m)
+        target_link_libraries(dynamic_collision_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -426,6 +461,12 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(spatial_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(dynamic_body_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(dynamic_collision_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(math_tests PRIVATE
@@ -493,6 +534,8 @@ if(BUILD_TESTING)
     add_test(NAME entity_foundation COMMAND entity_tests)
     add_test(NAME timing_state COMMAND timing_tests)
     add_test(NAME spatial_entity_foundation COMMAND spatial_tests)
+    add_test(NAME dynamic_body_foundation COMMAND dynamic_body_tests)
+    add_test(NAME dynamic_collision_foundation COMMAND dynamic_collision_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)

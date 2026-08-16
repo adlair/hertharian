@@ -61,7 +61,13 @@ inside corner, a box, a 0.20-unit low step, an exact 0.30-unit platform, and a
 0.60-unit high ledge. The physical bounds are unchanged from v0.1.8. The
 additional diagnostic wedge is visible-only and never enters this array.
 
-Collision remains axis-aligned and static. There is no general depenetration,
-rotation, capsule, slope, stair flight, dynamic body, moving platform,
-broadphase, BSP, or external physics middleware. A start-solid trace stops
-Player Movement safely but does not choose an arbitrary escape direction.
+Collision remains axis-aligned and static. It owns no dynamic Bodies, and there
+is no general depenetration, rotation, capsule, slope, stair flight, moving
+platform, broadphase, BSP, or external physics middleware. A start-solid trace
+stops Player Movement safely but does not choose an arbitrary escape direction.
+
+As of v0.2.9, the separate Dynamic Collision foundation also consumes the same
+static swept AABB trace for explicit one-Body movement. It owns no Player
+locomotion policy and adds no Dynamic-vs-Dynamic collision, broadphase,
+gravity, grounded state, step climbing, or depenetration. CollisionWorld and
+its existing 16-object bootstrap limit remain unchanged.

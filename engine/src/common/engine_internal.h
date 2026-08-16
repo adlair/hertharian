@@ -2,6 +2,7 @@
 #define HTH_ENGINE_INTERNAL_H
 
 #include "hth_engine.h"
+#include "dynamic_body.h"
 #include "entity.h"
 #include "spatial.h"
 #include "world.h"
@@ -12,6 +13,7 @@ struct HTHEngineWorldState {
     HTHWorld world;
     HTHEntityRegistry *entity_registry;
     HTHSpatialStore *spatial_store;
+    HTHDynamicBodyStore *dynamic_body_store;
 };
 
 bool hth_engine_init_with_level_id(HTHEngine *engine,
