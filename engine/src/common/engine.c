@@ -77,6 +77,8 @@ static void destroy_view_state(HTHEngine *engine)
 static void destroy_world(HTHEngine *engine)
 {
     if (engine->world_state != NULL) {
+        hth_spatial_store_destroy(engine->world_state->spatial_store);
+        engine->world_state->spatial_store = NULL;
         hth_entity_registry_destroy(engine->world_state->entity_registry);
         engine->world_state->entity_registry = NULL;
         hth_world_shutdown(&engine->world_state->world);
@@ -339,6 +341,13 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
         hth_entity_registry_live_count(
             engine->world_state->entity_registry) != 0U) {
         fputs("Failed to initialize Entity Registry.\n", stderr);
+        destroy_world(engine);
+        destroy_storage(engine);
+        return false;
+    }
+    engine->world_state->spatial_store = hth_spatial_store_create();
+    if (engine->world_state->spatial_store == NULL) {
+        fputs("Failed to initialize Spatial Store.\n", stderr);
         destroy_world(engine);
         destroy_storage(engine);
         return false;

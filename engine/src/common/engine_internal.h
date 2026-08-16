@@ -3,6 +3,7 @@
 
 #include "hth_engine.h"
 #include "entity.h"
+#include "spatial.h"
 #include "world.h"
 
 #include <stdbool.h>
@@ -10,6 +11,7 @@
 struct HTHEngineWorldState {
     HTHWorld world;
     HTHEntityRegistry *entity_registry;
+    HTHSpatialStore *spatial_store;
 };
 
 bool hth_engine_init_with_level_id(HTHEngine *engine,

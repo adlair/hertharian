@@ -81,5 +81,7 @@ milestone.
 
 Future spatial, dynamic-body, or Actor state may reference an Entity handle,
 but such state will remain separate from identity rather than being embedded
-in the handle or Registry slot. v0.2.7 does not prescribe those future data
-models.
+in the handle or Registry slot. As of v0.2.8, the independent optional Spatial
+Store is the first such state owner: it validates handles against the Entity
+Registry and stores world-space position and yaw without changing Entity
+identity or lifetime. Dynamic-body and Actor models remain deferred.

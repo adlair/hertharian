@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.2.7 LANGUAGES C)
+project(hertharian-engine VERSION 0.2.8 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -50,6 +50,7 @@ add_executable(hertharian-engine
     src/player/player_locomotion.c
     src/player/player_movement.c
     src/resource/resource.c
+    src/spatial/spatial.c
     src/platform/keyboard_reconciliation.c
     src/platform/mouse_source.c
     src/platform/platform_sdl3.c
@@ -73,6 +74,7 @@ target_include_directories(hertharian-engine PRIVATE
     src/player
     src/renderer
     src/resource
+    src/spatial
     src/view
     src/world
     "${PROJECT_BINARY_DIR}/generated"
@@ -144,6 +146,17 @@ if(BUILD_TESTING)
     )
     target_compile_features(timing_tests PRIVATE c_std_11)
     set_target_properties(timing_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(spatial_tests
+        tests/spatial_tests.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+    )
+    target_include_directories(spatial_tests PRIVATE
+        include src/entity src/spatial
+    )
+    target_compile_features(spatial_tests PRIVATE c_std_11)
+    set_target_properties(spatial_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(math_tests
         tests/math_tests.c
@@ -412,6 +425,9 @@ if(BUILD_TESTING)
         target_compile_options(timing_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(spatial_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
         target_compile_options(math_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
@@ -476,6 +492,7 @@ if(BUILD_TESTING)
     add_test(NAME input_state COMMAND input_tests)
     add_test(NAME entity_foundation COMMAND entity_tests)
     add_test(NAME timing_state COMMAND timing_tests)
+    add_test(NAME spatial_entity_foundation COMMAND spatial_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)

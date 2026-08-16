@@ -114,6 +114,11 @@ destroyed before that World during shutdown. No Level content, Player state,
 or static World object is converted into an Entity, so production maintains
 zero live Entities and the frame lifecycle performs no Entity traversal.
 
+As of v0.2.8, Engine creates one empty optional Spatial Store immediately after
+the Entity Registry. It owns no Entity lifetime and retains no Registry
+pointer. Shutdown destroys Spatial before Entity identity and World. Production
+creates no Spatial associations and performs no Spatial work per frame.
+
 ## Tests
 
 After configuring and building, run:
