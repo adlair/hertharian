@@ -88,16 +88,19 @@ device IDs or names. This filtering is distinct from Input's short capture-
 transition guard: filtering chooses the valid relative stream, while the guard
 suppresses asynchronous residue around any successful mode change.
 
-On XWayland, a non-relative re-entry motion can be followed by an opposite
-compensating motion from the otherwise valid relative source. Platform treats
+On XWayland, a non-relative re-entry motion can be followed by a transition
+compensation motion from the otherwise valid relative source. Platform treats
 that observed cross-source pair as one pointer-state discontinuity: the foreign
-motion arms a one-event compensation discard, the following relative motion is
-consumed, and the next relative motion is accepted immediately. SDL's X11
-backend can additionally expose this explicit source as differences between
-successive relative samples. Platform integrates that representation back into
-the original directional samples before producing HTH events. Both corrections
-use source identity and event order, never delta magnitude or sign; Input and
-the FPS controller remain unaware of the backend detail.
+motion arms a one-event compensation discard without producing logical motion.
+The following selected-source motion is consumed as compensation, and the next
+selected-source motion is accepted immediately. Every accepted SDL motion is
+translated one-to-one from `xrel/yrel` to HTH `dx/dy`; Platform never integrates
+motion across events. Source identity and event order control only the two
+documented discards, never delta magnitude or sign. Input and the FPS controller
+remain unaware of the backend detail. Capture-mode, selected-source, focus, and
+mouse-focus transitions clear pending compensation according to the Platform
+contract. Generic SDL and native Wayland motion follows the same one-to-one
+numerical contract without XWayland source filtering.
 
 These physical controls are not a semantic binding system. Rebinding, action
 maps, menus, attack semantics, and final gameplay bindings remain excluded.

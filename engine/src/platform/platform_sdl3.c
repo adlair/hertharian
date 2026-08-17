@@ -131,6 +131,21 @@ static void print_focus_event(const char *focus, const char *action)
     printf("SDL focus:\n  %s %s\n", focus, action);
 }
 
+static const char *relative_mouse_decision_name(
+    HTHRelativeMouseMotionDecision decision)
+{
+    switch (decision) {
+    case HTH_RELATIVE_MOUSE_MOTION_ACCEPT:
+        return "accepted";
+    case HTH_RELATIVE_MOUSE_MOTION_DISCARD_FOREIGN_SOURCE:
+        return "foreign-discarded";
+    case HTH_RELATIVE_MOUSE_MOTION_DISCARD_REENTRY_COMPENSATION:
+        return "compensation-discarded";
+    default:
+        return "unknown";
+    }
+}
+
 static bool observe_sdl_keyboard(bool physical_down[HTH_KEY_COUNT])
 {
     const bool *keyboard_state;
@@ -448,6 +463,7 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
     double corrected_delta_x;
     double corrected_delta_y;
     double wheel_direction;
+    bool compensation_before;
 
     if (platform == NULL || event == NULL) {
         return false;
@@ -505,6 +521,8 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
             }
             return true;
         case SDL_EVENT_MOUSE_MOTION:
+            compensation_before =
+                platform->relative_mouse_filter.compensation_pending;
             if (platform->debug_fps_input) {
                 SDL_WindowFlags flags = SDL_GetWindowFlags(platform->window);
 
@@ -541,20 +559,42 @@ bool hth_platform_poll_event(HTHPlatform *platform, HTHPlatformEvent *event)
                 (double)native_event.motion.yrel,
                 &corrected_delta_x,
                 &corrected_delta_y);
+            if (platform->debug_fps_input) {
+                printf("FPS input: relative mouse filter:\n"
+                       "  selected_source_known=%s\n"
+                       "  selected_source=%" PRIu32 "\n"
+                       "  event_source=%" PRIu32 "\n"
+                       "  raw_xrel=%.17g\n"
+                       "  raw_yrel=%.17g\n"
+                       "  compensation_pending_before=%s\n"
+                       "  decision=%s\n"
+                       "  corrected_x=%.17g\n"
+                       "  corrected_y=%.17g\n"
+                       "  compensation_pending_after=%s\n",
+                       platform->relative_mouse_source_known ? "true"
+                                                            : "false",
+                       (uint32_t)platform->relative_mouse_source_id,
+                       (uint32_t)native_event.motion.which,
+                       (double)native_event.motion.xrel,
+                       (double)native_event.motion.yrel,
+                       compensation_before ? "true" : "false",
+                       relative_mouse_decision_name(mouse_motion_decision),
+                       corrected_delta_x, corrected_delta_y,
+                       platform->relative_mouse_filter.compensation_pending
+                           ? "true" : "false");
+            }
             if (mouse_motion_decision != HTH_RELATIVE_MOUSE_MOTION_ACCEPT) {
                 if (platform->debug_fps_input) {
                     if (mouse_motion_decision ==
                         HTH_RELATIVE_MOUSE_MOTION_DISCARD_FOREIGN_SOURCE) {
                         puts("FPS input: mouse motion discarded: "
                              "non-relative source during relative mode; "
-                             "re-entry compensation armed");
+                             "re-entry compensation armed; "
+                             "no logical motion emitted");
                     } else {
                         puts("FPS input: mouse motion discarded: "
                              "relative re-entry compensation; "
-                             "relative input primed");
-                        printf("FPS input: reconstructed relative sample: "
-                               "dx=%.17g dy=%.17g\n",
-                               corrected_delta_x, corrected_delta_y);
+                             "compensation cleared");
                     }
                 }
                 break;

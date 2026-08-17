@@ -11,8 +11,6 @@ typedef enum HTHRelativeMouseMotionDecision {
 } HTHRelativeMouseMotionDecision;
 
 typedef struct HTHRelativeMouseFilter {
-    double reconstructed_delta_x;
-    double reconstructed_delta_y;
     bool compensation_pending;
 } HTHRelativeMouseFilter;
 

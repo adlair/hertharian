@@ -240,107 +240,55 @@ static void test_reentry_compensation_does_not_reach_controller(void)
     HTHFPSCameraController *controller;
     HTHInput *input;
     HTHRelativeMouseFilter filter = {0};
-    float expected_yaw = hth_degrees_to_radians(0.2F);
-    float expected_pitch = hth_degrees_to_radians(0.3F);
+    float expected_yaw = hth_degrees_to_radians(0.4F);
 
     controller = create_controller(&camera, &input);
     hth_fps_camera_controller_set_capture(controller, true);
     hth_relative_mouse_filter_reset(&filter); /* Capture/focus transition. */
 
-    assert(!inject_filtered_mouse_delta(&filter, input, 6U, 935.0, 659.0));
-    assert(!inject_filtered_mouse_delta(&filter, input, 7U, -935.0, -659.0));
-    hth_fps_camera_controller_update(controller, &camera, input, false);
-    assert(close_enough(camera.forward.x, 0.0F));
-    assert(close_enough(camera.forward.y, 0.0F));
-    assert(close_enough(camera.forward.z, -1.0F));
-
-    assert(inject_filtered_mouse_delta(&filter, input, 7U, 2.0, -3.0));
+    assert(!inject_filtered_mouse_delta(&filter, input, 6U, 1050.0, 753.0));
+    assert(!inject_filtered_mouse_delta(&filter, input, 7U, 0.0, -3.0));
+    assert(inject_filtered_mouse_delta(&filter, input, 7U, 4.0, 0.0));
     hth_fps_camera_controller_update(controller, &camera, input, false);
     assert(close_enough(camera.forward.x,
-                        sinf(expected_yaw) * cosf(expected_pitch)));
-    assert(close_enough(camera.forward.y, sinf(expected_pitch)));
+                        sinf(expected_yaw)));
+    assert(close_enough(camera.forward.y, 0.0F));
     assert(close_enough(camera.forward.z,
-                        -cosf(expected_yaw) * cosf(expected_pitch)));
+                        -cosf(expected_yaw)));
 
     hth_input_begin_frame(input);
-    assert(inject_filtered_mouse_delta(&filter, input, 7U, 1.0, 1.0));
+    assert(inject_filtered_mouse_delta(&filter, input, 7U, 1.0, 0.0));
     hth_fps_camera_controller_update(controller, &camera, input, false);
     expected_yaw = hth_degrees_to_radians(0.5F);
-    expected_pitch = hth_degrees_to_radians(0.5F);
-    assert(close_enough(camera.forward.x,
-                        sinf(expected_yaw) * cosf(expected_pitch)));
-    assert(close_enough(camera.forward.y, sinf(expected_pitch)));
-    assert(close_enough(camera.forward.z,
-                        -cosf(expected_yaw) * cosf(expected_pitch)));
+    assert(close_enough(camera.forward.x, sinf(expected_yaw)));
+    assert(close_enough(camera.forward.y, 0.0F));
+    assert(close_enough(camera.forward.z, -cosf(expected_yaw)));
     destroy_controller(controller, input);
 }
 
 static void test_continuous_filtered_motion_is_directional(void)
 {
     static const double horizontal[] = {4.0, -2.0, -1.0, 2.0};
-    static const double vertical[] = {-4.0, 2.0, 1.0, -2.0};
     HTHCamera camera;
     HTHFPSCameraController *controller;
     HTHInput *input;
     HTHRelativeMouseFilter filter = {0};
-    float previous;
+    float accumulated_units = 0.0F;
+    float expected_yaw;
     size_t index;
 
     controller = create_controller(&camera, &input);
     hth_fps_camera_controller_set_capture(controller, true);
-    previous = camera.forward.x;
     for (index = 0; index < sizeof(horizontal) / sizeof(horizontal[0]);
          ++index) {
         assert(inject_filtered_mouse_delta(
             &filter, input, 7U, horizontal[index], 0.0));
         hth_fps_camera_controller_update(controller, &camera, input, false);
-        assert(camera.forward.x > previous); /* Sustained left. */
-        previous = camera.forward.x;
-        hth_input_begin_frame(input);
-    }
-    destroy_controller(controller, input);
-
-    hth_relative_mouse_filter_reset(&filter);
-    controller = create_controller(&camera, &input);
-    hth_fps_camera_controller_set_capture(controller, true);
-    previous = camera.forward.x;
-    for (index = 0; index < sizeof(horizontal) / sizeof(horizontal[0]);
-         ++index) {
-        assert(inject_filtered_mouse_delta(
-            &filter, input, 7U, -horizontal[index], 0.0));
-        hth_fps_camera_controller_update(controller, &camera, input, false);
-        assert(camera.forward.x < previous); /* Sustained right. */
-        previous = camera.forward.x;
-        hth_input_begin_frame(input);
-    }
-    destroy_controller(controller, input);
-
-    hth_relative_mouse_filter_reset(&filter);
-    controller = create_controller(&camera, &input);
-    hth_fps_camera_controller_set_capture(controller, true);
-    previous = camera.forward.y;
-    for (index = 0; index < sizeof(vertical) / sizeof(vertical[0]);
-         ++index) {
-        assert(inject_filtered_mouse_delta(
-            &filter, input, 7U, 0.0, vertical[index]));
-        hth_fps_camera_controller_update(controller, &camera, input, false);
-        assert(camera.forward.y > previous); /* Sustained up. */
-        previous = camera.forward.y;
-        hth_input_begin_frame(input);
-    }
-    destroy_controller(controller, input);
-
-    hth_relative_mouse_filter_reset(&filter);
-    controller = create_controller(&camera, &input);
-    hth_fps_camera_controller_set_capture(controller, true);
-    previous = camera.forward.y;
-    for (index = 0; index < sizeof(vertical) / sizeof(vertical[0]);
-         ++index) {
-        assert(inject_filtered_mouse_delta(
-            &filter, input, 7U, 0.0, -vertical[index]));
-        hth_fps_camera_controller_update(controller, &camera, input, false);
-        assert(camera.forward.y < previous); /* Sustained down. */
-        previous = camera.forward.y;
+        accumulated_units += (float)horizontal[index];
+        expected_yaw = hth_degrees_to_radians(accumulated_units * 0.1F);
+        assert(close_enough(camera.forward.x, sinf(expected_yaw)));
+        assert(close_enough(camera.forward.y, 0.0F));
+        assert(close_enough(camera.forward.z, -cosf(expected_yaw)));
         hth_input_begin_frame(input);
     }
     destroy_controller(controller, input);

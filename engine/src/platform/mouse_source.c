@@ -17,8 +17,6 @@ bool hth_mouse_name_is_explicit_relative_source(const char *name)
 void hth_relative_mouse_filter_reset(HTHRelativeMouseFilter *filter)
 {
     if (filter != NULL) {
-        filter->reconstructed_delta_x = 0.0;
-        filter->reconstructed_delta_y = 0.0;
         hth_relative_mouse_filter_cancel_transition(filter);
     }
 }
@@ -53,25 +51,25 @@ HTHRelativeMouseMotionDecision hth_relative_mouse_filter_motion(
         return HTH_RELATIVE_MOUSE_MOTION_ACCEPT;
     }
 
-    /* SDL's X11 path differences the explicit XWayland relative-pointer
-     * samples as if they were absolute master-device valuators. Integrating
-     * the delivered differences restores each original relative sample. */
-    filter->reconstructed_delta_x += delivered_delta_x;
-    filter->reconstructed_delta_y += delivered_delta_y;
-    if (corrected_delta_x != NULL) {
-        *corrected_delta_x = filter->reconstructed_delta_x;
-    }
-    if (corrected_delta_y != NULL) {
-        *corrected_delta_y = filter->reconstructed_delta_y;
-    }
-
     if (event_source_id != relative_source_id) {
         filter->compensation_pending = true;
+        if (corrected_delta_x != NULL) {
+            *corrected_delta_x = 0.0;
+        }
+        if (corrected_delta_y != NULL) {
+            *corrected_delta_y = 0.0;
+        }
         return HTH_RELATIVE_MOUSE_MOTION_DISCARD_FOREIGN_SOURCE;
     }
 
     if (filter->compensation_pending) {
         filter->compensation_pending = false;
+        if (corrected_delta_x != NULL) {
+            *corrected_delta_x = 0.0;
+        }
+        if (corrected_delta_y != NULL) {
+            *corrected_delta_y = 0.0;
+        }
         return HTH_RELATIVE_MOUSE_MOTION_DISCARD_REENTRY_COMPENSATION;
     }
 

@@ -77,29 +77,24 @@ depending on its generated suffix or numeric ID. While window-relative mode is
 active and that explicit source is known, only motion from the selected source
 crosses into `HTHPlatformEvent`; other SDL motion remains visible in debug logs
 but is not translated. A foreign-source motion in this state also establishes
-an observed re-entry discontinuity. Platform discards exactly the next motion
-from the selected relative source as its transition compensation, then returns
-immediately to steady-state acceptance. Pending transition state is cleared on
-focus and mouse-focus changes; the reconstructed sample baseline is retained
-while relative mode remains active and reset on mode or selected-device changes.
-The policy does not inspect motion magnitude. For SDL/X11 combinations that
-report this explicit source as the
-difference between consecutive relative samples, the same private state also
-integrates those delivered differences to recover each directional sample.
-Consequently sustained motion remains sustained and a genuine sign change is
-applied immediately; no alternating-event or direction heuristic is involved.
-Hertharian observed this delta-of-delta delivery with SDL 3.4.14 under
-X11/XWayland/XInput2. The `xwayland-relative-pointer` device name selects this
-compatibility path, but does not independently prove at runtime that the
-device currently exhibits delta-of-delta behavior. Reconstruction is therefore
-a compatibility rule based on that observed SDL/XInput2 behavior, not a
-universal semantic guarantee for future SDL versions. If SDL changes or fixes
-the delivery behavior while retaining the same device naming, this rule must
-be reevaluated to avoid reconstructing already-correct relative samples.
+an observed re-entry discontinuity. Its payload arms a one-event compensation
+discard but never produces logical movement. Platform discards exactly the
+next motion from the selected relative source as transition compensation, then
+accepts the following selected-source motion immediately.
+
+Accepted motion always translates SDL `xrel/yrel` one-to-one to HTH `dx/dy`.
+Platform does not retain, integrate, or reconstruct motion across events. The
+`xwayland-relative-pointer` name selects which source is permitted while
+relative mode is active; it does not imply delta-of-delta delivery or select a
+different numerical interpretation. Relative-mode and selected-device changes
+clear pending compensation. Focus and mouse-focus changes cancel it. The policy
+does not inspect magnitude or sign and has no timing, resolution, or camera
+dependency.
 
 Mouse add/remove events refresh this private selection. If enumeration fails or
 no explicit relative-pointer device exists, Platform preserves generic SDL
-semantics and translates mouse motion without source filtering. Native Wayland,
+semantics, clears pending compensation, and translates each `xrel/yrel`
+one-to-one without source filtering. Native Wayland,
 native X11, single-mouse systems, and other SDL backends therefore do not depend
 on XWayland device naming. No SDL ID or device name crosses Platform.
 
