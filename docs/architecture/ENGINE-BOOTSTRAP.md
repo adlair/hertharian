@@ -143,6 +143,12 @@ Body, Spatial, Entity identity, and World. Enemy is a presence-only Actor
 specialization; production attaches zero Enemies and performs no Enemy work
 per frame, so runtime behavior remains unchanged beyond the Engine version.
 
+As of v0.3.5, Engine creates one private empty Enemy Target Store after Health.
+Shutdown destroys Enemy Target before Health, Enemy, and Actor. Production
+establishes zero target relations and performs zero target or perception work
+per frame. Enemy Perception remains a stateless query with no Engine-owned
+state.
+
 ## Tests
 
 After configuring and building, run:

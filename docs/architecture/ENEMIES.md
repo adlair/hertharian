@@ -66,7 +66,12 @@ performs no Enemy iteration, update, logging, AI, movement, targeting, attack,
 damage, death, rendering, or other per-frame work in v0.3.4.
 
 Deferred scope includes canonical Enemy composition, kinds or species,
-definitions or prefabs, spawn helpers, AI and behavior state, perception,
-targeting, locomotion, combat and damage generation, death and drops, teams or
-factions, Level declarations, resources, rendering, persistence, networking,
-scripting, and generic ECS machinery.
+definitions or prefabs, spawn helpers, AI and behavior state, perception
+beyond the v0.3.5 radius query, target selection, locomotion, combat and damage
+generation, death and drops, teams or factions, Level declarations, resources,
+rendering, persistence, networking, scripting, and generic ECS machinery.
+
+As of v0.3.5, explicit Enemy target relationships and pure radius-based
+spatial perception are separate foundations documented in
+`ENEMY-TARGETS.md`, `ENEMY-PERCEPTION.md`, and ADR-0028. They do not change the
+presence-only Enemy contract described here.

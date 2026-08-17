@@ -77,6 +77,9 @@ static void destroy_view_state(HTHEngine *engine)
 static void destroy_world(HTHEngine *engine)
 {
     if (engine->world_state != NULL) {
+        hth_enemy_target_store_destroy(
+            engine->world_state->enemy_target_store);
+        engine->world_state->enemy_target_store = NULL;
         hth_health_store_destroy(engine->world_state->health_store);
         engine->world_state->health_store = NULL;
         hth_enemy_store_destroy(engine->world_state->enemy_store);
@@ -386,6 +389,14 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
     engine->world_state->health_store = hth_health_store_create();
     if (engine->world_state->health_store == NULL) {
         fputs("Failed to initialize Health Store.\n", stderr);
+        destroy_world(engine);
+        destroy_storage(engine);
+        return false;
+    }
+    engine->world_state->enemy_target_store =
+        hth_enemy_target_store_create();
+    if (engine->world_state->enemy_target_store == NULL) {
+        fputs("Failed to initialize Enemy Target Store.\n", stderr);
         destroy_world(engine);
         destroy_storage(engine);
         return false;
