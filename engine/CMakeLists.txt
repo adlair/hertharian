@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.3 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.4 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -42,6 +42,7 @@ add_executable(hertharian-engine
     src/entity/entity.c
     src/gameplay/actor_spawn.c
     src/gameplay/damage_intent.c
+    src/gameplay/enemy.c
     src/gameplay/health.c
     src/input/input.c
     src/geometry/geometry.c
@@ -261,6 +262,22 @@ if(BUILD_TESTING)
     )
     target_compile_features(actor_spawn_tests PRIVATE c_std_11)
     set_target_properties(actor_spawn_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(enemy_tests
+        tests/enemy_tests.c
+        src/gameplay/actor_spawn.c
+        src/gameplay/enemy.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+    )
+    target_include_directories(enemy_tests PRIVATE
+        include src/actor src/entity src/gameplay src/physics src/spatial
+    )
+    target_compile_features(enemy_tests PRIVATE c_std_11)
+    set_target_properties(enemy_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(math_tests
         tests/math_tests.c
@@ -525,6 +542,7 @@ if(BUILD_TESTING)
         target_link_libraries(health_tests PRIVATE m)
         target_link_libraries(damage_intent_tests PRIVATE m)
         target_link_libraries(actor_spawn_tests PRIVATE m)
+        target_link_libraries(enemy_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -556,6 +574,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(actor_spawn_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(enemy_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(math_tests PRIVATE
@@ -629,6 +650,7 @@ if(BUILD_TESTING)
     add_test(NAME health_damage_foundation COMMAND health_tests)
     add_test(NAME damage_intent_foundation COMMAND damage_intent_tests)
     add_test(NAME actor_spawn_foundation COMMAND actor_spawn_tests)
+    add_test(NAME enemy_foundation COMMAND enemy_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)

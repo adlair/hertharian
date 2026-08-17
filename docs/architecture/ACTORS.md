@@ -24,6 +24,8 @@ Actor is presence-only in v0.3.0. An entry contains only a generation and a
 presence flag. There is no payload, kind/type enum, type string, name, embedded
 health, team, AI state, callback, transform, physics state, or render state.
 As of v0.3.1, optional Health remains in its own Actor-dependent Store.
+As of v0.3.4, Enemy is likewise a separate presence-only specialized Actor
+role; it adds no Actor payload and does not redefine Actor composition.
 
 Attach requires only a live Entity and rejects a duplicate current
 association. It does not require or create Spatial or Dynamic Body state. A

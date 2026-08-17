@@ -137,6 +137,12 @@ generation-safe damage and healing operations. Production attaches no Health
 and performs no Health work per frame; no Player, Level, World, physics, or
 rendering behavior changes beyond the Engine version.
 
+As of v0.3.4, Engine also creates one private empty Enemy Store after Actor and
+before Health. Shutdown destroys Health, Enemy, then Actor, followed by Dynamic
+Body, Spatial, Entity identity, and World. Enemy is a presence-only Actor
+specialization; production attaches zero Enemies and performs no Enemy work
+per frame, so runtime behavior remains unchanged beyond the Engine version.
+
 ## Tests
 
 After configuring and building, run:

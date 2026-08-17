@@ -4,6 +4,7 @@
 #include "hth_engine.h"
 #include "actor.h"
 #include "dynamic_body.h"
+#include "enemy.h"
 #include "entity.h"
 #include "health.h"
 #include "spatial.h"
@@ -17,6 +18,7 @@ struct HTHEngineWorldState {
     HTHSpatialStore *spatial_store;
     HTHDynamicBodyStore *dynamic_body_store;
     HTHActorStore *actor_store;
+    HTHEnemyStore *enemy_store;
     HTHHealthStore *health_store;
 };
 
