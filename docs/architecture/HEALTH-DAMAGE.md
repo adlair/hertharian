@@ -86,6 +86,11 @@ destroyed before Actor. Production attaches no Health and performs no Health
 work per frame. Level v2 declares no Health, static World is unaffected, and
 the existing Player is not migrated.
 
+As of v0.3.2, the higher-level Damage Intent resolver may invoke Health's
+existing damage operation after validating source and target Actor identity.
+Health remains unaware of the source and continues to own only Health
+arithmetic; Damage Intent adds no Health state or lifecycle coupling.
+
 Deferred scope includes damage sources/types, armor, resistance,
 invulnerability, regeneration, death events or systems, Player migration,
 Enemy/Pickup/Projectile types, Level declarations, persistence, networking,

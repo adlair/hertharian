@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.1 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.2 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -40,6 +40,7 @@ add_executable(hertharian-engine
     src/collision/collision_trace.c
     src/collision/collision_world.c
     src/entity/entity.c
+    src/gameplay/damage_intent.c
     src/gameplay/health.c
     src/input/input.c
     src/geometry/geometry.c
@@ -228,6 +229,21 @@ if(BUILD_TESTING)
     )
     target_compile_features(health_tests PRIVATE c_std_11)
     set_target_properties(health_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(damage_intent_tests
+        tests/damage_intent_tests.c
+        src/gameplay/damage_intent.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+    )
+    target_include_directories(damage_intent_tests PRIVATE
+        include src/actor src/entity src/gameplay src/physics src/spatial
+    )
+    target_compile_features(damage_intent_tests PRIVATE c_std_11)
+    set_target_properties(damage_intent_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(math_tests
         tests/math_tests.c
@@ -490,6 +506,7 @@ if(BUILD_TESTING)
         target_link_libraries(dynamic_collision_tests PRIVATE m)
         target_link_libraries(actor_tests PRIVATE m)
         target_link_libraries(health_tests PRIVATE m)
+        target_link_libraries(damage_intent_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -515,6 +532,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(health_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(damage_intent_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(math_tests PRIVATE
@@ -586,6 +606,7 @@ if(BUILD_TESTING)
     add_test(NAME dynamic_collision_foundation COMMAND dynamic_collision_tests)
     add_test(NAME actor_foundation COMMAND actor_tests)
     add_test(NAME health_damage_foundation COMMAND health_tests)
+    add_test(NAME damage_intent_foundation COMMAND damage_intent_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)
