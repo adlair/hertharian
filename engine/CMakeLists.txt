@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.6 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.7 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -43,6 +43,7 @@ add_executable(hertharian-engine
     src/gameplay/actor_spawn.c
     src/gameplay/damage_intent.c
     src/gameplay/enemy.c
+    src/gameplay/enemy_los.c
     src/gameplay/enemy_perception.c
     src/gameplay/enemy_target.c
     src/gameplay/health.c
@@ -317,6 +318,30 @@ if(BUILD_TESTING)
     set_target_properties(enemy_perception_tests PROPERTIES
         C_EXTENSIONS OFF
     )
+
+    add_executable(enemy_los_tests
+        tests/enemy_los_tests.c
+        src/gameplay/enemy_los.c
+        src/gameplay/enemy.c
+        src/gameplay/enemy_perception.c
+        src/gameplay/enemy_target.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+        src/world/world.c
+    )
+    target_include_directories(enemy_los_tests PRIVATE
+        include src/actor src/collision src/entity src/gameplay
+        src/physics src/spatial src/world
+    )
+    target_compile_features(enemy_los_tests PRIVATE c_std_11)
+    set_target_properties(enemy_los_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(math_tests
         tests/math_tests.c
@@ -601,6 +626,7 @@ if(BUILD_TESTING)
         target_link_libraries(enemy_tests PRIVATE m)
         target_link_libraries(enemy_target_tests PRIVATE m)
         target_link_libraries(enemy_perception_tests PRIVATE m)
+        target_link_libraries(enemy_los_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -641,6 +667,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(enemy_perception_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(enemy_los_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(math_tests PRIVATE
@@ -720,6 +749,7 @@ if(BUILD_TESTING)
     add_test(NAME enemy_foundation COMMAND enemy_tests)
     add_test(NAME enemy_target_foundation COMMAND enemy_target_tests)
     add_test(NAME enemy_perception_foundation COMMAND enemy_perception_tests)
+    add_test(NAME enemy_line_of_sight_foundation COMMAND enemy_los_tests)
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
     add_test(NAME fps_camera_controller COMMAND fps_camera_controller_tests)

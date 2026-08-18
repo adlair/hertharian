@@ -62,3 +62,6 @@ Automatic acquisition, nearest-target search, priority, threat, timeout,
 teams, Player-specific targeting, AI, locomotion, combat, persistence,
 networking, scripting, and generic relationship/ECS infrastructure remain
 deferred.
+
+As of v0.3.7, a Target relationship does not imply geometric line of sight,
+and an Enemy LOS query neither creates, clears, nor replaces that relationship.

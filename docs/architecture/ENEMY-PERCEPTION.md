@@ -40,3 +40,6 @@ makes zero perception calls in v0.3.5.
 FOV, LOS, hearing, perception memory, target selection, AI, locomotion, combat,
 Enemy definitions or stats, persistence, networking, scripting, and generic
 query/ECS infrastructure remain deferred.
+
+As of v0.3.7, radius Perception and static-world Enemy LOS remain independent
+queries; neither result implies or mutates the other.
