@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.5 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.6 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -560,6 +560,22 @@ if(BUILD_TESTING)
     target_compile_features(collision_trace_tests PRIVATE c_std_11)
     set_target_properties(collision_trace_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(collision_segment_tests
+        tests/collision_segment_tests.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+        src/world/world.c
+    )
+    target_include_directories(collision_segment_tests PRIVATE
+        include src/collision src/world
+    )
+    target_compile_features(collision_segment_tests PRIVATE c_std_11)
+    set_target_properties(collision_segment_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
     if(NOT WIN32)
         target_link_libraries(math_tests PRIVATE m)
         target_link_libraries(camera_tests PRIVATE m)
@@ -568,6 +584,7 @@ if(BUILD_TESTING)
         target_link_libraries(player_movement_tests PRIVATE m)
         target_link_libraries(locomotion_tests PRIVATE m)
         target_link_libraries(collision_trace_tests PRIVATE m)
+        target_link_libraries(collision_segment_tests PRIVATE m)
         target_link_libraries(view_dynamics_tests PRIVATE m)
         target_link_libraries(collision_tests PRIVATE m)
         target_link_libraries(world_tests PRIVATE m)
@@ -661,6 +678,9 @@ if(BUILD_TESTING)
         target_compile_options(collision_trace_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(collision_segment_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
         target_compile_options(view_dynamics_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
@@ -713,6 +733,7 @@ if(BUILD_TESTING)
     add_test(NAME locomotion_foundation COMMAND locomotion_tests)
     add_test(NAME collision_foundation COMMAND collision_tests)
     add_test(NAME collision_trace_foundation COMMAND collision_trace_tests)
+    add_test(NAME collision_segment_foundation COMMAND collision_segment_tests)
     add_test(NAME view_dynamics_foundation COMMAND view_dynamics_tests)
     add_test(NAME world_representation_foundation COMMAND world_tests)
     add_test(NAME resource_foundation COMMAND resource_tests)

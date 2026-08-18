@@ -6,6 +6,12 @@ Movement submits an origin, destination, and local volume to Collision; it does
 not iterate or resolve `CollisionWorld` obstacle storage. Trace details and the
 result contract are documented in `COLLISION-TRACES.md`.
 
+As of v0.3.6, Collision also exposes a distinct internal finite point/segment
+trace documented in `SEGMENT-TRACE.md` and ADR-0030. It traces a zero-volume
+point against original static obstacle bounds and does not relax or alias the
+strictly non-degenerate swept AABB contract. Production has no segment-trace
+callers in v0.3.6.
+
 As of v0.1.9, Locomotion owns ground friction, directional ground/air
 acceleration, gravity, and jump. Collision owns none of that policy: it only
 constrains generated velocity and movement geometrically, and its clipped

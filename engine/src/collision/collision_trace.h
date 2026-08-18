@@ -24,4 +24,9 @@ bool hth_collision_world_trace_aabb(const HTHCollisionWorld *world,
                                     HTHVec3 maxs,
                                     HTHTrace *out_trace);
 
+bool hth_collision_world_trace_segment(const HTHCollisionWorld *world,
+                                       HTHVec3 start,
+                                       HTHVec3 end,
+                                       HTHTrace *out_trace);
+
 #endif
