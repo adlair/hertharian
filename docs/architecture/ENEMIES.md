@@ -85,3 +85,6 @@ explicit Spatial Target to derive direction without adding Enemy state.
 As of v0.3.11, Enemy Chase additionally requires DynamicBody and applies an
 explicit desired direction through generic Dynamic Collision without adding
 state to the Enemy Store.
+
+As of v0.3.12, the caller-driven Pursuit Runtime iterates this Store in
+deterministic Entity-index order and composes existing pursuit capabilities.

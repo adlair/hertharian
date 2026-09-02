@@ -42,12 +42,15 @@ navigation, or pathfinding capability. It applies no speed, velocity,
 acceleration, turn rate, smoothing, arrival, prediction, or obstacle avoidance.
 A direct direction through a wall is therefore valid output at this boundary.
 
-Decision may produce `PURSUE(target)`; an external future orchestrator can then
-pass that explicit Target to Seek. Future Chase owns conversion of direction
-into movement policy, while later runtime work owns scheduling and execution.
+Decision may produce `PURSUE(target)`; a caller-owned orchestrator can then
+pass that explicit Target to Seek. Chase owns conversion of direction into
+movement policy, while scheduling remains caller-owned.
 Production contains zero Seek calls and performs zero Seek work per frame in
 v0.3.10.
 
 As of v0.3.11, Enemy Chase can apply this direction through the generic
 DynamicBody and Dynamic Collision path. Seek remains pure and never invokes
 Chase itself.
+
+As of v0.3.12, Pursuit Runtime invokes Seek only for a Decision-produced
+`PURSUE` intent and forwards its result unchanged to Chase.

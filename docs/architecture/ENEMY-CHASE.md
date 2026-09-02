@@ -62,5 +62,7 @@ implementation.
 
 Target Selection, Decision, and Seek remain caller-owned upstream stages.
 Chase receives no Target or Intent and calls none of them. Production contains
-zero Chase calls and performs zero Chase work per frame in v0.3.11. The future
-v0.3.12 Pursuit Runtime Loop owns scheduling and composition.
+zero Chase calls and performs zero Chase work per frame in v0.3.11. As of
+v0.3.12, caller-driven Pursuit Runtime composes these stages but does not
+schedule them from the Engine frame loop. Chase retains exclusive movement and
+per-Enemy rollback ownership.

@@ -60,3 +60,6 @@ consume Intent or execute movement.
 
 As of v0.3.11, caller-owned orchestration may pass Seek's direction to Enemy
 Chase. Decision still neither calls nor executes Chase.
+
+As of v0.3.12, Pursuit Runtime invokes Decision independently even immediately
+after Selection; `IDLE` skips Seek and Chase without clearing the Target.

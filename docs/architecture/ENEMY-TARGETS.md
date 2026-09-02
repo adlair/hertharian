@@ -71,3 +71,7 @@ through this Store API; the Enemy Target Store itself remains policy-free.
 
 As of v0.3.9, Enemy Decision reads the current semantically valid relationship
 without clearing, replacing, acquiring, or otherwise mutating it.
+
+As of v0.3.12, Pursuit Runtime preserves a valid relationship and requests
+Selection only when none is semantically visible; it never clears on lost LOS
+or range.
