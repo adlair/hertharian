@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.13 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.14 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -53,6 +53,7 @@ add_executable(hertharian-engine
     src/gameplay/enemy_target.c
     src/gameplay/enemy_target_selection.c
     src/gameplay/health.c
+    src/gameplay/player_target_bridge.c
     src/input/input.c
     src/geometry/geometry.c
     src/image/image.c
@@ -523,6 +524,42 @@ if(BUILD_TESTING)
         C_EXTENSIONS OFF
     )
 
+    add_executable(player_target_bridge_tests
+        tests/player_target_bridge_tests.c
+        src/gameplay/player_target_bridge.c
+        src/gameplay/actor_spawn.c
+        src/gameplay/enemy_chase.c
+        src/gameplay/enemy_decision.c
+        src/gameplay/enemy_los.c
+        src/gameplay/enemy_perception.c
+        src/gameplay/enemy_pursuit_runtime.c
+        src/gameplay/enemy_runtime_population.c
+        src/gameplay/enemy_seek.c
+        src/gameplay/enemy_target.c
+        src/gameplay/enemy_target_selection.c
+        src/gameplay/enemy.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/physics/dynamic_collision.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+        src/player/player_body.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+        src/world/world.c
+    )
+    target_include_directories(player_target_bridge_tests PRIVATE
+        include src/actor src/collision src/entity src/gameplay src/physics
+        src/player src/spatial src/world
+    )
+    target_compile_features(player_target_bridge_tests PRIVATE c_std_11)
+    set_target_properties(player_target_bridge_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
     add_executable(math_tests
         tests/math_tests.c
         src/common/math.c
@@ -813,6 +850,7 @@ if(BUILD_TESTING)
         target_link_libraries(enemy_chase_tests PRIVATE m)
         target_link_libraries(enemy_pursuit_runtime_tests PRIVATE m)
         target_link_libraries(enemy_runtime_population_tests PRIVATE m)
+        target_link_libraries(player_target_bridge_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -874,6 +912,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(enemy_runtime_population_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(player_target_bridge_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(math_tests PRIVATE
@@ -965,6 +1006,9 @@ if(BUILD_TESTING)
     )
     add_test(NAME enemy_runtime_population_foundation
         COMMAND enemy_runtime_population_tests
+    )
+    add_test(NAME player_target_bridge_foundation
+        COMMAND player_target_bridge_tests
     )
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)
