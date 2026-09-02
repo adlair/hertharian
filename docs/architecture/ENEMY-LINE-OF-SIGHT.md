@@ -46,3 +46,6 @@ Production has zero LOS callers and performs zero LOS work per frame in
 v0.3.7. Dynamic occlusion, FOV, hearing, memory, last-seen state, visibility
 caching, batch queries, target selection, AI, locomotion, combat, Level
 declarations, persistence, networking, scripting, and ECS remain deferred.
+
+As of v0.3.8, explicit Target Selection consumes LOS after radius Perception
+succeeds. LOS itself still never selects, clears, or replaces a target.

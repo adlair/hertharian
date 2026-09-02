@@ -65,3 +65,6 @@ deferred.
 
 As of v0.3.7, a Target relationship does not imply geometric line of sight,
 and an Enemy LOS query neither creates, clears, nor replaces that relationship.
+
+As of v0.3.8, explicit Target Selection may set the winning relationship
+through this Store API; the Enemy Target Store itself remains policy-free.
