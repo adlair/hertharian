@@ -89,5 +89,6 @@ reduce actual work.
 Runtime has no scheduler, manager, brain, timing state, navigation, facing,
 gravity, attack, or combat policy. It neither migrates Player nor creates a
 Player target bridge or Enemy population. Production contains zero Pursuit
-Runtime calls and performs zero such work per frame in v0.3.12. Future Enemy
-Runtime Population supplies canonical runtime actors and candidate sources.
+Runtime calls and performs zero such work per frame in v0.3.12. As of v0.3.13,
+caller-driven Enemy Runtime Population can supply canonical runtime Enemies;
+candidate sourcing and production integration remain caller responsibilities.

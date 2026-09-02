@@ -75,3 +75,7 @@ without clearing, replacing, acquiring, or otherwise mutating it.
 As of v0.3.12, Pursuit Runtime preserves a valid relationship and requests
 Selection only when none is semantically visible; it never clears on lost LOS
 or range.
+
+As of v0.3.13, Enemy Runtime Despawn clears the removed Enemy's outgoing
+relation only. It does not scan incoming relations; Entity liveness and
+generation checks make references to the despawned Target semantically absent.

@@ -126,3 +126,7 @@ component masks, runtime context objects, SpawnManager, factories, queues,
 Level Actor declarations or automatic population, respawn, spawn points,
 rendering integration, automatic physics, persistence, networking, scripting,
 names, teams, hierarchy, and spawn provenance.
+
+As of v0.3.13, Enemy Runtime Population reuses this transaction with mandatory
+Spatial, DynamicBody, and Health payloads, then layers the Enemy association on
+top. Actor Spawn and Despawn remain the base composition authorities.

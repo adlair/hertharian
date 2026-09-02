@@ -88,3 +88,7 @@ state to the Enemy Store.
 
 As of v0.3.12, the caller-driven Pursuit Runtime iterates this Store in
 deterministic Entity-index order and composes existing pursuit capabilities.
+
+As of v0.3.13, Enemy Runtime Population provides a caller-driven canonical
+Entity+Actor+Enemy+Spatial+DynamicBody+Health composition without changing the
+flexible base Enemy association contract.
