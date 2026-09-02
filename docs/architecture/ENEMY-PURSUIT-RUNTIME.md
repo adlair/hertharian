@@ -97,3 +97,7 @@ As of v0.3.15, the production Engine invokes Runtime once per applicable
 simulation frame with the synchronized Player proxy as its single stack-local
 candidate. Engine ownership, ordering, shared physical delta, and cleanup are
 documented in `ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.
+
+As of v0.3.17, Enemy Attack Eligibility is not part of this loop. Eligible
+Enemies continue the existing pursuit behavior because attack execution and
+its orchestration remain deferred.

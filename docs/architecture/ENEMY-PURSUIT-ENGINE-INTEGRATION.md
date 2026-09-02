@@ -151,3 +151,7 @@ For each successful Engine lifecycle:
 
 No public API, Level or Material format revision, Player migration, AI manager,
 Renderer expansion, or SDL/Platform/Input change is part of this milestone.
+
+The v0.3.17 Enemy Attack Eligibility foundation remains disconnected from this
+production integration: it adds zero per-frame eligibility work and does not
+stop or otherwise alter pursuit.

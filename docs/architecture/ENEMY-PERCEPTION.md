@@ -49,3 +49,7 @@ filter. Perception itself still never selects or mutates a target.
 
 As of v0.3.9, Enemy Decision also consumes Perception before LOS when
 evaluating the current Target; this query remains independently pure.
+
+As of v0.3.17, Enemy Attack Eligibility reuses this query unchanged with the
+caller-owned attack range. It inherits the same 3D center-to-center metric,
+inclusive boundary, zero-range behavior, and numeric policy.

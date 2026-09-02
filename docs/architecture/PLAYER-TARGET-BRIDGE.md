@@ -141,3 +141,7 @@ This foundation adds no Player migration, Player Actor, target manager,
 Player singleton in Enemy AI, new Store, Camera target, physical-eye target,
 per-frame proxy recreation, production orchestration, combat, networking,
 persistence, or generic ECS bridge.
+
+As of v0.3.17, the same Entity+Spatial proxy is also a valid explicit Target
+for Enemy Attack Eligibility. The eligibility query remains Player-agnostic
+and reads only the synchronized Spatial anchor.

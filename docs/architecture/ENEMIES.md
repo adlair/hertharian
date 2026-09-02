@@ -101,3 +101,7 @@ limitations are documented in `ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.
 As of v0.3.16, Engine explicitly selects that same handle for a private,
 read-only runtime-body presentation adapter. Enemy remains unaware of Renderer;
 see `RUNTIME-BODY-VISUALIZATION.md` and ADR-0040.
+
+As of v0.3.17, the separate `ENEMY-ATTACK-ELIGIBILITY.md` query may validate an
+explicit Enemy through this Store before composing Perception and LOS. It adds
+no Enemy state and has no production call site.

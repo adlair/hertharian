@@ -63,3 +63,6 @@ Chase. Decision still neither calls nor executes Chase.
 
 As of v0.3.12, Pursuit Runtime invokes Decision independently even immediately
 after Selection; `IDLE` skips Seek and Chase without clearing the Target.
+
+As of v0.3.17, Enemy Attack Eligibility remains a separate disconnected query.
+Decision still has no `ATTACK` intent and does not call eligibility.

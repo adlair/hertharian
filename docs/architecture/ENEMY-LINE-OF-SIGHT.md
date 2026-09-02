@@ -52,3 +52,8 @@ succeeds. LOS itself still never selects, clears, or replaces a target.
 
 As of v0.3.9, Enemy Decision uses the same Perception-then-LOS composition for
 the current Target and retains LOS's independent, non-mutating contract.
+
+As of v0.3.17, Enemy Attack Eligibility calls LOS only after its explicit pair
+passes semantic validation, self rejection, and Perception at the caller-owned
+attack range. Static-only occlusion and conservative false results remain LOS
+authority.

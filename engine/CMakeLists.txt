@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.16 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.17 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -44,6 +44,7 @@ add_executable(hertharian-engine
     src/gameplay/bootstrap_enemy_pursuit.c
     src/gameplay/damage_intent.c
     src/gameplay/enemy.c
+    src/gameplay/enemy_attack_eligibility.c
     src/gameplay/enemy_chase.c
     src/gameplay/enemy_decision.c
     src/gameplay/enemy_los.c
@@ -376,6 +377,37 @@ if(BUILD_TESTING)
     )
     target_compile_features(enemy_target_selection_tests PRIVATE c_std_11)
     set_target_properties(enemy_target_selection_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
+    add_executable(enemy_attack_eligibility_tests
+        tests/enemy_attack_eligibility_tests.c
+        src/gameplay/enemy_attack_eligibility.c
+        src/gameplay/enemy_runtime_population.c
+        src/gameplay/actor_spawn.c
+        src/gameplay/enemy_los.c
+        src/gameplay/enemy_perception.c
+        src/gameplay/enemy_target.c
+        src/gameplay/enemy.c
+        src/gameplay/health.c
+        src/gameplay/player_target_bridge.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+        src/player/player_body.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+        src/world/world.c
+    )
+    target_include_directories(enemy_attack_eligibility_tests PRIVATE
+        include src/actor src/collision src/entity src/gameplay
+        src/physics src/player src/spatial src/world
+    )
+    target_compile_features(enemy_attack_eligibility_tests PRIVATE c_std_11)
+    set_target_properties(enemy_attack_eligibility_tests PROPERTIES
         C_EXTENSIONS OFF
     )
 
@@ -921,6 +953,7 @@ if(BUILD_TESTING)
         target_link_libraries(enemy_perception_tests PRIVATE m)
         target_link_libraries(enemy_los_tests PRIVATE m)
         target_link_libraries(enemy_target_selection_tests PRIVATE m)
+        target_link_libraries(enemy_attack_eligibility_tests PRIVATE m)
         target_link_libraries(enemy_decision_tests PRIVATE m)
         target_link_libraries(enemy_seek_tests PRIVATE m)
         target_link_libraries(enemy_chase_tests PRIVATE m)
@@ -976,6 +1009,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(enemy_target_selection_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(enemy_attack_eligibility_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(enemy_decision_tests PRIVATE
@@ -1085,6 +1121,9 @@ if(BUILD_TESTING)
     add_test(NAME enemy_line_of_sight_foundation COMMAND enemy_los_tests)
     add_test(NAME enemy_target_selection_foundation
         COMMAND enemy_target_selection_tests
+    )
+    add_test(NAME enemy_attack_eligibility_foundation
+        COMMAND enemy_attack_eligibility_tests
     )
     add_test(NAME enemy_decision_foundation COMMAND enemy_decision_tests)
     add_test(NAME enemy_seek_steering_foundation COMMAND enemy_seek_tests)
