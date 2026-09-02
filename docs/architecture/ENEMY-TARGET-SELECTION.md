@@ -70,3 +70,7 @@ Global discovery, broadphase queries, Player preference, Actor-only policy,
 factions, Health scoring, threat, aggro, randomness, sticky targets, target
 lifecycle, memory, AI, chase, combat, Level declarations, persistence,
 networking, scripting, and ECS remain deferred.
+
+As of v0.3.9, Enemy Decision may consume the relationship produced by an
+explicit Selection call. Decision never invokes Selection or receives its
+candidate array, and Selection never produces or executes an Intent.

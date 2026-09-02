@@ -49,3 +49,6 @@ declarations, persistence, networking, scripting, and ECS remain deferred.
 
 As of v0.3.8, explicit Target Selection consumes LOS after radius Perception
 succeeds. LOS itself still never selects, clears, or replaces a target.
+
+As of v0.3.9, Enemy Decision uses the same Perception-then-LOS composition for
+the current Target and retains LOS's independent, non-mutating contract.

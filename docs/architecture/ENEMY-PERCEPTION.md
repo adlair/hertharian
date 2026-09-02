@@ -46,3 +46,6 @@ queries; neither result implies or mutates the other.
 
 As of v0.3.8, explicit Target Selection consumes this query as an eligibility
 filter. Perception itself still never selects or mutates a target.
+
+As of v0.3.9, Enemy Decision also consumes Perception before LOS when
+evaluating the current Target; this query remains independently pure.

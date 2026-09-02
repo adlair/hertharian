@@ -68,3 +68,6 @@ and an Enemy LOS query neither creates, clears, nor replaces that relationship.
 
 As of v0.3.8, explicit Target Selection may set the winning relationship
 through this Store API; the Enemy Target Store itself remains policy-free.
+
+As of v0.3.9, Enemy Decision reads the current semantically valid relationship
+without clearing, replacing, acquiring, or otherwise mutating it.

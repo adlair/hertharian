@@ -75,3 +75,6 @@ As of v0.3.5, explicit Enemy target relationships and pure radius-based
 spatial perception are separate foundations documented in
 `ENEMY-TARGETS.md`, `ENEMY-PERCEPTION.md`, and ADR-0028. They do not change the
 presence-only Enemy contract described here.
+
+As of v0.3.9, explicit Enemy Decision requires this presence together with
+Actor and Spatial, but still adds no state or behavior to the Enemy Store.
