@@ -3,6 +3,7 @@
 
 #include "aabb.h"
 #include "geometry.h"
+#include "hth_math.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,5 +17,11 @@ typedef struct {
     uint32_t texture_height;
     bool has_texture;
 } HTHRendererStaticDraw;
+
+typedef struct {
+    HTHGeometryPrimitive primitive;
+    HTHMat4 model;
+    float base_color[4];
+} HTHRendererTransientDraw;
 
 #endif

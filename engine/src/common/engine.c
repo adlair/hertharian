@@ -17,6 +17,7 @@
 #include "player_body.h"
 #include "player_movement.h"
 #include "renderer.h"
+#include "runtime_body_visual.h"
 #include "resource.h"
 #include "runtime_options.h"
 #include "timing_internal.h"
@@ -649,6 +650,9 @@ void hth_engine_frame(HTHEngine *engine)
     HTHVec3 camera_right;
     HTHVec3 physical_eye;
     HTHBootstrapEnemyPursuitStepResult pursuit_result;
+    HTHRendererTransientDraw runtime_draw;
+    const HTHRendererTransientDraw *runtime_draws = NULL;
+    size_t runtime_draw_count = 0U;
     double accumulated_mouse_x;
     double accumulated_mouse_y;
     double simulation_delta;
@@ -848,11 +852,38 @@ void hth_engine_frame(HTHEngine *engine)
         engine->view_state->base_vertical_fov_radians +
         view_output.fov_offset_radians;
 
-    if (engine->renderer != NULL &&
-        !hth_renderer_set_camera(engine->renderer, &engine->camera)) {
-        fputs("Renderer camera update failed.\n", stderr);
-        engine->running = false;
-        return;
+    if (engine->renderer != NULL) {
+        HTHBootstrapMaterial material;
+        HTHRuntimeBodyVisualResult visual_result;
+
+        if (!hth_bootstrap_materials_get(
+                engine->storage_state->materials, HTH_WORLD_VISUAL_NONE,
+                &material) || material.description->has_texture) {
+            fputs("Runtime Enemy visualization material resolution failed.\n",
+                  stderr);
+            engine->running = false;
+            return;
+        }
+        visual_result = hth_runtime_body_visual_build(
+            engine->world_state->entity_registry,
+            engine->world_state->spatial_store,
+            engine->world_state->dynamic_body_store,
+            engine->world_state->bootstrap_enemy_pursuit.enemy,
+            material.description->base_color, &runtime_draw);
+        if (visual_result == HTH_RUNTIME_BODY_VISUAL_ERROR) {
+            fputs("Runtime Enemy visualization extraction failed.\n", stderr);
+            engine->running = false;
+            return;
+        }
+        if (visual_result == HTH_RUNTIME_BODY_VISUAL_READY) {
+            runtime_draws = &runtime_draw;
+            runtime_draw_count = 1U;
+        }
+        if (!hth_renderer_set_camera(engine->renderer, &engine->camera)) {
+            fputs("Renderer camera update failed.\n", stderr);
+            engine->running = false;
+            return;
+        }
     }
 
     if (engine->frame_limit > 0) {
@@ -860,7 +891,9 @@ void hth_engine_frame(HTHEngine *engine)
                hth_timing_frame_number(engine->timing));
     }
 
-    if (engine->renderer != NULL && !hth_renderer_frame(engine->renderer)) {
+    if (engine->renderer != NULL &&
+        !hth_renderer_frame(engine->renderer, runtime_draws,
+                            runtime_draw_count)) {
         engine->running = false;
         return;
     }

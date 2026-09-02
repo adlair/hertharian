@@ -8,11 +8,12 @@ Engine → Renderer frontend → OpenGL backend → Platform presentation → SD
 
 Platform owns the SDL window and opaque graphics-context services. The renderer
 frontend owns a backend and consumes the final engine camera plus resolved
-static draw inputs at initialization. It obtains framebuffer pixel dimensions,
-builds HTH Model/View/Projection matrices, and gives draw data and
-matrices to the backend. The OpenGL backend owns context, pipeline, geometry,
-uniform locations, and draw state. Public headers expose neither SDL nor
-OpenGL.
+static draw inputs at initialization. As of v0.3.16 it also consumes
+caller-owned transient draws synchronously during a frame without retaining
+them. It obtains framebuffer pixel dimensions, builds HTH View/Projection
+matrices, and gives draw data and matrices to the backend. The OpenGL backend
+owns context, pipeline, geometry, uniform locations, and retained static draw
+state. Public headers expose neither SDL nor OpenGL.
 
 As of v0.2.0, Engine composes that Camera from the physical eye plus View
 Dynamics position/FOV offsets before submission. Renderer remains unaware of
@@ -34,6 +35,12 @@ built-in Geometry primitives while the Material layer resolves appearance.
 Renderer receives primitive/bounds/base-color/optional-image draw records once
 during initialization. It never receives collision shape or Collision state,
 and it no longer assumes that an AABB implies a visible box.
+
+Runtime-body presentation supplies a separate stack-local primitive/model/color
+record each graphical frame. Static draws remain retained and execute first;
+transient opaque draws reuse the same shader, Geometry library, and depth buffer
+with texture use disabled, then the frame presents. Renderer receives no Entity
+or gameplay Store and retains no transient pointer.
 
 BOX and WEDGE store position plus UV and indexed triangles. The backend uploads
 one VAO/VBO/EBO set per primitive, reuses it across objects, and draws with

@@ -19,6 +19,12 @@ and resolves visual classes through external `hthmaterial`/PPM resources.
 Renderer receives primitive, bounds, base color, and optional RGB8 pixels;
 private backend model matrices translate and scale primitive instances.
 
+Runtime-body visualization additionally supplies a complete transient model
+matrix after simulation. Its BOX uses translation from Spatial position,
+rotation from Spatial yaw, and scale from twice the DynamicBody half-extents.
+The draw reuses the same shader and GPU primitive after retained World draws;
+no geometry or texture is uploaded per frame.
+
 A GLSL 330 Core vertex shader applies
 `u_projection * u_view * u_model` and forwards UV. The fragment shader emits
 base color or `texture(u_base_texture, uv) * base_color` according to a

@@ -668,12 +668,64 @@ bool hth_renderer_opengl_set_camera_matrices(HTHOpenGLBackend *backend,
     return glGetError() == GL_NO_ERROR;
 }
 
-bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
+static bool transient_draw_is_valid(const HTHRendererTransientDraw *draw)
+{
+    size_t component;
+
+    if (draw == NULL || draw->primitive < HTH_GEOMETRY_PRIMITIVE_BOX ||
+        draw->primitive >= HTH_GEOMETRY_PRIMITIVE_COUNT) {
+        return false;
+    }
+    for (component = 0U; component < 16U; ++component) {
+        if (!isfinite(draw->model.elements[component])) {
+            return false;
+        }
+    }
+    for (component = 0U; component < 4U; ++component) {
+        if (!isfinite(draw->base_color[component]) ||
+            draw->base_color[component] < 0.0F ||
+            draw->base_color[component] > 1.0F) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void draw_primitive(HTHOpenGLBackend *backend,
+                           HTHGeometryPrimitive primitive,
+                           const HTHMat4 *model,
+                           const float base_color[4],
+                           bool has_texture,
+                           GLuint texture)
+{
+    const HTHOpenGLGeometry *geometry = &backend->geometries[primitive];
+
+    backend->gl.bind_vertex_array(geometry->vao);
+    backend->gl.uniform_matrix_4fv(backend->model_location, 1, GL_FALSE,
+                                   model->elements);
+    backend->gl.uniform_4fv(backend->base_color_location, 1, base_color);
+    backend->gl.uniform_1i(backend->use_texture_location,
+                           has_texture ? 1 : 0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    backend->gl.draw_elements(GL_TRIANGLES, geometry->index_count,
+                              GL_UNSIGNED_INT, NULL);
+}
+
+bool hth_renderer_opengl_frame(
+    HTHOpenGLBackend *backend,
+    const HTHRendererTransientDraw *runtime_draws,
+    size_t runtime_draw_count)
 {
     size_t index;
 
-    if (backend == NULL) {
+    if (backend == NULL ||
+        (runtime_draw_count > 0U && runtime_draws == NULL)) {
         return false;
+    }
+    for (index = 0U; index < runtime_draw_count; ++index) {
+        if (!transient_draw_is_valid(&runtime_draws[index])) {
+            return false;
+        }
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -681,22 +733,16 @@ bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend)
     backend->gl.active_texture(GL_TEXTURE0);
     for (index = 0; index < backend->static_draw_count; ++index) {
         const HTHOpenGLRuntimeDraw *draw = &backend->static_draws[index];
-        const HTHOpenGLGeometry *geometry =
-            &backend->geometries[draw->primitive];
 
-        backend->gl.bind_vertex_array(geometry->vao);
-        backend->gl.uniform_matrix_4fv(
-            backend->model_location, 1, GL_FALSE,
-            backend->static_models[index].elements);
-        backend->gl.uniform_4fv(
-            backend->base_color_location, 1,
-            draw->base_color);
-        backend->gl.uniform_1i(
-            backend->use_texture_location,
-            draw->has_texture ? 1 : 0);
-        glBindTexture(GL_TEXTURE_2D, draw->texture);
-        backend->gl.draw_elements(GL_TRIANGLES, geometry->index_count,
-                                  GL_UNSIGNED_INT, NULL);
+        draw_primitive(backend, draw->primitive,
+                       &backend->static_models[index], draw->base_color,
+                       draw->has_texture, draw->texture);
+    }
+    for (index = 0U; index < runtime_draw_count; ++index) {
+        const HTHRendererTransientDraw *draw = &runtime_draws[index];
+
+        draw_primitive(backend, draw->primitive, &draw->model,
+                       draw->base_color, false, 0U);
     }
     glBindTexture(GL_TEXTURE_2D, 0);
     backend->gl.bind_vertex_array(0);

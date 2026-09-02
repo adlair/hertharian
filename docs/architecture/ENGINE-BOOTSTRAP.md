@@ -62,8 +62,10 @@ Timing begin → Input begin → Platform events → Input state
 → locomotion friction/acceleration/jump/gravity
 → swept slide/step movement → ground probe
 → resolved Player Body + MovementResult → physical eye
+→ Player Target Bridge sync → Enemy Pursuit Runtime
 → View Dynamics → final Camera position/FOV
-→ Renderer camera → render/present → work measurement → pacing
+→ post-Pursuit Runtime Enemy visual extraction
+→ Renderer camera → static + transient render/present → work measurement → pacing
 → Input end → Timing finish
 ```
 
@@ -154,8 +156,14 @@ the end of initialization it creates one stable Player Entity+Spatial proxy and
 one canonical Runtime Enemy. Each applicable frame synchronizes the proxy after
 Player movement and executes Pursuit before View/Camera/Renderer. Shutdown
 despawns the Enemy, destroys the proxy, then continues existing Store teardown.
-The Enemy is intentionally invisible and collides only with static World
-geometry; see `ENEMY-PURSUIT-ENGINE-INTEGRATION.md` and ADR-0039.
+The Enemy collides only with static World geometry; see
+`ENEMY-PURSUIT-ENGINE-INTEGRATION.md` and ADR-0039.
+
+As of v0.3.16, graphical frames extract that Enemy's post-Pursuit Spatial and
+DynamicBody into one stack-local BOX draw immediately before Renderer. The
+white opaque draw is presentation-only, uses no persistent visual state, and is
+skipped entirely in headless mode; see `RUNTIME-BODY-VISUALIZATION.md` and
+ADR-0040.
 
 ## Tests
 

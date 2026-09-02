@@ -58,3 +58,8 @@ The current foundation has no gravity, grounded state, friction, restitution,
 drag, broadphase, Dynamic-vs-Dynamic collision, triggers, layers, persistence,
 thread safety, rendering, gameplay, Level syntax, ECS framework, or per-frame
 automatic simulation.
+
+As of v0.3.16, the private runtime-body presentation adapter may observe a
+current Body together with its Entity and Spatial state to derive a transient
+BOX draw. DynamicBody still owns no rendering state or dependency; see
+`RUNTIME-BODY-VISUALIZATION.md`.

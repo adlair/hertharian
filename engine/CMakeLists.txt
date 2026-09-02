@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.15 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.16 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -74,6 +74,7 @@ add_executable(hertharian-engine
     src/platform/platform_sdl3.c
     src/renderer/renderer.c
     src/renderer/renderer_opengl.c
+    src/renderer/runtime_body_visual.c
     src/view/view_dynamics.c
     src/world/world.c
 )
@@ -563,6 +564,7 @@ if(BUILD_TESTING)
 
     add_executable(bootstrap_enemy_pursuit_tests
         tests/bootstrap_enemy_pursuit_tests.c
+        src/renderer/runtime_body_visual.c
         src/gameplay/bootstrap_enemy_pursuit.c
         src/gameplay/player_target_bridge.c
         src/gameplay/actor_spawn.c
@@ -595,12 +597,44 @@ if(BUILD_TESTING)
     )
     target_include_directories(bootstrap_enemy_pursuit_tests PRIVATE
         include src/actor src/collision src/common src/entity src/gameplay
-        src/input src/physics src/platform src/player src/spatial src/world
+        src/geometry src/input src/physics src/platform src/player src/renderer
+        src/spatial src/world
     )
     target_compile_features(bootstrap_enemy_pursuit_tests PRIVATE c_std_11)
     set_target_properties(bootstrap_enemy_pursuit_tests PROPERTIES
         C_EXTENSIONS OFF
     )
+
+    add_executable(runtime_body_visual_tests
+        tests/runtime_body_visual_tests.c
+        src/renderer/runtime_body_visual.c
+        src/gameplay/player_target_bridge.c
+        src/physics/dynamic_body.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+        src/player/player_body.c
+        src/common/math.c
+    )
+    target_include_directories(runtime_body_visual_tests PRIVATE
+        include src/collision src/entity src/gameplay src/geometry src/physics
+        src/player src/renderer src/spatial
+    )
+    target_compile_features(runtime_body_visual_tests PRIVATE c_std_11)
+    set_target_properties(runtime_body_visual_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
+    add_executable(renderer_frontend_tests
+        tests/renderer_frontend_tests.c
+        src/renderer/renderer.c
+        src/common/camera.c
+        src/common/math.c
+    )
+    target_include_directories(renderer_frontend_tests PRIVATE
+        include src/collision src/common src/geometry src/platform src/renderer
+    )
+    target_compile_features(renderer_frontend_tests PRIVATE c_std_11)
+    set_target_properties(renderer_frontend_tests PROPERTIES C_EXTENSIONS OFF)
 
     add_executable(math_tests
         tests/math_tests.c
@@ -894,6 +928,8 @@ if(BUILD_TESTING)
         target_link_libraries(enemy_runtime_population_tests PRIVATE m)
         target_link_libraries(player_target_bridge_tests PRIVATE m)
         target_link_libraries(bootstrap_enemy_pursuit_tests PRIVATE m)
+        target_link_libraries(runtime_body_visual_tests PRIVATE m)
+        target_link_libraries(renderer_frontend_tests PRIVATE m)
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -961,6 +997,12 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(bootstrap_enemy_pursuit_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(runtime_body_visual_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(renderer_frontend_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(math_tests PRIVATE
@@ -1058,6 +1100,12 @@ if(BUILD_TESTING)
     )
     add_test(NAME bootstrap_enemy_pursuit_engine_integration
         COMMAND bootstrap_enemy_pursuit_tests
+    )
+    add_test(NAME runtime_body_visualization_foundation
+        COMMAND runtime_body_visual_tests
+    )
+    add_test(NAME renderer_transient_draw_frontend
+        COMMAND renderer_frontend_tests
     )
     add_test(NAME math_foundation COMMAND math_tests)
     add_test(NAME camera_foundation COMMAND camera_tests)

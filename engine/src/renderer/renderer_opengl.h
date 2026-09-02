@@ -19,6 +19,9 @@ bool hth_renderer_opengl_resize(HTHOpenGLBackend *backend,
 bool hth_renderer_opengl_set_camera_matrices(HTHOpenGLBackend *backend,
                                              const HTHMat4 *view,
                                              const HTHMat4 *projection);
-bool hth_renderer_opengl_frame(HTHOpenGLBackend *backend);
+bool hth_renderer_opengl_frame(
+    HTHOpenGLBackend *backend,
+    const HTHRendererTransientDraw *runtime_draws,
+    size_t runtime_draw_count);
 
 #endif

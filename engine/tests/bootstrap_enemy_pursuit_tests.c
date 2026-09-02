@@ -1,5 +1,6 @@
 #include "bootstrap_enemy_pursuit.h"
 #include "player_movement.h"
+#include "runtime_body_visual.h"
 
 #include <float.h>
 #include <math.h>
@@ -423,6 +424,63 @@ static bool test_failures_cleanup_order_and_restart(void)
     return true;
 }
 
+static bool test_post_pursuit_runtime_visual(void)
+{
+    static const float white[4] = {1.0F, 1.0F, 1.0F, 1.0F};
+    Fixture fixture;
+    HTHBootstrapEnemyPursuit integration;
+    HTHPlayerBody player = player_at(0.0F, 3.0F);
+    HTHSpatialTransform post_pursuit;
+    HTHDynamicBody body;
+    HTHRendererTransientDraw draw;
+    HTHVec4 center;
+    HTHVec4 maximum;
+    HTHEntityHandle enemy;
+    HTHEntityHandle target_before;
+    HTHEntityHandle target_after;
+
+    CHECK(fixture_create(&fixture));
+    hth_bootstrap_enemy_pursuit_initialize(&integration);
+    CHECK(create_integration(&fixture, &integration, &player) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_OK);
+    enemy = integration.enemy;
+    CHECK(step_integration(&fixture, &integration, &player, 0.1F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
+                                &post_pursuit));
+    CHECK(post_pursuit.position.x < 3.0F);
+    CHECK(hth_dynamic_body_get(fixture.bodies, fixture.entities, enemy, &body));
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        enemy, &target_before));
+    CHECK(hth_runtime_body_visual_build(
+              fixture.entities, fixture.spatial, fixture.bodies, enemy, white,
+              &draw) == HTH_RUNTIME_BODY_VISUAL_READY);
+    center = hth_mat4_transform_vec4(
+        draw.model, (HTHVec4){0.0F, 0.0F, 0.0F, 1.0F});
+    maximum = hth_mat4_transform_vec4(
+        draw.model, (HTHVec4){0.5F, 0.5F, 0.5F, 1.0F});
+    CHECK(fabsf(center.x - post_pursuit.position.x) < 1.0e-6F &&
+          fabsf(center.y - post_pursuit.position.y) < 1.0e-6F &&
+          fabsf(center.z - post_pursuit.position.z) < 1.0e-6F);
+    CHECK(fabsf(maximum.x -
+                (post_pursuit.position.x + body.half_extents.x)) < 1.0e-6F &&
+          fabsf(maximum.y -
+                (post_pursuit.position.y + body.half_extents.y)) < 1.0e-6F &&
+          fabsf(maximum.z -
+                (post_pursuit.position.z + body.half_extents.z)) < 1.0e-6F);
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        enemy, &target_after));
+    CHECK(hth_entity_handle_equal(target_before, target_after));
+    CHECK(cleanup_succeeded(cleanup_integration(&fixture, &integration)));
+    CHECK(hth_runtime_body_visual_build(
+              fixture.entities, fixture.spatial, fixture.bodies, enemy, white,
+              &draw) == HTH_RUNTIME_BODY_VISUAL_NOT_RENDERABLE);
+    fixture_destroy(&fixture);
+    return true;
+}
+
 int main(void)
 {
     const struct {
@@ -440,7 +498,8 @@ int main(void)
         {"no-op policies/static collision",
          test_noop_policies_and_static_collision},
         {"failure/cleanup order/restart",
-         test_failures_cleanup_order_and_restart}
+         test_failures_cleanup_order_and_restart},
+        {"post-pursuit runtime visual", test_post_pursuit_runtime_visual}
     };
     size_t index;
 

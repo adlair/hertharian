@@ -107,9 +107,13 @@ bool hth_renderer_set_camera(HTHRenderer *renderer,
     return !renderer->drawable || update_camera_matrices(renderer);
 }
 
-bool hth_renderer_frame(HTHRenderer *renderer)
+bool hth_renderer_frame(HTHRenderer *renderer,
+                        const HTHRendererTransientDraw *runtime_draws,
+                        size_t runtime_draw_count)
 {
     return renderer != NULL &&
+           (runtime_draw_count == 0U || runtime_draws != NULL) &&
            (!renderer->drawable ||
-            hth_renderer_opengl_frame(renderer->backend));
+            hth_renderer_opengl_frame(renderer->backend, runtime_draws,
+                                      runtime_draw_count));
 }

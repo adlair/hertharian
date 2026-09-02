@@ -125,10 +125,11 @@ generations; stale handles from an earlier instance never regain validity.
 
 ## Current Boundaries
 
-Pursuit is simulation and runs identically with or without Renderer. The
-Runtime Enemy is intentionally invisible because Renderer consumes only the
-static World draw list. No fake World object or runtime Entity rendering path
-is introduced.
+Pursuit is simulation and runs identically with or without Renderer. As of
+v0.3.16, graphical frames observe the same authoritative Enemy handle after
+Pursuit and extract one transient BOX draw; headless frames skip that pure
+presentation boundary. No fake World object or gameplay rendering state is
+introduced; see `RUNTIME-BODY-VISUALIZATION.md`.
 
 Enemy Dynamic Collision resolves only against static CollisionWorld geometry.
 The Enemy can overlap the Player/proxy and has no gravity, grounding, facing,

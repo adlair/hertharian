@@ -97,3 +97,7 @@ As of v0.3.15, the production Engine owns one private bootstrap Runtime Enemy
 and composes Population with the Player Target Bridge and Pursuit Runtime once
 per applicable simulation frame. The bootstrap integration and its current
 limitations are documented in `ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.
+
+As of v0.3.16, Engine explicitly selects that same handle for a private,
+read-only runtime-body presentation adapter. Enemy remains unaware of Renderer;
+see `RUNTIME-BODY-VISUALIZATION.md` and ADR-0040.
