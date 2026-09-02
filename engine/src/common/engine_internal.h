@@ -3,6 +3,7 @@
 
 #include "hth_engine.h"
 #include "actor.h"
+#include "bootstrap_enemy_pursuit.h"
 #include "dynamic_body.h"
 #include "enemy.h"
 #include "enemy_target.h"
@@ -22,6 +23,7 @@ struct HTHEngineWorldState {
     HTHEnemyStore *enemy_store;
     HTHHealthStore *health_store;
     HTHEnemyTargetStore *enemy_target_store;
+    HTHBootstrapEnemyPursuit bootstrap_enemy_pursuit;
 };
 
 bool hth_engine_init_with_level_id(HTHEngine *engine,

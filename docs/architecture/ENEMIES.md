@@ -92,3 +92,8 @@ deterministic Entity-index order and composes existing pursuit capabilities.
 As of v0.3.13, Enemy Runtime Population provides a caller-driven canonical
 Entity+Actor+Enemy+Spatial+DynamicBody+Health composition without changing the
 flexible base Enemy association contract.
+
+As of v0.3.15, the production Engine owns one private bootstrap Runtime Enemy
+and composes Population with the Player Target Bridge and Pursuit Runtime once
+per applicable simulation frame. The bootstrap integration and its current
+limitations are documented in `ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.

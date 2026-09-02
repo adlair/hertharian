@@ -105,3 +105,9 @@ amortized and Despawn is `O(1)` under the current direct-index Stores.
 Production contains zero Enemy Runtime Spawn calls, zero Enemy Runtime Despawn
 calls, and zero Population work per frame in v0.3.13. Future Player Target
 Bridge and Engine integration remain separate milestones.
+
+As of v0.3.15, the production Engine uses Population to create and destroy one
+private bootstrap Enemy. Population's composition and rollback contracts remain
+unchanged; placement, pursuit orchestration, and lifecycle ownership belong to
+the private integration documented in
+`ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.

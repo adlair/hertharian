@@ -77,6 +77,24 @@ static void destroy_view_state(HTHEngine *engine)
 static void destroy_world(HTHEngine *engine)
 {
     if (engine->world_state != NULL) {
+        HTHBootstrapEnemyPursuitCleanupResult cleanup =
+            hth_bootstrap_enemy_pursuit_cleanup(
+                &engine->world_state->bootstrap_enemy_pursuit,
+                engine->world_state->entity_registry,
+                engine->world_state->actor_store,
+                engine->world_state->enemy_store,
+                engine->world_state->spatial_store,
+                engine->world_state->dynamic_body_store,
+                engine->world_state->health_store,
+                engine->world_state->enemy_target_store);
+
+        if (cleanup.enemy_despawn_failed) {
+            fputs("Bootstrap Enemy despawn failed during cleanup.\n", stderr);
+        }
+        if (cleanup.bridge_destroy_failed) {
+            fputs("Player Target Bridge destroy failed during cleanup.\n",
+                  stderr);
+        }
         hth_enemy_target_store_destroy(
             engine->world_state->enemy_target_store);
         engine->world_state->enemy_target_store = NULL;
@@ -337,8 +355,14 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
         return false;
     }
     engine->world_state = calloc(1, sizeof(*engine->world_state));
-    if (engine->world_state == NULL ||
-        !load_selected_world(
+    if (engine->world_state == NULL) {
+        fputs("Failed to initialize level World.\n", stderr);
+        destroy_storage(engine);
+        return false;
+    }
+    hth_bootstrap_enemy_pursuit_initialize(
+        &engine->world_state->bootstrap_enemy_pursuit);
+    if (!load_selected_world(
             engine->storage_state->resources,
             &engine->storage_state->level_selection,
             &engine->world_state->world) ||
@@ -547,12 +571,56 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
         return false;
     }
 
+    switch (hth_bootstrap_enemy_pursuit_create(
+        &engine->world_state->bootstrap_enemy_pursuit,
+        engine->world_state->entity_registry,
+        engine->world_state->actor_store,
+        engine->world_state->enemy_store,
+        engine->world_state->spatial_store,
+        engine->world_state->dynamic_body_store,
+        engine->world_state->health_store,
+        &engine->physical_state->collision_world,
+        &engine->physical_state->body)) {
+    case HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_OK:
+        break;
+    case HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_START_SOLID:
+        fputs("Bootstrap Enemy placement is start-solid.\n", stderr);
+        goto bootstrap_integration_failed;
+    case HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_BRIDGE_FAILED:
+        fputs("Failed to create Player Target Bridge.\n", stderr);
+        goto bootstrap_integration_failed;
+    case HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_ENEMY_FAILED:
+        fputs("Failed to spawn bootstrap Runtime Enemy.\n", stderr);
+        goto bootstrap_integration_failed;
+    case HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_INVALID:
+    default:
+        fputs("Invalid bootstrap Enemy pursuit integration state.\n", stderr);
+        goto bootstrap_integration_failed;
+    }
+
     engine->window_width = window_width;
     engine->window_height = window_height;
     engine->initialized = true;
     engine->running = true;
     puts("Engine initialized.");
     return true;
+
+bootstrap_integration_failed:
+    hth_timing_destroy(engine->timing);
+    engine->timing = NULL;
+    hth_input_destroy(engine->input);
+    engine->input = NULL;
+    hth_renderer_destroy(engine->renderer);
+    engine->renderer = NULL;
+    destroy_physical_state(engine);
+    destroy_view_state(engine);
+    destroy_world(engine);
+    destroy_storage(engine);
+    hth_fps_camera_controller_destroy(engine->camera_controller);
+    engine->camera_controller = NULL;
+    hth_platform_shutdown(engine->platform);
+    engine->platform = NULL;
+    return false;
 }
 
 void hth_engine_run(HTHEngine *engine)
@@ -580,8 +648,10 @@ void hth_engine_frame(HTHEngine *engine)
     HTHViewDynamicsOutput view_output;
     HTHVec3 camera_right;
     HTHVec3 physical_eye;
+    HTHBootstrapEnemyPursuitStepResult pursuit_result;
     double accumulated_mouse_x;
     double accumulated_mouse_y;
+    double simulation_delta;
     uint64_t counter;
     uint64_t sleep_ns;
     bool discard_mouse_delta = false;
@@ -697,6 +767,12 @@ void hth_engine_frame(HTHEngine *engine)
     hth_fps_camera_controller_update(
         engine->camera_controller, &engine->camera, engine->input,
         engine->debug_fps_input);
+    if (!hth_bootstrap_enemy_pursuit_simulation_delta(
+            hth_timing_delta_seconds(engine->timing), &simulation_delta)) {
+        fputs("Simulation delta update failed.\n", stderr);
+        engine->running = false;
+        return;
+    }
     if (!hth_player_movement_build_intent(
             engine->input, engine->camera.forward, engine->camera.up,
             hth_fps_camera_controller_capture_active(
@@ -706,10 +782,37 @@ void hth_engine_frame(HTHEngine *engine)
             &engine->physical_state->body,
             &engine->physical_state->collision_world,
             &engine->physical_state->movement_config, &movement_intent,
-            hth_timing_delta_seconds(engine->timing), &movement_result) ||
+            simulation_delta, &movement_result) ||
         !hth_player_body_eye_position(&engine->physical_state->body,
                                       &physical_eye)) {
         fputs("Player movement update failed.\n", stderr);
+        engine->running = false;
+        return;
+    }
+
+    pursuit_result = hth_bootstrap_enemy_pursuit_step(
+        &engine->world_state->bootstrap_enemy_pursuit,
+        engine->world_state->entity_registry,
+        engine->world_state->actor_store,
+        engine->world_state->enemy_store,
+        engine->world_state->spatial_store,
+        engine->world_state->dynamic_body_store,
+        engine->world_state->enemy_target_store,
+        &engine->physical_state->collision_world,
+        &engine->physical_state->body, (float)simulation_delta);
+    if (pursuit_result != HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK) {
+        switch (pursuit_result) {
+        case HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_BRIDGE_SYNC_FAILED:
+            fputs("Player Target Bridge sync failed.\n", stderr);
+            break;
+        case HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_GET_TARGET_FAILED:
+            fputs("Player Target Bridge GetTarget failed.\n", stderr);
+            break;
+        case HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_PURSUIT_FAILED:
+        default:
+            fputs("Enemy Pursuit Runtime update failed.\n", stderr);
+            break;
+        }
         engine->running = false;
         return;
     }

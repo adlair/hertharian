@@ -92,3 +92,8 @@ Player target bridge or Enemy population. Production contains zero Pursuit
 Runtime calls and performs zero such work per frame in v0.3.12. As of v0.3.13,
 caller-driven Enemy Runtime Population can supply canonical runtime Enemies;
 candidate sourcing and production integration remain caller responsibilities.
+
+As of v0.3.15, the production Engine invokes Runtime once per applicable
+simulation frame with the synchronized Player proxy as its single stack-local
+candidate. Engine ownership, ordering, shared physical delta, and cleanup are
+documented in `ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.

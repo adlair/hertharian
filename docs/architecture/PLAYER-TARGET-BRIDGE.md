@@ -114,10 +114,9 @@ Moving the Player followed by Sync updates Spatial on the same Entity. An
 existing Enemy Target relationship therefore remains valid while subsequent
 Decision, Seek, and Pursuit work observes the new anchor.
 
-All integration remains caller-driven in v0.3.14. Production creates zero
-Player Target Bridges, performs zero Bridge Sync calls, supplies no Player
-candidate to Pursuit Runtime, and performs zero additional per-frame work.
-The intended future v0.3.15 order is documented, not implemented:
+The foundation itself remains caller-driven. As of v0.3.15, the production
+Engine owns one bridge, synchronizes it after successful Player physical
+movement, and supplies its target as the sole stack-local Pursuit candidate:
 
 ```text
 Input
@@ -126,6 +125,10 @@ Input
   -> Enemy Pursuit Runtime
   -> View / Renderer
 ```
+
+The production ownership transaction, shared physical delta, failure policy,
+and cleanup order are documented in
+`ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.
 
 ## Cost and Deferred Scope
 

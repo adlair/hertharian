@@ -149,6 +149,14 @@ establishes zero target relations and performs zero target or perception work
 per frame. Enemy Perception remains a stateless query with no Engine-owned
 state.
 
+As of v0.3.15, Engine also owns one private bootstrap pursuit integration. At
+the end of initialization it creates one stable Player Entity+Spatial proxy and
+one canonical Runtime Enemy. Each applicable frame synchronizes the proxy after
+Player movement and executes Pursuit before View/Camera/Renderer. Shutdown
+despawns the Enemy, destroys the proxy, then continues existing Store teardown.
+The Enemy is intentionally invisible and collides only with static World
+geometry; see `ENEMY-PURSUIT-ENGINE-INTEGRATION.md` and ADR-0039.
+
 ## Tests
 
 After configuring and building, run:
