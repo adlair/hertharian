@@ -57,3 +57,6 @@ remain deferred.
 As of v0.3.10, a caller may pass the Target from `PURSUE(target)` to the
 separate Enemy Seek query. Decision does not call Seek, and Seek does not
 consume Intent or execute movement.
+
+As of v0.3.11, caller-owned orchestration may pass Seek's direction to Enemy
+Chase. Decision still neither calls nor executes Chase.

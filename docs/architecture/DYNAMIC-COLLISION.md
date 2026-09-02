@@ -45,3 +45,7 @@ does not perform Dynamic-vs-Dynamic collision, broadphase, triggers, layers,
 substeps, or automatic Engine-frame stepping. Tests invoke one-Body movement
 explicitly; production creates no Bodies and performs no Dynamic Collision
 work per frame.
+
+As of v0.3.11, Enemy Chase is a thin semantic adapter that supplies requested
+DynamicBody velocity and delegates movement here. Dynamic Collision retains
+ownership of physical resolution and resolved velocity.

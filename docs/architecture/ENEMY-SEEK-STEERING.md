@@ -47,3 +47,7 @@ pass that explicit Target to Seek. Future Chase owns conversion of direction
 into movement policy, while later runtime work owns scheduling and execution.
 Production contains zero Seek calls and performs zero Seek work per frame in
 v0.3.10.
+
+As of v0.3.11, Enemy Chase can apply this direction through the generic
+DynamicBody and Dynamic Collision path. Seek remains pure and never invokes
+Chase itself.

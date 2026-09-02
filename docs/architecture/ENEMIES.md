@@ -81,3 +81,7 @@ Actor and Spatial, but still adds no state or behavior to the Enemy Store.
 
 As of v0.3.10, Enemy Seek uses the same structural Enemy authority plus an
 explicit Spatial Target to derive direction without adding Enemy state.
+
+As of v0.3.11, Enemy Chase additionally requires DynamicBody and applies an
+explicit desired direction through generic Dynamic Collision without adding
+state to the Enemy Store.
