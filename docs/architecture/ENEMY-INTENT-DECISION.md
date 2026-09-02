@@ -53,3 +53,7 @@ in v0.3.9. Intent execution, Seek, Chase, movement, velocity, facing,
 navigation, attacks, DamageIntent generation, combat, death policy, memory,
 FSMs, Behavior Trees, GOAP, Utility AI, persistence, networking, and scripting
 remain deferred.
+
+As of v0.3.10, a caller may pass the Target from `PURSUE(target)` to the
+separate Enemy Seek query. Decision does not call Seek, and Seek does not
+consume Intent or execute movement.

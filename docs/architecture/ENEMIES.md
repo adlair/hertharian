@@ -78,3 +78,6 @@ presence-only Enemy contract described here.
 
 As of v0.3.9, explicit Enemy Decision requires this presence together with
 Actor and Spatial, but still adds no state or behavior to the Enemy Store.
+
+As of v0.3.10, Enemy Seek uses the same structural Enemy authority plus an
+explicit Spatial Target to derive direction without adding Enemy state.
