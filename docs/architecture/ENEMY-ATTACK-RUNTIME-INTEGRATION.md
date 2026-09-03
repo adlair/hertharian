@@ -120,3 +120,8 @@ occurs only at creation/attach capacity growth. Overall runtime remains
 `M`, and static obstacles `N`, with only O(E) constant cadence/attack work
 added. No public API, asset, `hthlevel 2`, or `hthmaterial 1` change is part of
 v0.3.23.
+
+As of v0.3.24, tests may pass the attacked Player handle to the disconnected
+Player Death query after Health reaches zero. Enemy runtime does not call that
+query, filter dead targets, clear relations, or change its released cadence and
+damage behavior.

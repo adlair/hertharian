@@ -94,8 +94,13 @@ arithmetic; Damage Intent adds no Health state or lifecycle coupling.
 As of v0.3.20, the Player Target Bridge attaches Health to its Actor target
 Entity. That Store entry is the sole Player Health authority; PlayerBody and
 the Bridge retain no Health copy. Production initializes temporary bootstrap
-Health at `100/100` but performs no damage, healing, Health iteration, or death
-behavior per frame.
+Health at `100/100`. As of v0.3.23, ready Enemy attacks may reduce that Health
+through Damage Intent while Health itself remains unaware of combat policy.
+
+As of v0.3.24, the private Player Death query derives its result from the
+current Health of an explicit valid Player Actor identity. Exactly zero means
+dead and any positive value means alive, so existing healing above zero restores
+the derived alive state. Health gains no death flag, lifecycle, or dependency.
 
 Deferred scope includes damage sources/types, armor, resistance,
 invulnerability, regeneration, death events or systems, Player migration,

@@ -120,6 +120,10 @@ Health reaching zero does not destroy the Entity, disable movement, or invoke
 game-over behavior. v0.3.20 creates no production DamageIntent and applies no
 damage; Enemy Attack Execution remains a later milestone.
 
+As of v0.3.24, Player Death can read this explicit handle and derive dead from
+current Health zero. The Bridge owns no death state and remains unchanged while
+the query preserves Entity, Actor, Spatial, Health, and target identity.
+
 ## Cost and Deferred Scope
 
 Create and Destroy are O(1) amortized through Actor Spawn/Despawn; Sync and
@@ -128,5 +132,5 @@ Store. One independent Bridge value per Player remains compatible with future
 multiplayer without adding singleton state.
 
 Deferred scope includes Player movement migration, Player DynamicBody,
-Player-specific Health APIs, death, respawn, attack execution, cadence,
-weapons, UI, persistence, networking, and Level Health declarations.
+Player-specific Health APIs, death runtime policy, respawn, weapons, UI,
+persistence, networking, and Level Health declarations.

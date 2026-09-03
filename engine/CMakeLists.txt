@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.23 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.24 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -58,6 +58,7 @@ add_executable(hertharian-engine
     src/gameplay/enemy_target.c
     src/gameplay/enemy_target_selection.c
     src/gameplay/health.c
+    src/gameplay/player_death.c
     src/gameplay/player_target_bridge.c
     src/input/input.c
     src/geometry/geometry.c
@@ -708,6 +709,50 @@ if(BUILD_TESTING)
         C_EXTENSIONS OFF
     )
 
+    add_executable(player_death_tests
+        tests/player_death_tests.c
+        src/gameplay/player_death.c
+        src/gameplay/player_target_bridge.c
+        src/gameplay/enemy_pursuit_runtime.c
+        src/gameplay/enemy_runtime_population.c
+        src/gameplay/enemy_attack_cadence_store.c
+        src/gameplay/enemy_attack_cadence.c
+        src/gameplay/enemy_attack_execution.c
+        src/gameplay/damage_intent.c
+        src/gameplay/actor_spawn.c
+        src/gameplay/enemy_chase.c
+        src/gameplay/enemy_decision.c
+        src/gameplay/enemy_attack_eligibility.c
+        src/gameplay/enemy_target_selection.c
+        src/gameplay/enemy_los.c
+        src/gameplay/enemy_perception.c
+        src/gameplay/enemy_target.c
+        src/gameplay/enemy_seek.c
+        src/gameplay/enemy.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/physics/dynamic_collision.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+        src/player/player_body.c
+        src/player/player_locomotion.c
+        src/player/player_movement.c
+        src/input/input.c
+        src/platform/keyboard_reconciliation.c
+        src/collision/aabb.c
+        src/collision/collision_trace.c
+        src/collision/collision_world.c
+        src/common/math.c
+        src/world/world.c
+    )
+    target_include_directories(player_death_tests PRIVATE
+        include src/actor src/collision src/common src/entity src/gameplay
+        src/input src/physics src/platform src/player src/spatial src/world
+    )
+    target_compile_features(player_death_tests PRIVATE c_std_11)
+    set_target_properties(player_death_tests PROPERTIES C_EXTENSIONS OFF)
+
     add_executable(bootstrap_enemy_pursuit_tests
         tests/bootstrap_enemy_pursuit_tests.c
         src/renderer/runtime_body_visual.c
@@ -1085,6 +1130,7 @@ if(BUILD_TESTING)
         target_link_libraries(enemy_pursuit_runtime_tests PRIVATE m)
         target_link_libraries(enemy_runtime_population_tests PRIVATE m)
         target_link_libraries(player_target_bridge_tests PRIVATE m)
+        target_link_libraries(player_death_tests PRIVATE m)
         target_link_libraries(bootstrap_enemy_pursuit_tests PRIVATE m)
         target_link_libraries(runtime_body_visual_tests PRIVATE m)
         target_link_libraries(renderer_frontend_tests PRIVATE m)
@@ -1164,6 +1210,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(player_target_bridge_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(player_death_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(bootstrap_enemy_pursuit_tests PRIVATE
@@ -1280,6 +1329,7 @@ if(BUILD_TESTING)
     add_test(NAME player_target_bridge_foundation
         COMMAND player_target_bridge_tests
     )
+    add_test(NAME player_death_foundation COMMAND player_death_tests)
     add_test(NAME bootstrap_enemy_pursuit_engine_integration
         COMMAND bootstrap_enemy_pursuit_tests
     )

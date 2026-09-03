@@ -68,4 +68,9 @@ behavior.
 As of v0.3.23, the production bootstrap Enemy uses that same handle as the
 Decision and DamageIntent target. Ready ATTACK frames resolve caller-owned
 10-point damage through Health; cadence prevents damage-per-frame. Health zero
-continues to have no death, despawn, target-clear, or PlayerBody meaning.
+continues to have no despawn, target-clear, or PlayerBody meaning.
+
+As of v0.3.24, callers may classify this explicit gameplay handle as dead by
+querying whether its current valid Health is exactly zero. The derived query
+does not mutate or replace the identity, and it has no production caller or
+runtime consequence in this milestone.

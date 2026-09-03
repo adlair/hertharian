@@ -176,7 +176,12 @@ As of v0.3.23, the Engine owns the private Enemy Attack Cadence Store and the
 existing Enemy Pursuit frame phase also executes ready attacks after Player
 movement and Player Target Bridge sync. Bootstrap supplies temporary 10-point
 damage and a one-second interval. Player Health may reach zero without death
-semantics; rendering remains independent of Health.
+runtime effects; rendering remains independent of Health.
+
+As of v0.3.24, Player Death defines a private derived query over the Bridge
+target's current Health, but Engine and bootstrap do not call it. Health zero
+therefore retains the same movement, targeting, camera, rendering, and shutdown
+behavior; runtime consequences remain deferred.
 
 ## Tests
 
