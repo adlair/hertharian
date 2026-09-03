@@ -124,3 +124,8 @@ As of v0.3.21, `ENEMY-ATTACK-EXECUTION.md` validates this Store's Enemy
 association as the source boundary before delegating to DamageIntent. The
 builder adds no Enemy state and remains disconnected from production pending
 attack cadence.
+
+As of v0.3.22, `ENEMY-ATTACK-CADENCE.md` adds an independent caller-owned
+one-double countdown. It adds no field to this Store, contains no Enemy handle,
+and remains disconnected from production pending explicit generation-safe
+ownership and runtime integration.

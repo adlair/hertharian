@@ -122,4 +122,7 @@ described above, while attack execution remains deferred.
 
 As of v0.3.21, the separate Enemy Attack Execution builder remains
 deliberately disconnected from this loop. An `ATTACK` frame still suppresses
-movement without creating or resolving DamageIntent; cadence is deferred.
+movement without creating or resolving DamageIntent. As of v0.3.22, the
+separate caller-owned Enemy Attack Cadence foundation is also disconnected:
+Pursuit Runtime neither owns nor advances it, and production integration is
+deferred.

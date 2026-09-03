@@ -116,3 +116,8 @@ movement.
 As of v0.3.21, an explicit caller may pass an `ATTACK` source and target to the
 separate Enemy Attack Execution builder. Decision does not call that builder;
 production still creates and resolves no DamageIntent.
+
+As of v0.3.22, the separate caller-owned Enemy Attack Cadence primitive can
+gate a future explicit attack transaction. Decision neither queries nor
+advances cadence: it may continue returning `ATTACK` while a cadence instance
+is not ready, because intent policy and temporal opportunity remain independent.
