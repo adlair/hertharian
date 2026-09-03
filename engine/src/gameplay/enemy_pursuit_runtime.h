@@ -26,6 +26,7 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHCollisionWorld *collision_world,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
+    HTHEntityHandle excluded_target,
     float perception_radius,
     float attack_range,
     float chase_speed,

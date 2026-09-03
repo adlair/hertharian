@@ -85,3 +85,7 @@ per simulation frame and does not change overall frame complexity.
 Game over, restart, respawn, revive, Downed state, Player despawn, corpse
 physics, animation, audio, HUD, target filtering, spectator cameras,
 persistence, and multiplayer death remain outside v0.3.25.
+
+As of v0.3.26, Engine reuses this exact frame snapshot for dead-Player
+targetability; no second death query is added. See
+`DEAD-PLAYER-TARGETING-POLICY.md` and ADR-0050.

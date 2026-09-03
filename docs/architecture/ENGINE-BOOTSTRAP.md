@@ -213,5 +213,10 @@ v0.1.2. Renderer Bootstrap introduced graphical clear and presentation in
 v0.1.3. Server, client, command, and network-flush stages documented in ADR-0003
 remain architectural targets.
 
+As of v0.3.26, Engine passes its single Player Death snapshot to Bootstrap.
+Bootstrap maps the dead Player's stable Bridge handle to the generic
+`excluded_target` used by Pursuit and Selection; no Health/death dependency
+crosses into those Enemy foundations.
+
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.

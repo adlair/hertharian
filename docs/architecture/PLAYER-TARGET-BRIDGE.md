@@ -136,3 +136,7 @@ multiplayer without adding singleton state.
 Deferred scope includes Player movement migration, Player DynamicBody,
 Player-specific Health APIs, dead-target policy, respawn, weapons, UI,
 persistence, networking, and Level Health declarations.
+
+As of v0.3.26, Bootstrap uses the same stable handle as a generation-safe
+excluded target while the Player Death snapshot is true. The Bridge itself
+remains alive, synchronized, and unaware of targetability.

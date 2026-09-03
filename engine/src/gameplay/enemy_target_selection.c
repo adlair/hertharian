@@ -24,6 +24,7 @@ bool hth_enemy_target_select(
     HTHEntityHandle enemy,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
+    HTHEntityHandle excluded_target,
     float perception_radius,
     HTHEntityHandle *out_selected)
 {
@@ -52,6 +53,7 @@ bool hth_enemy_target_select(
         double candidate_distance_squared;
 
         if (hth_entity_handle_equal(candidate, enemy) ||
+            hth_entity_handle_equal(candidate, excluded_target) ||
             !hth_spatial_store_get(spatial, entities, candidate,
                                    &candidate_transform) ||
             !hth_enemy_perception_can_perceive(

@@ -79,3 +79,7 @@ or range.
 As of v0.3.13, Enemy Runtime Despawn clears the removed Enemy's outgoing
 relation only. It does not scan incoming relations; Entity liveness and
 generation checks make references to the despawned Target semantically absent.
+
+As of v0.3.26, Pursuit explicitly clears a Current Target matching its
+caller-supplied excluded handle. This uses the existing relation API and adds no
+Health, Player, or death semantics to the Store.

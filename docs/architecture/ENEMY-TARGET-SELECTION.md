@@ -78,3 +78,9 @@ candidate array, and Selection never produces or executes an Intent.
 As of v0.3.12, caller-driven Pursuit Runtime invokes Selection only when the
 Enemy lacks a semantically valid Target, using the caller's explicit candidate
 array unchanged.
+
+As of v0.3.26, Selection receives one optional generation-safe excluded handle.
+The canonical invalid handle means no exclusion. Exact matches are skipped
+before Spatial, Perception, LOS, and ranking; all other candidate and
+transactional semantics remain unchanged. Selection still does not clear an
+existing relation when no winner exists.

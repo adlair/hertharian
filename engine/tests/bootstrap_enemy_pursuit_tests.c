@@ -91,14 +91,23 @@ static HTHBootstrapEnemyPursuitCreateResult create_integration(
         player);
 }
 
-static HTHBootstrapEnemyPursuitStepResult step_integration(
+static HTHBootstrapEnemyPursuitStepResult step_integration_with_snapshot(
     Fixture *fixture, HTHBootstrapEnemyPursuit *integration,
-    const HTHPlayerBody *player, float delta_seconds)
+    const HTHPlayerBody *player, bool player_dead, float delta_seconds)
 {
     return hth_bootstrap_enemy_pursuit_step(
         integration, fixture->entities, fixture->actors, fixture->enemies,
         fixture->spatial, fixture->bodies, fixture->health, fixture->targets,
-        fixture->cadences, &fixture->world, player, (double)delta_seconds);
+        fixture->cadences, &fixture->world, player, player_dead,
+        (double)delta_seconds);
+}
+
+static HTHBootstrapEnemyPursuitStepResult step_integration(
+    Fixture *fixture, HTHBootstrapEnemyPursuit *integration,
+    const HTHPlayerBody *player, float delta_seconds)
+{
+    return step_integration_with_snapshot(
+        fixture, integration, player, false, delta_seconds);
 }
 
 static HTHBootstrapEnemyPursuitCleanupResult cleanup_integration(
@@ -525,7 +534,7 @@ static bool test_failures_cleanup_order_and_restart(void)
               &integration, fixture.entities, fixture.actors,
               fixture.enemies, fixture.spatial, fixture.bodies,
               fixture.health, NULL, fixture.cadences, &fixture.world,
-              &player, 0.0) ==
+              &player, false, 0.0) ==
           HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_PURSUIT_FAILED);
     CHECK(hth_player_target_bridge_destroy(
         &integration.player_target_bridge, fixture.entities,
@@ -601,7 +610,9 @@ static bool test_production_damage_cadence_and_zero_health(void)
     HTHBootstrapEnemyPursuit integration;
     HTHPlayerBody player = player_at(1.75F, 3.0F);
     HTHHealth health;
+    HTHHealingResult healing;
     HTHEntityHandle target;
+    HTHEntityHandle current_target;
     size_t index;
 
     CHECK(fixture_create(&fixture));
@@ -631,6 +642,33 @@ static bool test_production_damage_cadence_and_zero_health(void)
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
                                fixture.actors, target, &health));
     CHECK(health.current == 0.0F && health.maximum == 100.0F);
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        integration.enemy, &current_target));
+    CHECK(hth_entity_handle_equal(current_target, target));
+    CHECK(step_integration_with_snapshot(
+              &fixture, &integration, &player, false, 1.0F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        integration.enemy, &current_target));
+    CHECK(hth_entity_handle_equal(current_target, target));
+    CHECK(step_integration_with_snapshot(
+              &fixture, &integration, &player, true, 1.0F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(!hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        integration.enemy, &current_target));
+    CHECK(hth_health_store_apply_healing(
+        fixture.health, fixture.entities, fixture.actors, target, 10.0F,
+        &healing));
+    CHECK(step_integration_with_snapshot(
+              &fixture, &integration, &player, false, 0.0F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        integration.enemy, &current_target));
+    CHECK(hth_entity_handle_equal(current_target, target));
     CHECK(hth_entity_registry_is_alive(fixture.entities, target));
     CHECK(hth_entity_registry_is_alive(fixture.entities,
                                        integration.enemy));

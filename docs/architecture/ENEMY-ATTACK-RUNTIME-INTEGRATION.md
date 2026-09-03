@@ -131,3 +131,8 @@ This does not change Enemy Runtime: the Player identity and EnemyTarget relation
 remain, cadence-controlled attacks may continue at zero Health, and damage still
 saturates there. Lethal damage occurs after the current frame's Player Movement,
 so voluntary suppression begins on the following frame.
+
+As of v0.3.26, the frame snapshot excludes a dead Player before Decision and
+attack dispatch. An alive snapshot remains authoritative for all Enemies in the
+lethal frame; clearing begins next frame. Attack Execution and cadence semantics
+remain unchanged.

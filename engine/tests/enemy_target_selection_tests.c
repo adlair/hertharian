@@ -115,7 +115,19 @@ static bool select_target(Fixture *fixture,
     return hth_enemy_target_select(
         fixture->entities, fixture->actors, fixture->enemies,
         fixture->spatial, world, fixture->targets, enemy, candidates,
-        candidate_count, radius, out_selected);
+        candidate_count, hth_entity_handle_invalid(), radius, out_selected);
+}
+
+static bool select_target_excluding(
+    Fixture *fixture, const HTHCollisionWorld *world,
+    HTHEntityHandle enemy, const HTHEntityHandle *candidates,
+    size_t candidate_count, HTHEntityHandle excluded_target, float radius,
+    HTHEntityHandle *out_selected)
+{
+    return hth_enemy_target_select(
+        fixture->entities, fixture->actors, fixture->enemies,
+        fixture->spatial, world, fixture->targets, enemy, candidates,
+        candidate_count, excluded_target, radius, out_selected);
 }
 
 static bool set_target(Fixture *fixture, HTHEntityHandle enemy,
@@ -179,22 +191,25 @@ static bool test_structural_contracts_and_empty_set(void)
 
     CHECK_NULL_FAILURE((NULL, fixture.actors, fixture.enemies,
                         fixture.spatial, &clear, fixture.targets, enemy,
-                        NULL, 0U, 2.0F, &selected));
+                        NULL, 0U, hth_entity_handle_invalid(), 2.0F,
+                        &selected));
     CHECK_NULL_FAILURE((fixture.entities, NULL, fixture.enemies,
                         fixture.spatial, &clear, fixture.targets, enemy,
-                        NULL, 0U, 2.0F, &selected));
+                        NULL, 0U, hth_entity_handle_invalid(), 2.0F,
+                        &selected));
     CHECK_NULL_FAILURE((fixture.entities, fixture.actors, NULL,
                         fixture.spatial, &clear, fixture.targets, enemy,
-                        NULL, 0U, 2.0F, &selected));
+                        NULL, 0U, hth_entity_handle_invalid(), 2.0F,
+                        &selected));
     CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
                         NULL, &clear, fixture.targets, enemy, NULL, 0U,
-                        2.0F, &selected));
+                        hth_entity_handle_invalid(), 2.0F, &selected));
     CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
                         fixture.spatial, NULL, fixture.targets, enemy, NULL,
-                        0U, 2.0F, &selected));
+                        0U, hth_entity_handle_invalid(), 2.0F, &selected));
     CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
                         fixture.spatial, &clear, NULL, enemy, NULL, 0U,
-                        2.0F, &selected));
+                        hth_entity_handle_invalid(), 2.0F, &selected));
 #undef CHECK_NULL_FAILURE
 
     fixture_destroy(&fixture);
@@ -613,6 +628,58 @@ static bool test_large_coordinates_and_independent_store_sets(void)
     return true;
 }
 
+static bool test_excluded_target_policy(void)
+{
+    Fixture fixture;
+    HTHCollisionWorld clear = empty_world();
+    HTHEntityHandle enemy;
+    HTHEntityHandle excluded;
+    HTHEntityHandle alternative;
+    HTHEntityHandle stale;
+    HTHEntityHandle replacement;
+    HTHEntityHandle selected;
+    HTHEntityHandle candidates[3];
+
+    CHECK(fixture_create(&fixture));
+    CHECK(create_enemy(&fixture, transform(0.0F, 0.0F, 0.0F), &enemy));
+    CHECK(create_candidate(&fixture, transform(1.0F, 0.0F, 0.0F),
+                           &excluded));
+    CHECK(create_candidate(&fixture, transform(2.0F, 0.0F, 0.0F),
+                           &alternative));
+    candidates[0] = excluded;
+    candidates[1] = excluded;
+    CHECK(select_target_excluding(&fixture, &clear, enemy, candidates, 2U,
+                                  excluded, 10.0F, &selected));
+    CHECK(handle_is_invalid(selected));
+
+    CHECK(select_target_excluding(
+        &fixture, &clear, enemy, candidates, 2U,
+        hth_entity_handle_invalid(), 10.0F, &selected));
+    CHECK(hth_entity_handle_equal(selected, excluded));
+    CHECK(hth_enemy_target_store_clear(fixture.targets, fixture.entities,
+                                       enemy));
+    candidates[2] = alternative;
+    CHECK(select_target_excluding(&fixture, &clear, enemy, candidates, 3U,
+                                  excluded, 10.0F, &selected));
+    CHECK(hth_entity_handle_equal(selected, alternative));
+
+    CHECK(create_candidate(&fixture, transform(3.0F, 0.0F, 0.0F), &stale));
+    CHECK(hth_spatial_store_remove(fixture.spatial, fixture.entities, stale));
+    CHECK(hth_entity_registry_destroy_entity(fixture.entities, stale));
+    CHECK(create_candidate(&fixture, transform(0.5F, 0.0F, 0.0F),
+                           &replacement));
+    CHECK(replacement.index == stale.index &&
+          replacement.generation != stale.generation);
+    CHECK(hth_enemy_target_store_clear(fixture.targets, fixture.entities,
+                                       enemy));
+    CHECK(select_target_excluding(&fixture, &clear, enemy, &replacement, 1U,
+                                  stale, 10.0F, &selected));
+    CHECK(hth_entity_handle_equal(selected, replacement));
+
+    fixture_destroy(&fixture);
+    return true;
+}
+
 int main(void)
 {
     typedef bool (*TestFunction)(void);
@@ -626,7 +693,8 @@ int main(void)
         test_perception_los_and_zero_radius,
         test_candidate_roles_health_and_body_independence,
         test_current_target_policies,
-        test_large_coordinates_and_independent_store_sets
+        test_large_coordinates_and_independent_store_sets,
+        test_excluded_target_policy
     };
     size_t index;
 

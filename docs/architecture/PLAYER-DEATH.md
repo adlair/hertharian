@@ -76,3 +76,8 @@ active. Healing above zero restores normal control through the next applicable
 query. See `PLAYER-DEATH-RUNTIME-INTEGRATION.md` and ADR-0049. Target filtering,
 game over, respawn, revive, Downed, corpse, animation, audio, HUD, persistence,
 and multiplayer death remain deferred.
+
+As of v0.3.26, the same once-per-frame result also drives the Player-specific
+targeting policy described in `DEAD-PLAYER-TARGETING-POLICY.md`. The Player
+identity persists, but matching EnemyTarget relations are cleared and the
+handle is excluded from acquisition beginning with the first dead snapshot.

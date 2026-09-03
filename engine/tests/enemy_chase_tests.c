@@ -709,8 +709,8 @@ static bool test_composition_and_idle_caller_separation(void)
     candidates[1] = target;
     CHECK(hth_enemy_target_select(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
-        &clear, fixture.targets, fixture.enemy, candidates, 2U, 10.0F,
-        &selected));
+        &clear, fixture.targets, fixture.enemy, candidates, 2U,
+        hth_entity_handle_invalid(), 10.0F, &selected));
     CHECK(hth_entity_handle_equal(selected, target));
     CHECK(hth_enemy_decision_evaluate(
         fixture.entities, fixture.actors, fixture.enemies, fixture.targets,

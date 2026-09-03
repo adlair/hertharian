@@ -21,6 +21,7 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHCollisionWorld *collision_world,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
+    HTHEntityHandle excluded_target,
     float perception_radius,
     float attack_range,
     float chase_speed,
@@ -55,6 +56,7 @@ bool hth_enemy_pursuit_runtime_step(
         HTHVec3 direction;
         HTHDynamicCollisionResult chase_result;
         HTHEnemyAttackCadence *cadence;
+        bool has_target;
 
         if (!hth_enemy_attack_cadence_store_get_mutable(
                 cadences, entities, actors, enemies, enemy, &cadence) ||
@@ -62,17 +64,25 @@ bool hth_enemy_pursuit_runtime_step(
             return false;
         }
 
+        has_target = hth_enemy_target_store_get(
+            targets, entities, actors, enemies, enemy, &target);
+        if (has_target &&
+            hth_entity_handle_equal(target, excluded_target)) {
+            if (!hth_enemy_target_store_clear(targets, entities, enemy)) {
+                return false;
+            }
+            has_target = false;
+        }
         if (!hth_spatial_store_has(spatial, entities, enemy)) {
             continue;
         }
-        if (!hth_enemy_target_store_get(
-                targets, entities, actors, enemies, enemy, &target)) {
+        if (!has_target) {
             HTHEntityHandle selected;
 
             if (!hth_enemy_target_select(
                     entities, actors, enemies, spatial, collision_world,
                     targets, enemy, candidates, candidate_count,
-                    perception_radius, &selected)) {
+                    excluded_target, perception_radius, &selected)) {
                 return false;
             }
         }

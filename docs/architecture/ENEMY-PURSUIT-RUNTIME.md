@@ -33,6 +33,7 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHCollisionWorld *collision_world,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
+    HTHEntityHandle excluded_target,
     float perception_radius,
     float attack_range,
     float chase_speed,
@@ -137,3 +138,9 @@ Spatial/Target/intent exits. Decision is still evaluated at most once; the
 ATTACK branch performs no direct Eligibility or LOS query. Ready attacks follow
 build -> commit -> resolve, emit at most once per Enemy/step, and never catch
 up. See `ENEMY-ATTACK-RUNTIME-INTEGRATION.md` and ADR-0047.
+
+As of v0.3.26, Runtime accepts one generic excluded target. After cadence
+advance and before the Spatial early-out it clears an exact matching Current
+Target, then passes the exclusion to Selection. Invalid exclusion preserves the
+historical path. Runtime does not query Health or Player Death, and target
+clearing never resets cadence.

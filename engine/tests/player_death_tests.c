@@ -434,8 +434,9 @@ static bool test_enemy_attack_runtime_composition(void)
         CHECK(hth_enemy_pursuit_runtime_step(
             fixture.entities, fixture.actors, fixture.enemies,
             fixture.spatial, fixture.bodies, fixture.health, fixture.targets,
-            fixture.cadences, &world, &candidate, 1U, 8.0F, 1.25F, 2.0F,
-            10.0F, 1.0, delta_seconds));
+            fixture.cadences, &world, &candidate, 1U,
+            hth_entity_handle_invalid(), 8.0F, 1.25F, 2.0F, 10.0F, 1.0,
+            delta_seconds));
     }
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
                                fixture.actors, candidate, &health));
@@ -450,7 +451,8 @@ static bool test_enemy_attack_runtime_composition(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, &candidate, 1U, 8.0F, 1.25F, 2.0F, 10.0F, 1.0, 1.0));
+        &world, &candidate, 1U, hth_entity_handle_invalid(), 8.0F, 1.25F,
+        2.0F, 10.0F, 1.0, 1.0));
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
                                fixture.actors, candidate, &health));
     CHECK(health.current == 0.0F);
@@ -719,7 +721,8 @@ static bool test_same_frame_lethal_damage_and_next_frame_suppression(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, &candidate, 1U, 8.0F, 1.25F, 2.0F, 10.0F, 1.0, 0.0));
+        &world, &candidate, 1U, hth_entity_handle_invalid(), 8.0F, 1.25F,
+        2.0F, 10.0F, 1.0, 0.0));
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
                                fixture.actors, candidate, &health));
     CHECK(health.current == 0.0F);
@@ -743,7 +746,8 @@ static bool test_same_frame_lethal_damage_and_next_frame_suppression(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, &candidate, 1U, 8.0F, 1.25F, 2.0F, 10.0F, 1.0, 1.0));
+        &world, &candidate, 1U, hth_entity_handle_invalid(), 8.0F, 1.25F,
+        2.0F, 10.0F, 1.0, 1.0));
 
     hth_input_end_frame(input);
     hth_input_begin_frame(input);

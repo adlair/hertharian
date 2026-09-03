@@ -831,7 +831,7 @@ void hth_engine_frame(HTHEngine *engine)
         engine->world_state->enemy_target_store,
         engine->world_state->enemy_attack_cadence_store,
         &engine->physical_state->collision_world,
-        &engine->physical_state->body, simulation_delta);
+        &engine->physical_state->body, player_dead, simulation_delta);
     if (pursuit_result != HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK) {
         switch (pursuit_result) {
         case HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_BRIDGE_SYNC_FAILED:

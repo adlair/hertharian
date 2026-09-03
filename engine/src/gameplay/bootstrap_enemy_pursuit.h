@@ -67,6 +67,7 @@ HTHBootstrapEnemyPursuitStepResult hth_bootstrap_enemy_pursuit_step(
     HTHEnemyAttackCadenceStore *cadences,
     const HTHCollisionWorld *collision_world,
     const HTHPlayerBody *player,
+    bool player_dead,
     double delta_seconds);
 HTHBootstrapEnemyPursuitCleanupResult hth_bootstrap_enemy_pursuit_cleanup(
     HTHBootstrapEnemyPursuit *integration,

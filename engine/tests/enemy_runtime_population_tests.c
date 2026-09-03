@@ -572,7 +572,8 @@ static bool test_selection_and_pursuit_integration(void)
     candidates[0] = ordinary;
     CHECK(hth_enemy_target_select(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
-        &world, fixture.targets, first, candidates, 1U, 10.0F, &selected));
+        &world, fixture.targets, first, candidates, 1U,
+        hth_entity_handle_invalid(), 10.0F, &selected));
     CHECK(hth_entity_handle_equal(selected, ordinary));
     CHECK(hth_enemy_target_store_clear(fixture.targets, fixture.entities,
                                        first));
@@ -584,7 +585,8 @@ static bool test_selection_and_pursuit_integration(void)
     candidates[0] = second;
     CHECK(hth_enemy_target_select(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
-        &world, fixture.targets, first, candidates, 1U, 10.0F, &selected));
+        &world, fixture.targets, first, candidates, 1U,
+        hth_entity_handle_invalid(), 10.0F, &selected));
     CHECK(hth_entity_handle_equal(selected, second));
     CHECK(hth_enemy_target_store_clear(fixture.targets, fixture.entities,
                                        first));
@@ -592,7 +594,8 @@ static bool test_selection_and_pursuit_integration(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, candidates, 1U, 10.0F, 0.0F, 2.0F, 0.0F, 1.0, 0.5));
+        &world, candidates, 1U, hth_entity_handle_invalid(), 10.0F, 0.0F,
+        2.0F, 0.0F, 1.0, 0.5));
     CHECK(hth_enemy_target_store_get(
         fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
         first, &selected));

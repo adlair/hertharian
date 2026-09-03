@@ -838,7 +838,8 @@ static bool test_selection_to_decision_composition(void)
     candidates[1] = candidate_a;
     CHECK(hth_enemy_target_select(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
-        &clear, fixture.targets, enemy, candidates, 2U, 5.0F, &selected));
+        &clear, fixture.targets, enemy, candidates, 2U,
+        hth_entity_handle_invalid(), 5.0F, &selected));
     CHECK(hth_entity_handle_equal(selected, candidate_a));
     CHECK(evaluate(&fixture, &clear, enemy, 5.0F, &intent));
     CHECK(intent_pursues(intent, candidate_a));
