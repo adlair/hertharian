@@ -4,10 +4,14 @@
 #include "enemy_pursuit_runtime.h"
 #include "enemy_runtime_population.h"
 #include "enemy_target.h"
+#include "fps_camera_controller.h"
+#include "hth_camera.h"
+#include "input_internal.h"
 #include "player_movement.h"
 #include "player_target_bridge.h"
 
 #include <float.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,6 +114,59 @@ static bool spatial_equal(HTHSpatialTransform left,
     return left.position.x == right.position.x &&
            left.position.y == right.position.y &&
            left.position.z == right.position.z && left.yaw == right.yaw;
+}
+
+static HTHCollisionWorld floor_world(void)
+{
+    HTHCollisionWorld world = {0};
+
+    world.obstacles[0] = (HTHAABB){{-100.0F, -1.0F, -100.0F},
+                                   {100.0F, 0.0F, 100.0F}};
+    world.obstacle_count = 1U;
+    return world;
+}
+
+static void inject_key(HTHInput *input, HTHKey key, bool down)
+{
+    HTHPlatformEvent event = {0};
+
+    event.type = down ? HTH_PLATFORM_EVENT_KEY_DOWN
+                      : HTH_PLATFORM_EVENT_KEY_UP;
+    event.data.keyboard.key = key;
+    hth_input_handle_event(input, &event);
+}
+
+static void inject_mouse_delta(HTHInput *input, double x, double y)
+{
+    HTHPlatformEvent event = {0};
+
+    event.type = HTH_PLATFORM_EVENT_MOUSE_MOTION;
+    event.data.motion.delta_x = x;
+    event.data.motion.delta_y = y;
+    hth_input_handle_event(input, &event);
+}
+
+static bool runtime_player_movement_step(
+    const Fixture *fixture, HTHEntityHandle player_target,
+    const HTHInput *input, HTHVec3 view_forward, HTHVec3 view_up,
+    bool capture_active, HTHPlayerBody *player,
+    const HTHCollisionWorld *world, double delta_seconds,
+    bool *out_dead, HTHPlayerMovementIntent *out_intent,
+    HTHPlayerMovementResult *out_result)
+{
+    HTHMovementConfig movement_config = hth_movement_config_default();
+
+    if (!hth_player_death_is_dead(
+            fixture->entities, fixture->actors, fixture->health,
+            player_target, out_dead)) {
+        return false;
+    }
+    return hth_player_movement_build_intent(
+               input, view_forward, view_up,
+               capture_active && !*out_dead, out_intent) &&
+           hth_player_movement_step_with_result(
+               player, world, &movement_config,
+               out_intent, delta_seconds, out_result);
 }
 
 static bool test_validation_generation_and_determinism(void)
@@ -404,6 +461,348 @@ static bool test_enemy_attack_runtime_composition(void)
     return true;
 }
 
+static bool test_runtime_movement_policy_and_healing_recovery(void)
+{
+    Fixture fixture;
+    HTHPlayerTargetBridge bridge = inactive_bridge();
+    HTHPlayerBody player;
+    HTHCollisionWorld world = floor_world();
+    HTHInput *input;
+    HTHPlayerMovementIntent intent;
+    HTHPlayerMovementResult movement_result;
+    HTHDamageResult damage;
+    HTHHealingResult healing;
+    bool dead;
+
+    CHECK(fixture_create(&fixture));
+    CHECK(hth_player_body_init(&player, (HTHVec3){0.0F, 0.0F, 0.0F}));
+    player.grounded = true;
+    CHECK(hth_player_target_bridge_create(
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health, &player,
+        (HTHHealth){100.0F, 100.0F}));
+    input = hth_input_create();
+    CHECK(input != NULL);
+
+    hth_input_begin_frame(input);
+    inject_key(input, HTH_KEY_W, true);
+    CHECK(runtime_player_movement_step(
+        &fixture, bridge.target_entity, input,
+        (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(!dead && intent.magnitude == 1.0F &&
+          intent.direction.z == -1.0F && player.velocity.z < 0.0F);
+
+    CHECK(hth_health_store_apply_damage(
+        fixture.health, fixture.entities, fixture.actors,
+        bridge.target_entity, 100.0F, &damage));
+    player.position = (HTHVec3){0.0F, 0.0F, 0.0F};
+    player.velocity = (HTHVec3){3.0F, 0.0F, 0.0F};
+    player.grounded = true;
+    hth_input_end_frame(input);
+    hth_input_begin_frame(input);
+    inject_key(input, HTH_KEY_SPACE, true);
+    CHECK(runtime_player_movement_step(
+        &fixture, bridge.target_entity, input,
+        (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(dead && intent.direction.x == 0.0F &&
+          intent.direction.y == 0.0F && intent.direction.z == 0.0F &&
+          intent.magnitude == 0.0F && !intent.jump_pressed);
+    CHECK(player.velocity.x > 0.0F && player.velocity.x < 3.0F &&
+          player.velocity.y == 0.0F && player.velocity.z == 0.0F &&
+          player.grounded);
+
+    CHECK(hth_health_store_apply_healing(
+        fixture.health, fixture.entities, fixture.actors,
+        bridge.target_entity, 10.0F, &healing));
+    hth_input_end_frame(input);
+    hth_input_begin_frame(input);
+    CHECK(runtime_player_movement_step(
+        &fixture, bridge.target_entity, input,
+        (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(!dead && intent.magnitude == 1.0F && !intent.jump_pressed &&
+          player.velocity.z < 0.0F);
+
+    hth_input_end_frame(input);
+    hth_input_begin_frame(input);
+    inject_key(input, HTH_KEY_SPACE, false);
+    inject_key(input, HTH_KEY_SPACE, true);
+    CHECK(runtime_player_movement_step(
+        &fixture, bridge.target_entity, input,
+        (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(!dead && intent.jump_pressed && player.velocity.y > 0.0F &&
+          !player.grounded);
+
+    hth_input_destroy(input);
+    fixture_destroy(&fixture);
+    return true;
+}
+
+static bool test_dead_airborne_physics_collision_and_bridge(void)
+{
+    Fixture fixture;
+    HTHPlayerTargetBridge bridge = inactive_bridge();
+    HTHPlayerBody player;
+    HTHCollisionWorld world = floor_world();
+    HTHInput *input;
+    HTHPlayerMovementIntent intent;
+    HTHPlayerMovementResult movement_result;
+    HTHSpatialTransform transform;
+    HTHEntityHandle target;
+    bool dead;
+    size_t frame;
+
+    CHECK(fixture_create(&fixture));
+    CHECK(hth_player_body_init(&player, (HTHVec3){0.0F, 3.0F, 0.0F}));
+    player.velocity = (HTHVec3){1.0F, 0.0F, 0.0F};
+    CHECK(hth_player_target_bridge_create(
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health, &player,
+        (HTHHealth){0.0F, 100.0F}));
+    input = hth_input_create();
+    CHECK(input != NULL);
+    hth_input_begin_frame(input);
+    inject_key(input, HTH_KEY_W, true);
+
+    CHECK(runtime_player_movement_step(
+        &fixture, bridge.target_entity, input,
+        (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.1,
+        &dead, &intent, &movement_result));
+    CHECK(dead && intent.magnitude == 0.0F && player.velocity.x == 1.0F &&
+          player.velocity.z == 0.0F && player.velocity.y < 0.0F &&
+          player.position.y < 3.0F);
+
+    for (frame = 0U; frame < 300U && !player.grounded; ++frame) {
+        hth_input_end_frame(input);
+        hth_input_begin_frame(input);
+        CHECK(runtime_player_movement_step(
+            &fixture, bridge.target_entity, input,
+            (HTHVec3){0.0F, 0.0F, -1.0F},
+            (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.01,
+            &dead, &intent, &movement_result));
+    }
+    CHECK(player.grounded && player.position.y >= 0.0F && frame < 300U);
+    CHECK(hth_player_target_bridge_sync(
+        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(hth_player_target_bridge_get_target(
+        &bridge, fixture.entities, fixture.spatial, &target));
+    CHECK(hth_entity_handle_equal(target, bridge.target_entity));
+    CHECK(hth_spatial_store_get(
+        fixture.spatial, fixture.entities, target, &transform));
+    CHECK(transform.position.x == player.position.x &&
+          transform.position.y == player.position.y + player.height * 0.5F &&
+          transform.position.z == player.position.z);
+
+    world.obstacles[1] = (HTHAABB){{0.5F, 0.0F, -1.0F},
+                                   {1.5F, 3.0F, 1.0F}};
+    world.obstacle_count = 2U;
+    CHECK(hth_player_body_init(&player, (HTHVec3){0.0F, 0.0F, 0.0F}));
+    player.velocity = (HTHVec3){10.0F, 0.0F, 0.0F};
+    player.grounded = true;
+    CHECK(runtime_player_movement_step(
+        &fixture, bridge.target_entity, input,
+        (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.1,
+        &dead, &intent, &movement_result));
+    CHECK(dead && player.position.x <= 0.2001F &&
+          fabsf(player.velocity.x) < 1.0e-5F);
+
+    hth_input_destroy(input);
+    fixture_destroy(&fixture);
+    return true;
+}
+
+static bool test_dead_mouse_look_and_camera_continuity(void)
+{
+    Fixture fixture;
+    HTHPlayerTargetBridge bridge = inactive_bridge();
+    HTHPlayerBody player;
+    HTHCollisionWorld world = floor_world();
+    HTHCamera camera;
+    HTHFPSCameraController *controller;
+    HTHInput *input;
+    HTHPlayerMovementIntent intent;
+    HTHPlayerMovementResult movement_result;
+    HTHVec3 forward_before;
+    HTHVec3 eye;
+    bool dead;
+
+    CHECK(fixture_create(&fixture));
+    CHECK(hth_player_body_init(&player, (HTHVec3){1.0F, 0.0F, 2.0F}));
+    player.grounded = true;
+    CHECK(hth_player_target_bridge_create(
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health, &player,
+        (HTHHealth){0.0F, 100.0F}));
+    hth_camera_init_default(&camera);
+    controller = hth_fps_camera_controller_create(&camera);
+    input = hth_input_create();
+    CHECK(controller != NULL && input != NULL);
+    hth_fps_camera_controller_set_capture(controller, true);
+    hth_input_begin_frame(input);
+    inject_mouse_delta(input, 90.0, -30.0);
+    forward_before = camera.forward;
+    hth_fps_camera_controller_update(controller, &camera, input, false);
+    CHECK(!spatial_equal((HTHSpatialTransform){forward_before, 0.0F},
+                         (HTHSpatialTransform){camera.forward, 0.0F}));
+    CHECK(runtime_player_movement_step(
+        &fixture, bridge.target_entity, input, camera.forward, camera.up,
+        hth_fps_camera_controller_capture_active(controller), &player, &world,
+        0.05, &dead, &intent, &movement_result));
+    CHECK(dead && intent.magnitude == 0.0F);
+    CHECK(hth_player_body_eye_position(&player, &eye));
+    camera.position = eye;
+    CHECK(camera.position.x == player.position.x &&
+          camera.position.y == player.position.y + player.eye_height &&
+          camera.position.z == player.position.z);
+
+    hth_input_destroy(input);
+    hth_fps_camera_controller_destroy(controller);
+    fixture_destroy(&fixture);
+    return true;
+}
+
+static bool test_same_frame_lethal_damage_and_next_frame_suppression(void)
+{
+    Fixture fixture;
+    HTHPlayerTargetBridge bridge = inactive_bridge();
+    HTHPlayerBody player;
+    HTHCollisionWorld world = floor_world();
+    HTHEnemyRuntimeSpawnSpec enemy_spec = {
+        {{0.0F, 0.9F, -0.5F}, 0.0F},
+        {{0.3F, 0.9F, 0.3F}, {0.0F, 0.0F, 0.0F}},
+        {100.0F, 100.0F}
+    };
+    HTHInput *input;
+    HTHPlayerMovementIntent intent;
+    HTHPlayerMovementResult movement_result;
+    HTHHealth health;
+    HTHHealingResult healing;
+    HTHEntityHandle enemy;
+    HTHEntityHandle candidate;
+    HTHEntityHandle retained_target;
+    float alive_position_z;
+    bool dead;
+
+    CHECK(fixture_create(&fixture));
+    CHECK(hth_player_body_init(&player, (HTHVec3){0.0F, 0.0F, 0.0F}));
+    player.grounded = true;
+    CHECK(hth_player_target_bridge_create(
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health, &player,
+        (HTHHealth){10.0F, 100.0F}));
+    CHECK(hth_enemy_runtime_spawn(
+        fixture.entities, fixture.actors, fixture.enemies, fixture.cadences,
+        fixture.spatial, fixture.bodies, fixture.health, &enemy_spec, &enemy));
+    candidate = bridge.target_entity;
+    input = hth_input_create();
+    CHECK(input != NULL);
+    hth_input_begin_frame(input);
+    inject_key(input, HTH_KEY_W, true);
+
+    CHECK(runtime_player_movement_step(
+        &fixture, candidate, input, (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(!dead && intent.magnitude == 1.0F && player.position.z < 0.0F);
+    alive_position_z = player.position.z;
+    CHECK(hth_player_target_bridge_sync(
+        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(hth_enemy_pursuit_runtime_step(
+        fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
+        fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
+        &world, &candidate, 1U, 8.0F, 1.25F, 2.0F, 10.0F, 1.0, 0.0));
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, candidate, &health));
+    CHECK(health.current == 0.0F);
+
+    hth_input_end_frame(input);
+    hth_input_begin_frame(input);
+    CHECK(runtime_player_movement_step(
+        &fixture, candidate, input, (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(dead && intent.magnitude == 0.0F &&
+          player.position.z <= alive_position_z);
+    CHECK(hth_health_store_apply_healing(
+        fixture.health, fixture.entities, fixture.actors, candidate, 1.0F,
+        &healing));
+    CHECK(dead);
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        enemy, &retained_target));
+    CHECK(hth_entity_handle_equal(retained_target, candidate));
+    CHECK(hth_enemy_pursuit_runtime_step(
+        fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
+        fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
+        &world, &candidate, 1U, 8.0F, 1.25F, 2.0F, 10.0F, 1.0, 1.0));
+
+    hth_input_end_frame(input);
+    hth_input_begin_frame(input);
+    CHECK(runtime_player_movement_step(
+        &fixture, candidate, input, (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(dead);
+
+    CHECK(hth_health_store_apply_healing(
+        fixture.health, fixture.entities, fixture.actors, candidate, 1.0F,
+        &healing));
+    hth_input_end_frame(input);
+    hth_input_begin_frame(input);
+    CHECK(runtime_player_movement_step(
+        &fixture, candidate, input, (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(!dead && intent.magnitude == 1.0F);
+
+    hth_input_destroy(input);
+    fixture_destroy(&fixture);
+    return true;
+}
+
+static bool test_runtime_query_failure_precedes_player_mutation(void)
+{
+    Fixture fixture;
+    HTHPlayerBody player;
+    HTHPlayerBody before;
+    HTHCollisionWorld world = floor_world();
+    HTHInput *input;
+    HTHPlayerMovementIntent intent;
+    HTHPlayerMovementResult movement_result;
+    HTHEntityHandle actor_without_health;
+    bool dead = true;
+
+    CHECK(fixture_create(&fixture));
+    CHECK(create_actor(&fixture, (HTHHealth){0}, false,
+                       &actor_without_health));
+    CHECK(hth_player_body_init(&player, (HTHVec3){0.0F, 2.0F, 0.0F}));
+    player.velocity = (HTHVec3){1.0F, -2.0F, 3.0F};
+    before = player;
+    input = hth_input_create();
+    CHECK(input != NULL);
+    hth_input_begin_frame(input);
+    inject_key(input, HTH_KEY_W, true);
+    CHECK(!runtime_player_movement_step(
+        &fixture, actor_without_health, input,
+        (HTHVec3){0.0F, 0.0F, -1.0F},
+        (HTHVec3){0.0F, 1.0F, 0.0F}, true, &player, &world, 0.05,
+        &dead, &intent, &movement_result));
+    CHECK(!dead && player_equal(&player, &before));
+
+    hth_input_destroy(input);
+    fixture_destroy(&fixture);
+    return true;
+}
+
 int main(void)
 {
     const struct {
@@ -417,7 +816,17 @@ int main(void)
         {"Bridge identity/movement preservation",
          test_player_bridge_identity_and_movement_preservation},
         {"Enemy attack runtime composition",
-         test_enemy_attack_runtime_composition}
+         test_enemy_attack_runtime_composition},
+        {"runtime movement policy/healing recovery",
+         test_runtime_movement_policy_and_healing_recovery},
+        {"dead airborne physics/collision/Bridge",
+         test_dead_airborne_physics_collision_and_bridge},
+        {"dead mouse-look/Camera continuity",
+         test_dead_mouse_look_and_camera_continuity},
+        {"same-frame lethal/next-frame suppression",
+         test_same_frame_lethal_damage_and_next_frame_suppression},
+        {"runtime query failure before Player mutation",
+         test_runtime_query_failure_precedes_player_mutation}
     };
     size_t index;
 

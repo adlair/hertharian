@@ -4,7 +4,9 @@ The W/S/A/D spatial convention from v0.1.7 is unchanged. W/S use camera forward
 projected onto XZ; A/D use `horizontal_forward × up`; pitch is ignored and
 combined intent is normalized. v0.1.9 also retains wish magnitude and consumes
 Space's pressed transition for jump. Movement intent remains enabled only
-during FPS pointer capture, and focus loss clears held Input state.
+during FPS pointer capture, and focus loss clears held Input state. As of
+v0.3.25, Engine additionally disables voluntary intent while the Health-derived
+Player Death query reports dead.
 
 The direct horizontal-velocity assignment from v0.1.8 is replaced by the
 ground/air acceleration model documented in `LOCOMOTION.md`. Player Movement
@@ -12,6 +14,9 @@ consumes a per-instance MovementConfig, generates velocity through friction,
 directional acceleration, jump and gravity, then passes that velocity to the
 unchanged collision-resolution responsibilities below. Existing world-space
 momentum is not rotated with Camera yaw or globally clamped to ground speed.
+The death gate does not skip this physical step or zero velocity: a canonical
+zero intent suppresses acceleration and jump while gravity, friction, momentum,
+collision, slide, step handling, grounding, and landing continue unchanged.
 
 ## Trace-Based Resolution
 

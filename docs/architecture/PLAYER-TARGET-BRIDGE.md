@@ -121,8 +121,10 @@ game-over behavior. v0.3.20 creates no production DamageIntent and applies no
 damage; Enemy Attack Execution remains a later milestone.
 
 As of v0.3.24, Player Death can read this explicit handle and derive dead from
-current Health zero. The Bridge owns no death state and remains unchanged while
-the query preserves Entity, Actor, Spatial, Health, and target identity.
+current Health zero. As of v0.3.25, Engine performs that query before Player
+Movement intent, while Bridge sync still runs afterward on the physically
+resolved body. The Bridge owns no death state; its handle, generation, Entity,
+Actor, Spatial, Health, and incoming target relations remain unchanged.
 
 ## Cost and Deferred Scope
 
@@ -132,5 +134,5 @@ Store. One independent Bridge value per Player remains compatible with future
 multiplayer without adding singleton state.
 
 Deferred scope includes Player movement migration, Player DynamicBody,
-Player-specific Health APIs, death runtime policy, respawn, weapons, UI,
+Player-specific Health APIs, dead-target policy, respawn, weapons, UI,
 persistence, networking, and Level Health declarations.

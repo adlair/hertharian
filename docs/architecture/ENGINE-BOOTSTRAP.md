@@ -58,7 +58,8 @@ The current frame order is:
 
 ```text
 Timing begin → Input begin → Platform events → Input state
-→ capture coordination → FPS orientation → movement intent
+→ capture coordination → FPS orientation → effective simulation delta
+→ Player Death query → alive/capture movement gate → movement intent
 → locomotion friction/acceleration/jump/gravity
 → swept slide/step movement → ground probe
 → resolved Player Body + MovementResult → physical eye
@@ -179,9 +180,16 @@ damage and a one-second interval. Player Health may reach zero without death
 runtime effects; rendering remains independent of Health.
 
 As of v0.3.24, Player Death defines a private derived query over the Bridge
-target's current Health, but Engine and bootstrap do not call it. Health zero
-therefore retains the same movement, targeting, camera, rendering, and shutdown
-behavior; runtime consequences remain deferred.
+target's current Health.
+
+As of v0.3.25, Engine consumes that query once before movement intent. A dead
+Player receives zero voluntary intent but still executes the complete physical
+movement step, so gravity, friction, momentum, collision, grounding, and
+landing continue. Input, mouse-look, Camera, View Dynamics, Bridge sync,
+targeting, attacks, rendering, and shutdown remain active. Damage applied by
+Enemy Runtime in frame N affects voluntary movement from frame N+1; healing
+above zero restores normal control without persistent death state. See
+`PLAYER-DEATH-RUNTIME-INTEGRATION.md` and ADR-0049.
 
 ## Tests
 

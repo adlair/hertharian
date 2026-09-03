@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.24 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.25 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -711,6 +711,8 @@ if(BUILD_TESTING)
 
     add_executable(player_death_tests
         tests/player_death_tests.c
+        src/common/camera.c
+        src/common/fps_camera_controller.c
         src/gameplay/player_death.c
         src/gameplay/player_target_bridge.c
         src/gameplay/enemy_pursuit_runtime.c

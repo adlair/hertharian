@@ -125,3 +125,9 @@ As of v0.3.24, tests may pass the attacked Player handle to the disconnected
 Player Death query after Health reaches zero. Enemy runtime does not call that
 query, filter dead targets, clear relations, or change its released cadence and
 damage behavior.
+
+As of v0.3.25, Engine consumes Player Death before movement intent construction.
+This does not change Enemy Runtime: the Player identity and EnemyTarget relation
+remain, cadence-controlled attacks may continue at zero Health, and damage still
+saturates there. Lethal damage occurs after the current frame's Player Movement,
+so voluntary suppression begins on the following frame.

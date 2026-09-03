@@ -61,16 +61,18 @@ revive system.
 not Player Death authority: initial Health may already be zero and later
 healing may restore positive Health.
 
-## Preserved Runtime Behavior
+## Runtime Integration
 
-v0.3.24 has no production caller and adds no per-frame work. A dead Player
-target remains a live Entity with its Actor, Spatial, Health, stable handle,
-and incoming EnemyTarget relations intact. The query does not despawn the
-Player, clear targets, stop movement, alter Input or Camera, or change Enemy
-attack behavior. Enemies may continue attacking zero Health under the released
-v0.3.23 rules.
+v0.3.24 has no production caller and adds no per-frame work. As of v0.3.25,
+Engine queries this foundation once before movement intent construction. Death
+suppresses voluntary movement and jump by selecting the released disabled
+intent, while the complete Player Movement step continues gravity, friction,
+momentum, collision, grounding, and landing.
 
-Movement, targeting, game-over, and other death consequences are deferred to a
-future Player Death Runtime Integration milestone. Respawn, revive, Downed,
-corpse, animation, audio, HUD, persistence, and multiplayer death are outside
-this foundation.
+A dead Player target remains a live Entity with its Actor, Spatial, Health,
+stable handle, and incoming EnemyTarget relations intact. Input, mouse-look,
+Camera, View Dynamics, Bridge sync, rendering, and Enemy attack behavior remain
+active. Healing above zero restores normal control through the next applicable
+query. See `PLAYER-DEATH-RUNTIME-INTEGRATION.md` and ADR-0049. Target filtering,
+game over, respawn, revive, Downed, corpse, animation, audio, HUD, persistence,
+and multiplayer death remain deferred.

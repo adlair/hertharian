@@ -15,6 +15,7 @@
 #include "level_selection.h"
 #include "platform.h"
 #include "player_body.h"
+#include "player_death.h"
 #include "player_movement.h"
 #include "renderer.h"
 #include "runtime_body_visual.h"
@@ -662,6 +663,7 @@ void hth_engine_frame(HTHEngine *engine)
     HTHViewDynamicsOutput view_output;
     HTHVec3 camera_right;
     HTHVec3 physical_eye;
+    HTHEntityHandle player_target;
     HTHBootstrapEnemyPursuitStepResult pursuit_result;
     HTHRendererTransientDraw runtime_draw;
     const HTHRendererTransientDraw *runtime_draws = NULL;
@@ -674,6 +676,7 @@ void hth_engine_frame(HTHEngine *engine)
     bool discard_mouse_delta = false;
     bool debug_key_event;
     bool debug_key_down_before;
+    bool player_dead;
     HTHKey debug_key;
 
     if (engine == NULL || !engine->initialized || !engine->running) {
@@ -790,10 +793,20 @@ void hth_engine_frame(HTHEngine *engine)
         engine->running = false;
         return;
     }
+    player_target = engine->world_state->bootstrap_enemy_pursuit
+                        .player_target_bridge.target_entity;
+    if (!hth_player_death_is_dead(
+            engine->world_state->entity_registry,
+            engine->world_state->actor_store,
+            engine->world_state->health_store, player_target, &player_dead)) {
+        fputs("Player Death query failed.\n", stderr);
+        engine->running = false;
+        return;
+    }
     if (!hth_player_movement_build_intent(
             engine->input, engine->camera.forward, engine->camera.up,
             hth_fps_camera_controller_capture_active(
-                engine->camera_controller),
+                engine->camera_controller) && !player_dead,
             &movement_intent) ||
         !hth_player_movement_step_with_result(
             &engine->physical_state->body,
