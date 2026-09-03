@@ -104,3 +104,7 @@ production-reachable without adding a direct Pursuit-to-Eligibility call.
 Cooldown, attack type, facing, factions, dynamic occlusion, DamageIntent
 creation, Health mutation, animation, and attack execution remain future
 boundaries.
+
+As of v0.3.21, the separate Enemy Attack Execution builder can materialize an
+already-authorized explicit attack as DamageIntent. It neither calls nor
+rechecks Eligibility, and no production path connects the two foundations.

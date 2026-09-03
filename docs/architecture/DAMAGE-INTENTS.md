@@ -108,6 +108,11 @@ Health, so the same handle used by Enemy targeting satisfies both validity and
 resolvability. This release proves that composition in tests but adds no
 production DamageIntent or resolution call.
 
+As of v0.3.21, `ENEMY-ATTACK-EXECUTION.md` provides an Enemy-specific builder
+that delegates final validity to this unchanged foundation. It creates one
+ephemeral Intent per successful explicit call, does not resolve Health, and
+has no production caller or cadence.
+
 ## Complexity and Scope
 
 Validation and resolution are O(1); resolution delegates to the existing O(1)

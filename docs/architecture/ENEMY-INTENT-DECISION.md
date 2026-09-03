@@ -112,3 +112,7 @@ Runtime movement for that frame without changing the retained DynamicBody
 velocity or Target. Decision itself remains observationally pure and does not
 execute an attack, create DamageIntent, mutate Health, apply cooldown, or own
 movement.
+
+As of v0.3.21, an explicit caller may pass an `ATTACK` source and target to the
+separate Enemy Attack Execution builder. Decision does not call that builder;
+production still creates and resolves no DamageIntent.

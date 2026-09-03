@@ -59,6 +59,8 @@ Runtime Enemy Actor
   -> HTHHealthStore[player]
 ```
 
-v0.3.20 proves this boundary in tests but adds no production DamageIntent,
-damage application, attack execution, cadence, death, or game-over behavior.
-Enemy Attack Execution / DamageIntent Foundation remains the next boundary.
+v0.3.20 proves this identity boundary in tests. As of v0.3.21, Enemy Attack
+Execution can explicitly build a valid DamageIntent targeting this same
+handle, and tests can resolve it through existing Health. Production still
+builds or resolves no DamageIntent and adds no cadence, death, or game-over
+behavior.

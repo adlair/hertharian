@@ -119,3 +119,7 @@ documented in `ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.
 As of v0.3.19, Enemy Attack Eligibility is reachable in production solely
 through attack-capable Decision. `ATTACK` now has the runtime movement semantics
 described above, while attack execution remains deferred.
+
+As of v0.3.21, the separate Enemy Attack Execution builder remains
+deliberately disconnected from this loop. An `ATTACK` frame still suppresses
+movement without creating or resolving DamageIntent; cadence is deferred.

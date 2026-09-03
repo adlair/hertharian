@@ -118,5 +118,9 @@ state is introduced.
 As of v0.3.20, the existing Player Target Bridge handle additionally carries
 Actor and Health, making it a valid future DamageIntent target without a
 second Player Entity or mapping layer. Production ATTACK remains movement-only
-and creates no DamageIntent. Enemy Attack Execution / DamageIntent Foundation
-is the next boundary.
+and creates no DamageIntent.
+
+As of v0.3.21, `ENEMY-ATTACK-EXECUTION.md` validates this Store's Enemy
+association as the source boundary before delegating to DamageIntent. The
+builder adds no Enemy state and remains disconnected from production pending
+attack cadence.
