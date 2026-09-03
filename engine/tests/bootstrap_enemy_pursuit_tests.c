@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define CHECK(condition)                                                     \
     do {                                                                     \
@@ -331,6 +332,7 @@ static bool test_noop_policies_and_static_collision(void)
     HTHPlayerBody player = player_at(20.0F, 3.0F);
     HTHSpatialTransform transform;
     HTHDynamicBody body;
+    HTHDynamicBody body_before;
     HTHEntityHandle target;
 
     CHECK(fixture_create(&fixture));
@@ -360,14 +362,109 @@ static bool test_noop_policies_and_static_collision(void)
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
                                 integration.enemy, &transform));
     CHECK(transform.position.x >= 2.89F && transform.position.x <= 3.0F);
+    CHECK(hth_dynamic_body_get(fixture.bodies, fixture.entities,
+                               integration.enemy, &body_before));
 
     player = player_at(transform.position.x, transform.position.z);
     CHECK(step_integration(&fixture, &integration, &player, 0.1F) ==
           HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
     CHECK(hth_dynamic_body_get(fixture.bodies, fixture.entities,
                                integration.enemy, &body));
-    CHECK(body.velocity.x == 0.0F && body.velocity.y == 0.0F &&
-          body.velocity.z == 0.0F);
+    CHECK(body.velocity.x == body_before.velocity.x &&
+          body.velocity.y == body_before.velocity.y &&
+          body.velocity.z == body_before.velocity.z);
+    CHECK(cleanup_succeeded(cleanup_integration(&fixture, &integration)));
+    fixture_destroy(&fixture);
+    return true;
+}
+
+static bool test_attack_range_transitions(void)
+{
+    Fixture fixture;
+    HTHBootstrapEnemyPursuit integration;
+    HTHPlayerBody player = player_at(1.75F, 3.0F);
+    HTHVec3 authoritative_player_position;
+    HTHSpatialTransform before_attack;
+    HTHSpatialTransform after_attack;
+    HTHSpatialTransform after_resume;
+    HTHDynamicBody body_before_attack;
+    HTHDynamicBody body_after_attack;
+    HTHHealth health;
+    HTHEntityHandle target;
+
+    CHECK(fixture_create(&fixture));
+    hth_bootstrap_enemy_pursuit_initialize(&integration);
+    CHECK(create_integration(&fixture, &integration, &player) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_OK);
+
+    CHECK(step_integration(&fixture, &integration, &player, 0.5F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                integration.enemy, &before_attack));
+    CHECK(fabsf(before_attack.position.x - 3.0F) < 1.0e-6F);
+
+    player = player_at(0.0F, 3.0F);
+    authoritative_player_position = player.position;
+    CHECK(step_integration(&fixture, &integration, &player, 0.5F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(step_integration(&fixture, &integration, &player, 0.5F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                integration.enemy, &before_attack));
+    CHECK(fabsf(before_attack.position.x - 1.0F) < 1.0e-6F);
+    CHECK(hth_dynamic_body_get(fixture.bodies, fixture.entities,
+                               integration.enemy, &body_before_attack));
+    CHECK(fabsf(body_before_attack.velocity.x + 2.0F) < 1.0e-6F);
+    CHECK(step_integration(&fixture, &integration, &player, 0.5F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                integration.enemy, &after_attack));
+    CHECK(hth_dynamic_body_get(fixture.bodies, fixture.entities,
+                               integration.enemy, &body_after_attack));
+    CHECK(memcmp(&before_attack, &after_attack, sizeof(before_attack)) == 0);
+    CHECK(memcmp(&body_before_attack, &body_after_attack,
+                 sizeof(body_before_attack)) == 0);
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        integration.enemy, &target));
+    CHECK(hth_entity_handle_equal(
+        target, integration.player_target_bridge.target_entity));
+    CHECK(player.position.x == authoritative_player_position.x &&
+          player.position.y == authoritative_player_position.y &&
+          player.position.z == authoritative_player_position.z);
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, integration.enemy, &health));
+    CHECK(health.current == 100.0F && health.maximum == 100.0F);
+
+    player = player_at(4.0F, 3.0F);
+    CHECK(step_integration(&fixture, &integration, &player, 0.5F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                integration.enemy, &after_resume));
+    CHECK(fabsf(after_resume.position.x - 2.0F) < 1.0e-6F);
+    CHECK(after_resume.position.x > after_attack.position.x);
+
+    player = player_at(2.0F, 3.0F);
+    CHECK(step_integration(&fixture, &integration, &player, 0.5F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                integration.enemy, &after_attack));
+    CHECK(memcmp(&after_resume, &after_attack, sizeof(after_resume)) == 0);
+
+    player = player_at(0.0F, 3.0F);
+    fixture.world.obstacles[0] =
+        (HTHAABB){{0.9F, -1.0F, 2.5F}, {1.1F, 2.0F, 3.5F}};
+    CHECK(step_integration(&fixture, &integration, &player, 0.5F) ==
+          HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK);
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                integration.enemy, &after_attack));
+    CHECK(memcmp(&after_resume, &after_attack, sizeof(after_resume)) == 0);
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        integration.enemy, &target));
+    CHECK(hth_entity_handle_equal(
+        target, integration.player_target_bridge.target_entity));
+
     CHECK(cleanup_succeeded(cleanup_integration(&fixture, &integration)));
     fixture_destroy(&fixture);
     return true;
@@ -497,6 +594,7 @@ int main(void)
          test_player_movement_precedes_proxy_sync},
         {"no-op policies/static collision",
          test_noop_policies_and_static_collision},
+        {"attack range transitions", test_attack_range_transitions},
         {"failure/cleanup order/restart",
          test_failures_cleanup_order_and_restart},
         {"post-pursuit runtime visual", test_post_pursuit_runtime_visual}

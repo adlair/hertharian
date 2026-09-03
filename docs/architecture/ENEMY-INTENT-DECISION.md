@@ -17,11 +17,11 @@ argument failure returns false with canonical `IDLE`; a valid negative gameplay
 result returns true with canonical `IDLE`; and a valid positive result returns
 true with `PURSUE(current_target)`.
 
-The historical function remains the sole production Decision path in v0.3.18
-and can still return only `IDLE` or `PURSUE`. The new internal
+The historical function can still return only `IDLE` or `PURSUE`. The internal
 `hth_enemy_decision_evaluate_with_attack()` accepts an additional caller-owned
-`attack_range` and can return all three intent kinds. It is a disconnected
-foundation capability with zero production call sites.
+`attack_range` and can return all three intent kinds. As of v0.3.19, Pursuit
+Runtime is its single production caller; the Decision semantics remain
+unchanged.
 
 ## Current Target Policy
 
@@ -106,8 +106,9 @@ Chase. Decision still neither calls nor executes Chase.
 As of v0.3.12, Pursuit Runtime invokes Decision independently even immediately
 after Selection; `IDLE` skips Seek and Chase without clearing the Target.
 
-As of v0.3.18, the attack-capable variant composes the still-independent Enemy
-Attack Eligibility query but remains disconnected from production Pursuit.
-`ATTACK` is semantic output only: it does not imply execution, DamageIntent,
-Health mutation, cooldown, facing, movement, or velocity changes. Runtime
-handling and stop/velocity ownership are deferred to v0.3.19.
+As of v0.3.19, production Pursuit consumes the attack-capable variant and uses
+the returned kind to select its movement branch. `ATTACK` suppresses Pursuit
+Runtime movement for that frame without changing the retained DynamicBody
+velocity or Target. Decision itself remains observationally pure and does not
+execute an attack, create DamageIntent, mutate Health, apply cooldown, or own
+movement.

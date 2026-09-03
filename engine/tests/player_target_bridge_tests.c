@@ -531,7 +531,7 @@ static bool test_ai_foundation_composition(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.targets, &world, candidates, 1U, 10.0F,
-        2.0F, 0.5F));
+        0.0F, 2.0F, 0.5F));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
                                 &enemy_transform));
     CHECK(enemy_transform.position.x == 1.0F &&
@@ -559,7 +559,7 @@ static bool test_ai_foundation_composition(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.targets, &world, candidates, 1U, 10.0F,
-        2.0F, 0.5F));
+        0.0F, 2.0F, 0.5F));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
                                 &enemy_transform));
     CHECK(enemy_transform.position.x == 1.0F &&

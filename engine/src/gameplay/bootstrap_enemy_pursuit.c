@@ -17,6 +17,7 @@ static const HTHDynamicBody bootstrap_enemy_body = {
 };
 static const HTHHealth bootstrap_enemy_health = {100.0F, 100.0F};
 static const float bootstrap_enemy_perception_radius = 8.0F;
+static const float bootstrap_enemy_attack_range = 1.25F;
 static const float bootstrap_enemy_chase_speed = 2.0F;
 static const double bootstrap_simulation_max_delta_seconds = 0.1;
 
@@ -147,8 +148,8 @@ HTHBootstrapEnemyPursuitStepResult hth_bootstrap_enemy_pursuit_step(
     if (!hth_enemy_pursuit_runtime_step(
             entities, actors, enemies, spatial, bodies, targets,
             collision_world, candidates, 1U,
-            bootstrap_enemy_perception_radius, bootstrap_enemy_chase_speed,
-            delta_seconds)) {
+            bootstrap_enemy_perception_radius, bootstrap_enemy_attack_range,
+            bootstrap_enemy_chase_speed, delta_seconds)) {
         return HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_PURSUIT_FAILED;
     }
     return HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK;

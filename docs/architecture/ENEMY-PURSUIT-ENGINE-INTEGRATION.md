@@ -28,6 +28,7 @@ half extents   = (0.30, 0.90, 0.30)
 velocity       = (0.0, 0.0, 0.0)
 health         = 100.0 / 100.0
 perception     = 8.0
+attack range   = 1.25
 chase speed    = 2.0
 ```
 
@@ -98,9 +99,12 @@ Engine reports the failed boundary, stops the run loop, and leaves cleanup to
 normal ownership. Outside perception, blocked LOS, Decision IDLE, zero Seek,
 zero displacement, and static collision are valid successful no-ops.
 
-An acquired target persists while range or LOS temporarily prevents pursuit;
-Decision becomes IDLE and resumes against the same generation when conditions
-recover. No continuous retargeting policy is added.
+An acquired target persists while perception or LOS temporarily prevents
+pursuit; Decision becomes IDLE and resumes against the same generation when
+conditions recover. Inside the inclusive `1.25` attack range with clear LOS,
+Decision becomes ATTACK and Pursuit suppresses movement for that frame. Moving
+the Player proxy outside attack range resumes pursuit without reselection. No
+continuous retargeting policy is added.
 
 ## Cleanup
 
@@ -133,10 +137,12 @@ introduced; see `RUNTIME-BODY-VISUALIZATION.md`.
 
 Enemy Dynamic Collision resolves only against static CollisionWorld geometry.
 The Enemy can overlap the Player/proxy and has no gravity, grounding, facing,
-attack, damage, death, respawn, navigation, or pathfinding. At exact
-colocation, Seek yields zero and Chase leaves zero velocity, which is the
-stable v0.3.15 arrival behavior. These limitations define future milestones;
-they do not weaken the production pursuit integration.
+attack execution, damage, death, respawn, navigation, or pathfinding. ATTACK
+suppresses Pursuit Runtime movement for the frame: it calls no Seek, Chase, or
+Dynamic Collision and writes neither Spatial nor velocity. Stored
+`DynamicBody.velocity` is retained and is not guaranteed to be zero. These
+limitations define future milestones; they do not weaken the production
+pursuit integration.
 
 ## Production Call Structure
 
@@ -152,6 +158,7 @@ For each successful Engine lifecycle:
 No public API, Level or Material format revision, Player migration, AI manager,
 Renderer expansion, or SDL/Platform/Input change is part of this milestone.
 
-The v0.3.17 Enemy Attack Eligibility foundation remains disconnected from this
-production integration: it adds zero per-frame eligibility work and does not
-stop or otherwise alter pursuit.
+As of v0.3.19, Pursuit passes the private bootstrap attack range to the
+attack-capable Decision API. Eligibility is reached only through Decision;
+there is no direct Eligibility call, separate attack phase, DamageIntent,
+Health mutation, cooldown, or execution work in the Engine loop.

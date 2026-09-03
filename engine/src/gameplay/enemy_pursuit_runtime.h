@@ -23,6 +23,7 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHEntityHandle *candidates,
     size_t candidate_count,
     float perception_radius,
+    float attack_range,
     float chase_speed,
     float delta_seconds);
 

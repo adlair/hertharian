@@ -133,7 +133,19 @@ static bool step(Context *context, const HTHCollisionWorld *world,
     return hth_enemy_pursuit_runtime_step(
         context->entities, context->actors, context->enemies,
         context->spatial, context->bodies, context->targets, world,
-        candidates, candidate_count, radius, speed, dt);
+        candidates, candidate_count, radius, 0.0F, speed, dt);
+}
+
+static bool step_with_attack(
+    Context *context, const HTHCollisionWorld *world,
+    const HTHEntityHandle *candidates, size_t candidate_count,
+    float perception_radius, float attack_range, float speed, float dt)
+{
+    return hth_enemy_pursuit_runtime_step(
+        context->entities, context->actors, context->enemies,
+        context->spatial, context->bodies, context->targets, world,
+        candidates, candidate_count, perception_radius, attack_range, speed,
+        dt);
 }
 
 static bool close_float(float left, float right)
@@ -215,38 +227,44 @@ static bool test_global_validation_is_transactional(void)
 
     CHECK_FAILURE((NULL, context.actors, context.enemies, context.spatial,
                    context.bodies, context.targets, &world, candidates, 1U,
-                   10.0F, 2.0F, 1.0F));
+                   10.0F, 0.0F, 2.0F, 1.0F));
     CHECK_FAILURE((context.entities, NULL, context.enemies, context.spatial,
                    context.bodies, context.targets, &world, candidates, 1U,
-                   10.0F, 2.0F, 1.0F));
+                   10.0F, 0.0F, 2.0F, 1.0F));
     CHECK_FAILURE((context.entities, context.actors, NULL, context.spatial,
                    context.bodies, context.targets, &world, candidates, 1U,
-                   10.0F, 2.0F, 1.0F));
+                   10.0F, 0.0F, 2.0F, 1.0F));
     CHECK_FAILURE((context.entities, context.actors, context.enemies, NULL,
                    context.bodies, context.targets, &world, candidates, 1U,
-                   10.0F, 2.0F, 1.0F));
+                   10.0F, 0.0F, 2.0F, 1.0F));
     CHECK_FAILURE((context.entities, context.actors, context.enemies,
                    context.spatial, NULL, context.targets, &world, candidates,
-                   1U, 10.0F, 2.0F, 1.0F));
+                   1U, 10.0F, 0.0F, 2.0F, 1.0F));
     CHECK_FAILURE((context.entities, context.actors, context.enemies,
                    context.spatial, context.bodies, NULL, &world, candidates,
-                   1U, 10.0F, 2.0F, 1.0F));
+                   1U, 10.0F, 0.0F, 2.0F, 1.0F));
     CHECK_FAILURE((context.entities, context.actors, context.enemies,
                    context.spatial, context.bodies, context.targets, NULL,
-                   candidates, 1U, 10.0F, 2.0F, 1.0F));
+                   candidates, 1U, 10.0F, 0.0F, 2.0F, 1.0F));
     CHECK_FAILURE((context.entities, context.actors, context.enemies,
                    context.spatial, context.bodies, context.targets, &world,
-                   NULL, 1U, 10.0F, 2.0F, 1.0F));
+                   NULL, 1U, 10.0F, 0.0F, 2.0F, 1.0F));
     for (index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
         CHECK_FAILURE((context.entities, context.actors, context.enemies,
                        context.spatial, context.bodies, context.targets,
-                       &world, candidates, 1U, invalid[index], 2.0F, 1.0F));
+                       &world, candidates, 1U, invalid[index], 0.0F, 2.0F,
+                       1.0F));
         CHECK_FAILURE((context.entities, context.actors, context.enemies,
                        context.spatial, context.bodies, context.targets,
-                       &world, candidates, 1U, 10.0F, invalid[index], 1.0F));
+                       &world, candidates, 1U, 10.0F, invalid[index], 2.0F,
+                       1.0F));
         CHECK_FAILURE((context.entities, context.actors, context.enemies,
                        context.spatial, context.bodies, context.targets,
-                       &world, candidates, 1U, 10.0F, 2.0F,
+                       &world, candidates, 1U, 10.0F, 0.0F, invalid[index],
+                       1.0F));
+        CHECK_FAILURE((context.entities, context.actors, context.enemies,
+                       context.spatial, context.bodies, context.targets,
+                       &world, candidates, 1U, 10.0F, 0.0F, 2.0F,
                        invalid[index]));
     }
 #undef CHECK_FAILURE
@@ -551,7 +569,7 @@ static bool test_shared_candidate_zero_speed_dt_and_colocation(void)
     CHECK(get_state(&context, first, &after, &after_body));
     CHECK(close_vector(after.position, (HTHVec3){0.0F, 0.0F, 0.0F}));
     CHECK(close_vector(after_body.velocity,
-                       (HTHVec3){0.0F, 0.0F, 0.0F}));
+                       (HTHVec3){2.0F, 0.0F, 0.0F}));
     context_destroy(&context);
     return true;
 }
@@ -580,6 +598,174 @@ static bool test_los_clear_body_block_and_slide(void)
     CHECK(close_vector(after_body.velocity,
                        (HTHVec3){0.0F, 0.0F, 3.0F}));
     CHECK(close_float(after.yaw, origin.yaw));
+    context_destroy(&context);
+    return true;
+}
+
+static bool test_attack_preserves_state_and_pursuit_resumes(void)
+{
+    Context context;
+    HTHCollisionWorld world = body_only_blocking_world();
+    HTHSpatialTransform enemy_value =
+        transform(0.0F, 0.0F, 0.0F, 0.4F);
+    HTHSpatialTransform target_value =
+        transform(4.0F, 0.0F, 0.0F, 0.0F);
+    HTHDynamicBody initial_body = body(0.0F, 0.0F, 0.0F);
+    HTHEntityHandle enemy;
+    HTHEntityHandle target;
+    HTHEntityHandle candidates[1];
+    HTHSpatialTransform pursuit_spatial;
+    HTHSpatialTransform attack_spatial;
+    HTHSpatialTransform after;
+    HTHDynamicBody pursuit_body;
+    HTHDynamicBody attack_body;
+    HTHDynamicBody after_body;
+    size_t step_index;
+
+    CHECK(context_create(&context));
+    CHECK(create_enemy(&context, &enemy_value, &initial_body, &enemy));
+    CHECK(create_spatial_entity(&context, target_value, &target));
+    candidates[0] = target;
+
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.25F, 2.0F, 0.5F));
+    CHECK(target_equals(&context, enemy, target));
+    CHECK(get_state(&context, enemy, &pursuit_spatial, &pursuit_body));
+    CHECK(close_vector(pursuit_spatial.position,
+                       (HTHVec3){1.0F, 0.0F, 0.0F}));
+    CHECK(close_vector(pursuit_body.velocity,
+                       (HTHVec3){2.0F, 0.0F, 0.0F}));
+
+    target_value.position.x = 1.5F;
+    CHECK(hth_spatial_store_set(context.spatial, context.entities, target,
+                                &target_value));
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.25F, 2.0F, 0.5F));
+    CHECK(get_state(&context, enemy, &attack_spatial, &attack_body));
+    CHECK(memcmp(&pursuit_spatial, &attack_spatial,
+                 sizeof(pursuit_spatial)) == 0);
+    CHECK(memcmp(&pursuit_body, &attack_body, sizeof(pursuit_body)) == 0);
+    CHECK(target_equals(&context, enemy, target));
+
+    for (step_index = 0U; step_index < 128U; ++step_index) {
+        CHECK(step_with_attack(
+            &context, &world, candidates, 1U, 10.0F, 1.25F, 2.0F, 0.5F));
+    }
+    CHECK(get_state(&context, enemy, &after, &after_body));
+    CHECK(memcmp(&attack_spatial, &after, sizeof(attack_spatial)) == 0);
+    CHECK(memcmp(&attack_body, &after_body, sizeof(attack_body)) == 0);
+    CHECK(target_equals(&context, enemy, target));
+
+    target_value.position.x = -3.0F;
+    CHECK(hth_spatial_store_set(context.spatial, context.entities, target,
+                                &target_value));
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.25F, 2.0F, 0.5F));
+    CHECK(get_state(&context, enemy, &after, &after_body));
+    CHECK(close_vector(after.position, (HTHVec3){0.0F, 0.0F, 0.0F}));
+    CHECK(close_vector(after_body.velocity,
+                       (HTHVec3){-2.0F, 0.0F, 0.0F}));
+
+    target_value.position.x = 0.5F;
+    CHECK(hth_spatial_store_set(context.spatial, context.entities, target,
+                                &target_value));
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.25F, 2.0F, 0.5F));
+    CHECK(get_state(&context, enemy, &attack_spatial, &attack_body));
+    CHECK(memcmp(&after, &attack_spatial, sizeof(after)) == 0);
+    CHECK(memcmp(&after_body, &attack_body, sizeof(after_body)) == 0);
+    context_destroy(&context);
+    return true;
+}
+
+static bool test_attack_without_body_and_mixed_intents(void)
+{
+    Context context;
+    HTHCollisionWorld clear = distant_world();
+    HTHCollisionWorld blocked = los_blocking_world();
+    HTHDynamicBody moving_body = body(3.0F, 4.0F, 5.0F);
+    HTHSpatialTransform attack_value =
+        transform(0.0F, 0.0F, 0.0F, 0.1F);
+    HTHSpatialTransform bodyless_value =
+        transform(5.0F, 0.0F, 0.0F, 0.2F);
+    HTHSpatialTransform pursue_value =
+        transform(10.0F, 0.0F, 0.0F, 0.3F);
+    HTHSpatialTransform idle_value =
+        transform(20.0F, 0.0F, 0.0F, 0.4F);
+    HTHSpatialTransform after;
+    HTHDynamicBody after_body;
+    HTHEntityHandle attack_enemy;
+    HTHEntityHandle bodyless_enemy;
+    HTHEntityHandle pursue_enemy;
+    HTHEntityHandle idle_enemy;
+    HTHEntityHandle attack_target;
+    HTHEntityHandle bodyless_target;
+    HTHEntityHandle pursue_target;
+    HTHEntityHandle idle_target;
+
+    CHECK(context_create(&context));
+    CHECK(create_enemy(
+        &context, &attack_value, &moving_body, &attack_enemy));
+    CHECK(create_enemy(&context, &bodyless_value, NULL, &bodyless_enemy));
+    CHECK(create_enemy(
+        &context, &pursue_value, &moving_body, &pursue_enemy));
+    CHECK(create_enemy(&context, &idle_value, &moving_body, &idle_enemy));
+    CHECK(create_spatial_entity(
+        &context, transform(0.5F, 0.0F, 0.0F, 0.0F), &attack_target));
+    CHECK(create_spatial_entity(
+        &context, transform(5.5F, 0.0F, 0.0F, 0.0F), &bodyless_target));
+    CHECK(create_spatial_entity(
+        &context, transform(14.0F, 0.0F, 0.0F, 0.0F), &pursue_target));
+    CHECK(create_spatial_entity(
+        &context, transform(40.0F, 0.0F, 0.0F, 0.0F), &idle_target));
+    CHECK(hth_enemy_target_store_set(
+        context.targets, context.entities, context.actors, context.enemies,
+        attack_enemy, attack_target));
+    CHECK(hth_enemy_target_store_set(
+        context.targets, context.entities, context.actors, context.enemies,
+        bodyless_enemy, bodyless_target));
+    CHECK(hth_enemy_target_store_set(
+        context.targets, context.entities, context.actors, context.enemies,
+        pursue_enemy, pursue_target));
+    CHECK(hth_enemy_target_store_set(
+        context.targets, context.entities, context.actors, context.enemies,
+        idle_enemy, idle_target));
+
+    CHECK(step_with_attack(
+        &context, &clear, NULL, 0U, 10.0F, 1.25F, 2.0F, 0.5F));
+    CHECK(get_state(&context, attack_enemy, &after, &after_body));
+    CHECK(memcmp(&attack_value, &after, sizeof(attack_value)) == 0);
+    CHECK(memcmp(&moving_body, &after_body, sizeof(moving_body)) == 0);
+    CHECK(hth_spatial_store_get(context.spatial, context.entities,
+                                bodyless_enemy, &after));
+    CHECK(memcmp(&bodyless_value, &after, sizeof(bodyless_value)) == 0);
+    CHECK(get_state(&context, pursue_enemy, &after, &after_body));
+    CHECK(close_vector(after.position, (HTHVec3){11.0F, 0.0F, 0.0F}));
+    CHECK(close_vector(after_body.velocity,
+                       (HTHVec3){2.0F, 0.0F, 0.0F}));
+    CHECK(get_state(&context, idle_enemy, &after, &after_body));
+    CHECK(memcmp(&idle_value, &after, sizeof(idle_value)) == 0);
+    CHECK(memcmp(&moving_body, &after_body, sizeof(moving_body)) == 0);
+    CHECK(target_equals(&context, attack_enemy, attack_target));
+    CHECK(target_equals(&context, bodyless_enemy, bodyless_target));
+    CHECK(target_equals(&context, pursue_enemy, pursue_target));
+    CHECK(target_equals(&context, idle_enemy, idle_target));
+
+    CHECK(step_with_attack(
+        &context, &blocked, NULL, 0U, 10.0F, 1.25F, 2.0F, 0.5F));
+    CHECK(get_state(&context, attack_enemy, &after, &after_body));
+    CHECK(memcmp(&attack_value, &after, sizeof(attack_value)) == 0);
+    CHECK(memcmp(&moving_body, &after_body, sizeof(moving_body)) == 0);
+
+    CHECK(hth_enemy_target_store_set(
+        context.targets, context.entities, context.actors, context.enemies,
+        attack_enemy, attack_enemy));
+    CHECK(step_with_attack(
+        &context, &clear, NULL, 0U, 10.0F, 1.25F, 2.0F, 0.5F));
+    CHECK(get_state(&context, attack_enemy, &after, &after_body));
+    CHECK(memcmp(&attack_value, &after, sizeof(attack_value)) == 0);
+    CHECK(memcmp(&moving_body, &after_body, sizeof(moving_body)) == 0);
+    CHECK(target_equals(&context, attack_enemy, attack_enemy));
     context_destroy(&context);
     return true;
 }
@@ -708,6 +894,8 @@ int main(void)
         test_multiple_enemies_and_capability_skips,
         test_shared_candidate_zero_speed_dt_and_colocation,
         test_los_clear_body_block_and_slide,
+        test_attack_preserves_state_and_pursuit_resumes,
+        test_attack_without_body_and_mixed_intents,
         test_partial_progress_and_deterministic_failure,
         test_first_enemy_failure_and_independent_contexts
     };

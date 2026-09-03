@@ -18,6 +18,7 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHEntityHandle *candidates,
     size_t candidate_count,
     float perception_radius,
+    float attack_range,
     float chase_speed,
     float delta_seconds)
 {
@@ -29,6 +30,7 @@ bool hth_enemy_pursuit_runtime_step(
         !hth_collision_world_is_valid(collision_world) ||
         (candidate_count > 0U && candidates == NULL) ||
         !isfinite(perception_radius) || perception_radius < 0.0F ||
+        !isfinite(attack_range) || attack_range < 0.0F ||
         !isfinite(chase_speed) || chase_speed < 0.0F ||
         !isfinite(delta_seconds) || delta_seconds < 0.0F) {
         return false;
@@ -60,13 +62,21 @@ bool hth_enemy_pursuit_runtime_step(
                 targets, entities, actors, enemies, enemy, &target)) {
             continue;
         }
-        if (!hth_enemy_decision_evaluate(
+        if (!hth_enemy_decision_evaluate_with_attack(
                 entities, actors, enemies, targets, spatial,
-                collision_world, enemy, perception_radius, &intent)) {
+                collision_world, enemy, perception_radius, attack_range,
+                &intent)) {
             return false;
         }
-        if (intent.kind == HTH_ENEMY_INTENT_IDLE) {
+        switch (intent.kind) {
+        case HTH_ENEMY_INTENT_IDLE:
             continue;
+        case HTH_ENEMY_INTENT_PURSUE:
+            break;
+        case HTH_ENEMY_INTENT_ATTACK:
+            continue;
+        default:
+            return false;
         }
         if (!hth_enemy_seek_compute(
                 entities, actors, enemies, spatial, enemy, intent.target,

@@ -97,9 +97,10 @@ the rest of the Entity foundation.
 
 The query is headless-compatible because it depends only on gameplay and
 static collision data. v0.3.17 adds no production call site. As of v0.3.18,
-the disconnected `hth_enemy_decision_evaluate_with_attack()` variant consumes
-this query after its outer perception gate, while the historical Decision API
-remains the sole production path. Production eligibility calls and per-frame
-work therefore remain zero. Cooldown, attack type, facing, factions, dynamic
-occlusion, DamageIntent creation, Health mutation, animation, and integration
-with production Pursuit remain future boundaries.
+`hth_enemy_decision_evaluate_with_attack()` consumes this query after its outer
+perception gate. As of v0.3.19, production Pursuit calls that Decision variant
+once for each Enemy with a valid perceptible Target, making Eligibility
+production-reachable without adding a direct Pursuit-to-Eligibility call.
+Cooldown, attack type, facing, factions, dynamic occlusion, DamageIntent
+creation, Health mutation, animation, and attack execution remain future
+boundaries.

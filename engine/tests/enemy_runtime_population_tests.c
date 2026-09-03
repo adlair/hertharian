@@ -556,7 +556,7 @@ static bool test_selection_and_pursuit_integration(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.targets, &world, candidates, 1U, 10.0F,
-        2.0F, 0.5F));
+        0.0F, 2.0F, 0.5F));
     CHECK(hth_enemy_target_store_get(
         fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
         first, &selected));
