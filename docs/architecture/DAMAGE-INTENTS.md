@@ -125,3 +125,9 @@ attack systems, weapons, projectiles, damage types, instigator metadata beyond
 the source Actor handle, teams/factions, range or line-of-sight checks,
 hit/miss rules, armor/resistance, Player/Enemy integration, Level declarations,
 persistence, networking, scripting, and an ECS.
+
+As of v0.3.23, Enemy Pursuit Runtime creates at most one stack-local Intent for
+each ready Enemy ATTACK, commits that Enemy's cadence, and resolves immediately
+through this unchanged API. `applied=false` is a successful emitted attack and
+does not refund cadence; technical resolution failure also leaves the already
+emitted cadence consumed. No queue or direct Health arithmetic is introduced.

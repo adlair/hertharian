@@ -172,6 +172,12 @@ body-center mirror. No new frame phase, DamageIntent, Health mutation, death
 behavior, or Player rendering is introduced; see `PLAYER-DAMAGE-TARGET.md` and
 ADR-0044.
 
+As of v0.3.23, the Engine owns the private Enemy Attack Cadence Store and the
+existing Enemy Pursuit frame phase also executes ready attacks after Player
+movement and Player Target Bridge sync. Bootstrap supplies temporary 10-point
+damage and a one-second interval. Player Health may reach zero without death
+semantics; rendering remains independent of Health.
+
 ## Tests
 
 After configuring and building, run:

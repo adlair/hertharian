@@ -75,5 +75,10 @@ no cadence work per frame. Generation-safe association of cadence with a
 runtime Enemy and the transaction that integrates Decision, Attack Execution,
 commit, and DamageIntent resolution are deferred to v0.3.23.
 
+That deferred composition is implemented in v0.3.23 without changing this
+primitive. A dedicated private Store owns one instance per Runtime Enemy
+generation, and Pursuit Runtime advances it once per Enemy step before intent
+dispatch. See `ENEMY-ATTACK-RUNTIME-INTEGRATION.md` and ADR-0047.
+
 Every operation is O(1), uses O(1) auxiliary memory, and performs zero
 allocations.

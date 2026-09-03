@@ -20,6 +20,8 @@ static const HTHHealth bootstrap_player_health = {100.0F, 100.0F};
 static const float bootstrap_enemy_perception_radius = 8.0F;
 static const float bootstrap_enemy_attack_range = 1.25F;
 static const float bootstrap_enemy_chase_speed = 2.0F;
+static const float bootstrap_enemy_attack_damage = 10.0F;
+static const double bootstrap_enemy_attack_interval_seconds = 1.0;
 static const double bootstrap_simulation_max_delta_seconds = 0.1;
 
 static bool handle_is_invalid(HTHEntityHandle handle)
@@ -81,6 +83,7 @@ HTHBootstrapEnemyPursuitCreateResult hth_bootstrap_enemy_pursuit_create(
     HTHEntityRegistry *entities,
     HTHActorStore *actors,
     HTHEnemyStore *enemies,
+    HTHEnemyAttackCadenceStore *cadences,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
     HTHHealthStore *health,
@@ -94,7 +97,8 @@ HTHBootstrapEnemyPursuitCreateResult hth_bootstrap_enemy_pursuit_create(
     };
 
     if (!integration_is_inactive(integration) || entities == NULL ||
-        actors == NULL || enemies == NULL || spatial == NULL ||
+        actors == NULL || enemies == NULL || cadences == NULL ||
+        spatial == NULL ||
         bodies == NULL || health == NULL ||
         !hth_collision_world_is_valid(collision_world) ||
         !hth_player_body_is_valid(player)) {
@@ -109,7 +113,8 @@ HTHBootstrapEnemyPursuitCreateResult hth_bootstrap_enemy_pursuit_create(
         return HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_BRIDGE_FAILED;
     }
     if (!hth_enemy_runtime_spawn(
-            entities, actors, enemies, spatial, bodies, health, &spec,
+            entities, actors, enemies, cadences, spatial, bodies, health,
+            &spec,
             &integration->enemy)) {
         (void)hth_player_target_bridge_destroy(
             &integration->player_target_bridge, entities, actors, spatial,
@@ -126,10 +131,12 @@ HTHBootstrapEnemyPursuitStepResult hth_bootstrap_enemy_pursuit_step(
     const HTHEnemyStore *enemies,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
+    HTHHealthStore *health,
     HTHEnemyTargetStore *targets,
+    HTHEnemyAttackCadenceStore *cadences,
     const HTHCollisionWorld *collision_world,
     const HTHPlayerBody *player,
-    float delta_seconds)
+    double delta_seconds)
 {
     HTHEntityHandle player_target;
     HTHEntityHandle candidates[1];
@@ -149,10 +156,12 @@ HTHBootstrapEnemyPursuitStepResult hth_bootstrap_enemy_pursuit_step(
     }
     candidates[0] = player_target;
     if (!hth_enemy_pursuit_runtime_step(
-            entities, actors, enemies, spatial, bodies, targets,
+            entities, actors, enemies, spatial, bodies, health, targets,
+            cadences,
             collision_world, candidates, 1U,
             bootstrap_enemy_perception_radius, bootstrap_enemy_attack_range,
-            bootstrap_enemy_chase_speed, delta_seconds)) {
+            bootstrap_enemy_chase_speed, bootstrap_enemy_attack_damage,
+            bootstrap_enemy_attack_interval_seconds, delta_seconds)) {
         return HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_PURSUIT_FAILED;
     }
     return HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK;
@@ -163,6 +172,7 @@ HTHBootstrapEnemyPursuitCleanupResult hth_bootstrap_enemy_pursuit_cleanup(
     HTHEntityRegistry *entities,
     HTHActorStore *actors,
     HTHEnemyStore *enemies,
+    HTHEnemyAttackCadenceStore *cadences,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
     HTHHealthStore *health,
@@ -175,8 +185,8 @@ HTHBootstrapEnemyPursuitCleanupResult hth_bootstrap_enemy_pursuit_cleanup(
     }
     if (!handle_is_invalid(integration->enemy)) {
         if (hth_enemy_runtime_despawn(
-                entities, actors, enemies, spatial, bodies, health, targets,
-                integration->enemy)) {
+                entities, actors, enemies, cadences, spatial, bodies, health,
+                targets, integration->enemy)) {
             integration->enemy = hth_entity_handle_invalid();
         } else {
             result.enemy_despawn_failed = true;

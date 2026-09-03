@@ -111,3 +111,11 @@ private bootstrap Enemy. Population's composition and rollback contracts remain
 unchanged; placement, pursuit orchestration, and lifecycle ownership belong to
 the private integration documented in
 `ENEMY-PURSUIT-ENGINE-INTEGRATION.md`.
+
+As of v0.3.23, canonical Runtime Enemy composition additionally includes one
+generation-safe Attack Cadence association. Spawn attaches fresh ready cadence
+before publishing the handle and rolls back the complete Actor/Enemy on
+failure. Despawn requires and removes cadence before removing the Enemy
+generation, preventing cooldown inheritance on index reuse. The dedicated
+Store retains normal attach/growth allocation; there is still no per-frame
+Population allocation.

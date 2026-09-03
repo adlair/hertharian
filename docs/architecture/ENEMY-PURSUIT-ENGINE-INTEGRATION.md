@@ -167,3 +167,10 @@ As of v0.3.20, the Player target's Actor and Health associations make that
 same handle structurally compatible with future DamageIntent resolution. Its
 initial `100/100` Health is private temporary bootstrap tuning. ATTACK still
 has no execution, production DamageIntent, damage application, or cadence.
+
+As of v0.3.23, the Engine also owns one private cadence Store and passes Health,
+cadence, 10-point bootstrap damage, a one-second interval, and the same clamped
+double simulation delta into Pursuit Runtime. Frame order remains Player
+Movement -> Player Target Bridge sync -> Pursuit including attack damage ->
+View/Camera -> Renderer. Bootstrap never constructs or resolves DamageIntent
+itself, and shutdown despawns the Enemy before destroying cadence storage.

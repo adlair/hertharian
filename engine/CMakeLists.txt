@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.22 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.23 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -45,6 +45,7 @@ add_executable(hertharian-engine
     src/gameplay/damage_intent.c
     src/gameplay/enemy.c
     src/gameplay/enemy_attack_cadence.c
+    src/gameplay/enemy_attack_cadence_store.c
     src/gameplay/enemy_attack_execution.c
     src/gameplay/enemy_attack_eligibility.c
     src/gameplay/enemy_chase.c
@@ -384,6 +385,8 @@ if(BUILD_TESTING)
 
     add_executable(enemy_attack_eligibility_tests
         tests/enemy_attack_eligibility_tests.c
+        src/gameplay/enemy_attack_cadence_store.c
+        src/gameplay/enemy_attack_cadence.c
         src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_runtime_population.c
         src/gameplay/actor_spawn.c
@@ -447,9 +450,27 @@ if(BUILD_TESTING)
         C_EXTENSIONS OFF
     )
 
+    add_executable(enemy_attack_cadence_store_tests
+        tests/enemy_attack_cadence_store_tests.c
+        src/gameplay/enemy_attack_cadence_store.c
+        src/gameplay/enemy_attack_cadence.c
+        src/gameplay/enemy.c
+        src/actor/actor.c
+        src/entity/entity.c
+    )
+    target_include_directories(enemy_attack_cadence_store_tests PRIVATE
+        include src/actor src/entity src/gameplay
+    )
+    target_compile_features(enemy_attack_cadence_store_tests PRIVATE c_std_11)
+    set_target_properties(enemy_attack_cadence_store_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
     add_executable(enemy_attack_execution_tests
         tests/enemy_attack_execution_tests.c
         src/gameplay/enemy_attack_execution.c
+        src/gameplay/enemy_attack_cadence_store.c
+        src/gameplay/enemy_attack_cadence.c
         src/gameplay/actor_spawn.c
         src/gameplay/damage_intent.c
         src/gameplay/enemy_runtime_population.c
@@ -573,6 +594,11 @@ if(BUILD_TESTING)
     add_executable(enemy_pursuit_runtime_tests
         tests/enemy_pursuit_runtime_tests.c
         src/gameplay/enemy_pursuit_runtime.c
+        src/gameplay/enemy_attack_cadence_store.c
+        src/gameplay/enemy_attack_cadence.c
+        src/gameplay/enemy_attack_execution.c
+        src/gameplay/damage_intent.c
+        src/gameplay/health.c
         src/gameplay/enemy_chase.c
         src/gameplay/enemy_seek.c
         src/gameplay/enemy_decision.c
@@ -605,6 +631,10 @@ if(BUILD_TESTING)
     add_executable(enemy_runtime_population_tests
         tests/enemy_runtime_population_tests.c
         src/gameplay/enemy_runtime_population.c
+        src/gameplay/enemy_attack_cadence_store.c
+        src/gameplay/enemy_attack_cadence.c
+        src/gameplay/enemy_attack_execution.c
+        src/gameplay/damage_intent.c
         src/gameplay/actor_spawn.c
         src/gameplay/enemy_pursuit_runtime.c
         src/gameplay/enemy_chase.c
@@ -640,6 +670,9 @@ if(BUILD_TESTING)
     add_executable(player_target_bridge_tests
         tests/player_target_bridge_tests.c
         src/gameplay/player_target_bridge.c
+        src/gameplay/enemy_attack_cadence_store.c
+        src/gameplay/enemy_attack_cadence.c
+        src/gameplay/enemy_attack_execution.c
         src/gameplay/actor_spawn.c
         src/gameplay/damage_intent.c
         src/gameplay/enemy_chase.c
@@ -679,6 +712,10 @@ if(BUILD_TESTING)
         tests/bootstrap_enemy_pursuit_tests.c
         src/renderer/runtime_body_visual.c
         src/gameplay/bootstrap_enemy_pursuit.c
+        src/gameplay/enemy_attack_cadence_store.c
+        src/gameplay/enemy_attack_cadence.c
+        src/gameplay/enemy_attack_execution.c
+        src/gameplay/damage_intent.c
         src/gameplay/player_target_bridge.c
         src/gameplay/actor_spawn.c
         src/gameplay/enemy_chase.c
@@ -1040,6 +1077,7 @@ if(BUILD_TESTING)
         target_link_libraries(enemy_target_selection_tests PRIVATE m)
         target_link_libraries(enemy_attack_eligibility_tests PRIVATE m)
         target_link_libraries(enemy_attack_cadence_tests PRIVATE m)
+        target_link_libraries(enemy_attack_cadence_store_tests PRIVATE m)
         target_link_libraries(enemy_attack_execution_tests PRIVATE m)
         target_link_libraries(enemy_decision_tests PRIVATE m)
         target_link_libraries(enemy_seek_tests PRIVATE m)
@@ -1102,6 +1140,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(enemy_attack_cadence_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(enemy_attack_cadence_store_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(enemy_attack_execution_tests PRIVATE
@@ -1220,6 +1261,9 @@ if(BUILD_TESTING)
     )
     add_test(NAME enemy_attack_cadence_foundation
         COMMAND enemy_attack_cadence_tests
+    )
+    add_test(NAME enemy_attack_cadence_store_foundation
+        COMMAND enemy_attack_cadence_store_tests
     )
     add_test(NAME enemy_attack_execution_foundation
         COMMAND enemy_attack_execution_tests

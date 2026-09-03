@@ -6,6 +6,7 @@ bool hth_enemy_runtime_spawn(
     HTHEntityRegistry *entities,
     HTHActorStore *actors,
     HTHEnemyStore *enemies,
+    HTHEnemyAttackCadenceStore *cadences,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
     HTHHealthStore *health,
@@ -19,6 +20,7 @@ bool hth_enemy_runtime_spawn(
         *out_enemy = hth_entity_handle_invalid();
     }
     if (entities == NULL || actors == NULL || enemies == NULL ||
+        cadences == NULL ||
         spatial == NULL || bodies == NULL || health == NULL || spec == NULL ||
         out_enemy == NULL) {
         return false;
@@ -40,6 +42,13 @@ bool hth_enemy_runtime_spawn(
                                 enemy);
         return false;
     }
+    if (!hth_enemy_attack_cadence_store_attach(
+            cadences, entities, actors, enemies, enemy)) {
+        (void)hth_enemy_store_remove(enemies, entities, enemy);
+        (void)hth_actor_despawn(entities, actors, spatial, bodies, health,
+                                enemy);
+        return false;
+    }
     *out_enemy = enemy;
     return true;
 }
@@ -48,6 +57,7 @@ bool hth_enemy_runtime_despawn(
     HTHEntityRegistry *entities,
     HTHActorStore *actors,
     HTHEnemyStore *enemies,
+    HTHEnemyAttackCadenceStore *cadences,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
     HTHHealthStore *health,
@@ -55,14 +65,21 @@ bool hth_enemy_runtime_despawn(
     HTHEntityHandle enemy)
 {
     if (entities == NULL || actors == NULL || enemies == NULL ||
+        cadences == NULL ||
         spatial == NULL || bodies == NULL || health == NULL ||
         targets == NULL ||
         !hth_actor_store_has(actors, entities, enemy) ||
-        !hth_enemy_store_has(enemies, entities, actors, enemy)) {
+        !hth_enemy_store_has(enemies, entities, actors, enemy) ||
+        !hth_enemy_attack_cadence_store_has(
+            cadences, entities, actors, enemies, enemy)) {
         return false;
     }
 
     (void)hth_enemy_target_store_clear(targets, entities, enemy);
+    if (!hth_enemy_attack_cadence_store_remove(
+            cadences, entities, enemy)) {
+        return false;
+    }
     if (!hth_enemy_store_remove(enemies, entities, enemy)) {
         return false;
     }

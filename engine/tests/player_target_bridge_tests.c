@@ -35,6 +35,7 @@ typedef struct {
     HTHSpatialStore *spatial;
     HTHActorStore *actors;
     HTHEnemyStore *enemies;
+    HTHEnemyAttackCadenceStore *cadences;
     HTHDynamicBodyStore *bodies;
     HTHHealthStore *health;
     HTHEnemyTargetStore *targets;
@@ -74,11 +75,13 @@ static bool fixture_create(Fixture *fixture)
     fixture->spatial = hth_spatial_store_create();
     fixture->actors = hth_actor_store_create();
     fixture->enemies = hth_enemy_store_create();
+    fixture->cadences = hth_enemy_attack_cadence_store_create();
     fixture->bodies = hth_dynamic_body_store_create();
     fixture->health = hth_health_store_create();
     fixture->targets = hth_enemy_target_store_create();
     return fixture->entities != NULL && fixture->spatial != NULL &&
            fixture->actors != NULL && fixture->enemies != NULL &&
+           fixture->cadences != NULL &&
            fixture->bodies != NULL && fixture->health != NULL &&
            fixture->targets != NULL;
 }
@@ -86,6 +89,7 @@ static bool fixture_create(Fixture *fixture)
 static void fixture_destroy(Fixture *fixture)
 {
     hth_enemy_target_store_destroy(fixture->targets);
+    hth_enemy_attack_cadence_store_destroy(fixture->cadences);
     hth_health_store_destroy(fixture->health);
     hth_dynamic_body_store_destroy(fixture->bodies);
     hth_enemy_store_destroy(fixture->enemies);
@@ -170,6 +174,7 @@ static bool spawn_enemy(Fixture *fixture, HTHVec3 position,
 
     return hth_enemy_runtime_spawn(
         fixture->entities, fixture->actors, fixture->enemies,
+        fixture->cadences,
         fixture->spatial, fixture->bodies, fixture->health, &spec,
         out_enemy);
 }
@@ -178,6 +183,7 @@ static bool destroy_enemy(Fixture *fixture, HTHEntityHandle enemy)
 {
     return hth_enemy_runtime_despawn(
         fixture->entities, fixture->actors, fixture->enemies,
+        fixture->cadences,
         fixture->spatial, fixture->bodies, fixture->health, fixture->targets,
         enemy);
 }
@@ -600,8 +606,8 @@ static bool test_ai_foundation_composition(void)
     candidates = &target;
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
-        fixture.bodies, fixture.targets, &world, candidates, 1U, 10.0F,
-        0.0F, 2.0F, 0.5F));
+        fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
+        &world, candidates, 1U, 10.0F, 0.0F, 2.0F, 0.0F, 1.0, 0.5));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
                                 &enemy_transform));
     CHECK(enemy_transform.position.x == 1.0F &&
@@ -628,8 +634,8 @@ static bool test_ai_foundation_composition(void)
           direction.z == 1.0F);
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
-        fixture.bodies, fixture.targets, &world, candidates, 1U, 10.0F,
-        0.0F, 2.0F, 0.5F));
+        fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
+        &world, candidates, 1U, 10.0F, 0.0F, 2.0F, 0.0F, 1.0, 0.5));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
                                 &enemy_transform));
     CHECK(enemy_transform.position.x == 1.0F &&

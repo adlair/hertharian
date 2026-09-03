@@ -84,6 +84,7 @@ static void destroy_world(HTHEngine *engine)
                 engine->world_state->entity_registry,
                 engine->world_state->actor_store,
                 engine->world_state->enemy_store,
+                engine->world_state->enemy_attack_cadence_store,
                 engine->world_state->spatial_store,
                 engine->world_state->dynamic_body_store,
                 engine->world_state->health_store,
@@ -99,6 +100,9 @@ static void destroy_world(HTHEngine *engine)
         hth_enemy_target_store_destroy(
             engine->world_state->enemy_target_store);
         engine->world_state->enemy_target_store = NULL;
+        hth_enemy_attack_cadence_store_destroy(
+            engine->world_state->enemy_attack_cadence_store);
+        engine->world_state->enemy_attack_cadence_store = NULL;
         hth_health_store_destroy(engine->world_state->health_store);
         engine->world_state->health_store = NULL;
         hth_enemy_store_destroy(engine->world_state->enemy_store);
@@ -411,6 +415,14 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
         destroy_storage(engine);
         return false;
     }
+    engine->world_state->enemy_attack_cadence_store =
+        hth_enemy_attack_cadence_store_create();
+    if (engine->world_state->enemy_attack_cadence_store == NULL) {
+        fputs("Failed to initialize Enemy Attack Cadence Store.\n", stderr);
+        destroy_world(engine);
+        destroy_storage(engine);
+        return false;
+    }
     engine->world_state->health_store = hth_health_store_create();
     if (engine->world_state->health_store == NULL) {
         fputs("Failed to initialize Health Store.\n", stderr);
@@ -577,6 +589,7 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
         engine->world_state->entity_registry,
         engine->world_state->actor_store,
         engine->world_state->enemy_store,
+        engine->world_state->enemy_attack_cadence_store,
         engine->world_state->spatial_store,
         engine->world_state->dynamic_body_store,
         engine->world_state->health_store,
@@ -801,9 +814,11 @@ void hth_engine_frame(HTHEngine *engine)
         engine->world_state->enemy_store,
         engine->world_state->spatial_store,
         engine->world_state->dynamic_body_store,
+        engine->world_state->health_store,
         engine->world_state->enemy_target_store,
+        engine->world_state->enemy_attack_cadence_store,
         &engine->physical_state->collision_world,
-        &engine->physical_state->body, (float)simulation_delta);
+        &engine->physical_state->body, simulation_delta);
     if (pursuit_result != HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_OK) {
         switch (pursuit_result) {
         case HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_BRIDGE_SYNC_FAILED:

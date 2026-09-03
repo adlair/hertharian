@@ -4,6 +4,7 @@
 #include "actor.h"
 #include "dynamic_body.h"
 #include "enemy.h"
+#include "enemy_attack_cadence_store.h"
 #include "enemy_target.h"
 #include "entity.h"
 #include "health.h"
@@ -21,6 +22,7 @@ bool hth_enemy_runtime_spawn(
     HTHEntityRegistry *entities,
     HTHActorStore *actors,
     HTHEnemyStore *enemies,
+    HTHEnemyAttackCadenceStore *cadences,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
     HTHHealthStore *health,
@@ -31,6 +33,7 @@ bool hth_enemy_runtime_despawn(
     HTHEntityRegistry *entities,
     HTHActorStore *actors,
     HTHEnemyStore *enemies,
+    HTHEnemyAttackCadenceStore *cadences,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
     HTHHealthStore *health,

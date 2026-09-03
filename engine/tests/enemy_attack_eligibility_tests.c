@@ -27,6 +27,7 @@ typedef struct {
     HTHEntityRegistry *entities;
     HTHActorStore *actors;
     HTHEnemyStore *enemies;
+    HTHEnemyAttackCadenceStore *cadences;
     HTHSpatialStore *spatial;
     HTHDynamicBodyStore *bodies;
     HTHHealthStore *health;
@@ -39,12 +40,14 @@ static bool fixture_create(Fixture *fixture)
     fixture->entities = hth_entity_registry_create();
     fixture->actors = hth_actor_store_create();
     fixture->enemies = hth_enemy_store_create();
+    fixture->cadences = hth_enemy_attack_cadence_store_create();
     fixture->spatial = hth_spatial_store_create();
     fixture->bodies = hth_dynamic_body_store_create();
     fixture->health = hth_health_store_create();
     fixture->targets = hth_enemy_target_store_create();
     return fixture->entities != NULL && fixture->actors != NULL &&
-           fixture->enemies != NULL && fixture->spatial != NULL &&
+           fixture->enemies != NULL && fixture->cadences != NULL &&
+           fixture->spatial != NULL &&
            fixture->bodies != NULL && fixture->health != NULL &&
            fixture->targets != NULL;
 }
@@ -52,6 +55,7 @@ static bool fixture_create(Fixture *fixture)
 static void fixture_destroy(Fixture *fixture)
 {
     hth_enemy_target_store_destroy(fixture->targets);
+    hth_enemy_attack_cadence_store_destroy(fixture->cadences);
     hth_health_store_destroy(fixture->health);
     hth_dynamic_body_store_destroy(fixture->bodies);
     hth_spatial_store_destroy(fixture->spatial);
@@ -390,7 +394,8 @@ static bool test_enemy_target_and_player_proxy_composition(void)
 
     CHECK(fixture_create(&fixture));
     CHECK(hth_enemy_runtime_spawn(
-        fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
+        fixture.entities, fixture.actors, fixture.enemies, fixture.cadences,
+        fixture.spatial,
         fixture.bodies, fixture.health, &runtime_spec, &enemy_a));
     CHECK(create_enemy(&fixture, transform(1.0F, 0.0F, 0.0F, 0.0F),
                        &enemy_b));
@@ -412,7 +417,8 @@ static bool test_enemy_target_and_player_proxy_composition(void)
                                            fixture.actors, fixture.spatial,
                                            fixture.bodies, fixture.health));
     CHECK(hth_enemy_runtime_despawn(
-        fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
+        fixture.entities, fixture.actors, fixture.enemies, fixture.cadences,
+        fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, enemy_a));
     fixture_destroy(&fixture);
     return true;

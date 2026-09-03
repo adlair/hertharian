@@ -22,6 +22,7 @@ typedef struct {
     HTHEntityRegistry *entities;
     HTHActorStore *actors;
     HTHEnemyStore *enemies;
+    HTHEnemyAttackCadenceStore *cadences;
     HTHSpatialStore *spatial;
     HTHDynamicBodyStore *bodies;
     HTHHealthStore *health;
@@ -34,12 +35,14 @@ static bool fixture_create(Fixture *fixture)
     fixture->entities = hth_entity_registry_create();
     fixture->actors = hth_actor_store_create();
     fixture->enemies = hth_enemy_store_create();
+    fixture->cadences = hth_enemy_attack_cadence_store_create();
     fixture->spatial = hth_spatial_store_create();
     fixture->bodies = hth_dynamic_body_store_create();
     fixture->health = hth_health_store_create();
     fixture->targets = hth_enemy_target_store_create();
     return fixture->entities != NULL && fixture->actors != NULL &&
-           fixture->enemies != NULL && fixture->spatial != NULL &&
+           fixture->enemies != NULL && fixture->cadences != NULL &&
+           fixture->spatial != NULL &&
            fixture->bodies != NULL && fixture->health != NULL &&
            fixture->targets != NULL;
 }
@@ -47,6 +50,7 @@ static bool fixture_create(Fixture *fixture)
 static void fixture_destroy(Fixture *fixture)
 {
     hth_enemy_target_store_destroy(fixture->targets);
+    hth_enemy_attack_cadence_store_destroy(fixture->cadences);
     hth_health_store_destroy(fixture->health);
     hth_dynamic_body_store_destroy(fixture->bodies);
     hth_spatial_store_destroy(fixture->spatial);
@@ -84,6 +88,7 @@ static bool spawn_enemy(Fixture *fixture,
 {
     return hth_enemy_runtime_spawn(
         fixture->entities, fixture->actors, fixture->enemies,
+        fixture->cadences,
         fixture->spatial, fixture->bodies, fixture->health, spec, out_enemy);
 }
 
@@ -91,22 +96,32 @@ static bool despawn_enemy(Fixture *fixture, HTHEntityHandle enemy)
 {
     return hth_enemy_runtime_despawn(
         fixture->entities, fixture->actors, fixture->enemies,
+        fixture->cadences,
         fixture->spatial, fixture->bodies, fixture->health, fixture->targets,
         enemy);
 }
 
-static bool runtime_matches(const Fixture *fixture, HTHEntityHandle enemy,
+static bool runtime_matches(Fixture *fixture, HTHEntityHandle enemy,
                             const HTHEnemyRuntimeSpawnSpec *spec)
 {
     HTHSpatialTransform transform;
     HTHDynamicBody body;
     HTHHealth health;
     HTHEntityHandle target;
+    HTHEnemyAttackCadence *cadence;
+    bool ready = false;
 
     return hth_entity_registry_is_alive(fixture->entities, enemy) &&
            hth_actor_store_has(fixture->actors, fixture->entities, enemy) &&
            hth_enemy_store_has(fixture->enemies, fixture->entities,
                                fixture->actors, enemy) &&
+           hth_enemy_attack_cadence_store_has(
+               fixture->cadences, fixture->entities, fixture->actors,
+               fixture->enemies, enemy) &&
+           hth_enemy_attack_cadence_store_get_mutable(
+               fixture->cadences, fixture->entities, fixture->actors,
+               fixture->enemies, enemy, &cadence) &&
+           hth_enemy_attack_cadence_is_ready(cadence, &ready) && ready &&
            hth_spatial_store_get(fixture->spatial, fixture->entities, enemy,
                                  &transform) &&
            vec_equal(transform.position, spec->transform.position) &&
@@ -131,6 +146,9 @@ static bool composition_absent(const Fixture *fixture,
            !hth_actor_store_has(fixture->actors, fixture->entities, enemy) &&
            !hth_enemy_store_has(fixture->enemies, fixture->entities,
                                 fixture->actors, enemy) &&
+           !hth_enemy_attack_cadence_store_has(
+               fixture->cadences, fixture->entities, fixture->actors,
+               fixture->enemies, enemy) &&
            !hth_spatial_store_has(fixture->spatial, fixture->entities,
                                   enemy) &&
            !hth_dynamic_body_has(fixture->bodies, fixture->entities, enemy) &&
@@ -175,31 +193,39 @@ static bool test_spawn_nulls_and_validation(void)
     } while (0)
 
     CHECK_NULL_FAILURE((NULL, fixture.actors, fixture.enemies,
+                        fixture.cadences,
                         fixture.spatial, fixture.bodies, fixture.health,
                         &valid, &output));
     CHECK_NULL_FAILURE((fixture.entities, NULL, fixture.enemies,
+                        fixture.cadences,
                         fixture.spatial, fixture.bodies, fixture.health,
                         &valid, &output));
     CHECK_NULL_FAILURE((fixture.entities, fixture.actors, NULL,
+                        fixture.cadences,
                         fixture.spatial, fixture.bodies, fixture.health,
                         &valid, &output));
     CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
-                        NULL, fixture.bodies, fixture.health, &valid,
+                        NULL, fixture.spatial, fixture.bodies, fixture.health,
+                        &valid, &output));
+    CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
+                        fixture.cadences, NULL, fixture.bodies, fixture.health,
+                        &valid, &output));
+    CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
+                        fixture.cadences, fixture.spatial, NULL,
+                        fixture.health, &valid,
                         &output));
     CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
-                        fixture.spatial, NULL, fixture.health, &valid,
+                        fixture.cadences, fixture.spatial, fixture.bodies,
+                        NULL, &valid,
                         &output));
     CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
-                        fixture.spatial, fixture.bodies, NULL, &valid,
-                        &output));
-    CHECK_NULL_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
-                        fixture.spatial, fixture.bodies, fixture.health,
-                        NULL, &output));
+                        fixture.cadences, fixture.spatial, fixture.bodies,
+                        fixture.health, NULL, &output));
 #undef CHECK_NULL_FAILURE
 
     CHECK(!hth_enemy_runtime_spawn(
-        fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
-        fixture.bodies, fixture.health, &valid, NULL));
+        fixture.entities, fixture.actors, fixture.enemies, fixture.cadences,
+        fixture.spatial, fixture.bodies, fixture.health, &valid, NULL));
     CHECK(hth_entity_registry_live_count(fixture.entities) == live_before);
     CHECK(runtime_matches(&fixture, sentinel, &valid));
 
@@ -346,25 +372,35 @@ static bool test_despawn_validation_and_optional_components(void)
         CHECK(runtime_matches(&fixture, enemy, &spec));                      \
     } while (0)
     CHECK_DESPAWN_FAILURE((NULL, fixture.actors, fixture.enemies,
+                           fixture.cadences,
                            fixture.spatial, fixture.bodies, fixture.health,
                            fixture.targets, enemy));
     CHECK_DESPAWN_FAILURE((fixture.entities, NULL, fixture.enemies,
+                           fixture.cadences,
                            fixture.spatial, fixture.bodies, fixture.health,
                            fixture.targets, enemy));
     CHECK_DESPAWN_FAILURE((fixture.entities, fixture.actors, NULL,
+                           fixture.cadences,
                            fixture.spatial, fixture.bodies, fixture.health,
                            fixture.targets, enemy));
     CHECK_DESPAWN_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
-                           NULL, fixture.bodies, fixture.health,
+                           NULL, fixture.spatial, fixture.bodies,
+                           fixture.health, fixture.targets, enemy));
+    CHECK_DESPAWN_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
+                           fixture.cadences, NULL, fixture.bodies,
+                           fixture.health,
                            fixture.targets, enemy));
     CHECK_DESPAWN_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
-                           fixture.spatial, NULL, fixture.health,
+                           fixture.cadences, fixture.spatial, NULL,
+                           fixture.health,
                            fixture.targets, enemy));
     CHECK_DESPAWN_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
-                           fixture.spatial, fixture.bodies, NULL,
+                           fixture.cadences, fixture.spatial, fixture.bodies,
+                           NULL,
                            fixture.targets, enemy));
     CHECK_DESPAWN_FAILURE((fixture.entities, fixture.actors, fixture.enemies,
-                           fixture.spatial, fixture.bodies, fixture.health,
+                           fixture.cadences, fixture.spatial, fixture.bodies,
+                           fixture.health,
                            NULL, enemy));
 #undef CHECK_DESPAWN_FAILURE
     CHECK(despawn_enemy(&fixture, enemy));
@@ -555,8 +591,8 @@ static bool test_selection_and_pursuit_integration(void)
 
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
-        fixture.bodies, fixture.targets, &world, candidates, 1U, 10.0F,
-        0.0F, 2.0F, 0.5F));
+        fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
+        &world, candidates, 1U, 10.0F, 0.0F, 2.0F, 0.0F, 1.0, 0.5));
     CHECK(hth_enemy_target_store_get(
         fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
         first, &selected));

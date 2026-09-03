@@ -77,19 +77,20 @@ make resolution part of this module.
 
 ## Runtime Status and Roadmap
 
-The foundation is deliberately disconnected from production. Pursuit Runtime
-continues to suppress pursuit movement on `ATTACK`, but neither it nor Engine
-calls this builder or resolves DamageIntent. As of v0.3.22, the separate
-caller-owned `ENEMY-ATTACK-CADENCE.md` primitive can gate explicit future
-builder attempts, but it does not call this builder and remains disconnected
-from production. There is no damage-per-frame, runtime cooldown, rate of fire,
-windup, or recovery.
+The builder remained deliberately disconnected through v0.3.22. As of
+v0.3.23, Pursuit Runtime uses the separate caller-owned
+`ENEMY-ATTACK-CADENCE.md` primitive to gate explicit builder attempts. There is
+no damage-per-frame, windup, recovery, or builder-owned rate-of-fire policy.
 
 ```text
 v0.3.20  Player Damage Target Identity          RELEASED
 v0.3.21  Enemy Attack Execution / DamageIntent  RELEASED
-v0.3.22  Enemy Attack Cadence Foundation        CURRENT
-v0.3.23  Enemy Attack Runtime Integration       NEXT
+v0.3.22  Enemy Attack Cadence Foundation        RELEASED
+v0.3.23  Enemy Attack Runtime Integration       CURRENT
 ```
 
-Production integration remains intentionally deferred to its own boundary.
+As of v0.3.23, production Pursuit Runtime calls this unchanged builder only for
+a ready `ATTACK`, commits cadence, then immediately resolves the stack-local
+DamageIntent. Builder failure is technical and does not consume cadence; a
+non-Actor ATTACK target therefore fails runtime rather than becoming a silent
+no-op. See `ENEMY-ATTACK-RUNTIME-INTEGRATION.md`.

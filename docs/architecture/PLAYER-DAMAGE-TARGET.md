@@ -64,3 +64,8 @@ Execution can explicitly build a valid DamageIntent targeting this same
 handle, and tests can resolve it through existing Health. Production still
 builds or resolves no DamageIntent and adds no cadence, death, or game-over
 behavior.
+
+As of v0.3.23, the production bootstrap Enemy uses that same handle as the
+Decision and DamageIntent target. Ready ATTACK frames resolve caller-owned
+10-point damage through Health; cadence prevents damage-per-frame. Health zero
+continues to have no death, despawn, target-clear, or PlayerBody meaning.

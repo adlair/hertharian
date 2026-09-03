@@ -2,9 +2,11 @@
 
 #include "enemy_chase.h"
 #include "enemy_decision.h"
+#include "enemy_attack_execution.h"
 #include "enemy_seek.h"
 #include "enemy_target_selection.h"
 
+#include <float.h>
 #include <math.h>
 
 bool hth_enemy_pursuit_runtime_step(
@@ -13,26 +15,35 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHEnemyStore *enemies,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
+    HTHHealthStore *health,
     HTHEnemyTargetStore *targets,
+    HTHEnemyAttackCadenceStore *cadences,
     const HTHCollisionWorld *collision_world,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
     float perception_radius,
     float attack_range,
     float chase_speed,
-    float delta_seconds)
+    float attack_damage,
+    double attack_interval_seconds,
+    double delta_seconds)
 {
     HTHEnemyIterator iterator;
     HTHEntityHandle enemy;
 
     if (entities == NULL || actors == NULL || enemies == NULL ||
-        spatial == NULL || bodies == NULL || targets == NULL ||
+        spatial == NULL || bodies == NULL || health == NULL ||
+        targets == NULL || cadences == NULL ||
         !hth_collision_world_is_valid(collision_world) ||
         (candidate_count > 0U && candidates == NULL) ||
         !isfinite(perception_radius) || perception_radius < 0.0F ||
         !isfinite(attack_range) || attack_range < 0.0F ||
         !isfinite(chase_speed) || chase_speed < 0.0F ||
-        !isfinite(delta_seconds) || delta_seconds < 0.0F) {
+        !isfinite(attack_damage) || attack_damage < 0.0F ||
+        !isfinite(attack_interval_seconds) ||
+        attack_interval_seconds < 0.0 ||
+        !isfinite(delta_seconds) || delta_seconds < 0.0 ||
+        delta_seconds > (double)FLT_MAX) {
         return false;
     }
 
@@ -43,6 +54,13 @@ bool hth_enemy_pursuit_runtime_step(
         HTHEnemyIntent intent;
         HTHVec3 direction;
         HTHDynamicCollisionResult chase_result;
+        HTHEnemyAttackCadence *cadence;
+
+        if (!hth_enemy_attack_cadence_store_get_mutable(
+                cadences, entities, actors, enemies, enemy, &cadence) ||
+            !hth_enemy_attack_cadence_advance(cadence, delta_seconds)) {
+            return false;
+        }
 
         if (!hth_spatial_store_has(spatial, entities, enemy)) {
             continue;
@@ -74,7 +92,33 @@ bool hth_enemy_pursuit_runtime_step(
         case HTH_ENEMY_INTENT_PURSUE:
             break;
         case HTH_ENEMY_INTENT_ATTACK:
+        {
+            HTHDamageIntent damage_intent;
+            HTHDamageResolution resolution;
+            bool ready;
+
+            if (!hth_enemy_attack_cadence_is_ready(cadence, &ready)) {
+                return false;
+            }
+            if (!ready) {
+                continue;
+            }
+            if (!hth_enemy_attack_build_damage_intent(
+                    entities, actors, enemies, enemy, intent.target,
+                    attack_damage, &damage_intent)) {
+                return false;
+            }
+            if (!hth_enemy_attack_cadence_commit(
+                    cadence, attack_interval_seconds)) {
+                return false;
+            }
+            if (!hth_damage_intent_resolve(
+                    &damage_intent, entities, actors, health,
+                    &resolution)) {
+                return false;
+            }
             continue;
+        }
         default:
             return false;
         }
@@ -89,7 +133,7 @@ bool hth_enemy_pursuit_runtime_step(
         if (!hth_enemy_chase_apply(
                 entities, actors, enemies, spatial, bodies,
                 collision_world, enemy, direction, chase_speed,
-                delta_seconds, &chase_result)) {
+                (float)delta_seconds, &chase_result)) {
             return false;
         }
     }

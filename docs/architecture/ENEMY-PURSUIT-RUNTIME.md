@@ -5,14 +5,18 @@ released Enemy pursuit foundations over the current Enemy set. Hertharian
 v0.3.19 migrates that orchestrator to the released attack-capable Decision:
 Target Selection chooses, EnemyTarget persists, Decision determines `IDLE`,
 `PURSUE`, or `ATTACK`, Seek derives pursuit direction, and Chase applies only
-`PURSUE` movement through Dynamic Collision.
+`PURSUE` movement through Dynamic Collision. Hertharian v0.3.23 retains the
+historical runtime name while extending its dispatch responsibility to execute
+cadence-ready ATTACK DamageIntents.
 
 The internal `hth_enemy_pursuit_runtime_step()` API receives all existing
-Entity, Actor, Enemy, Spatial, DynamicBody, EnemyTarget, and CollisionWorld
+Entity, Actor, Enemy, Spatial, DynamicBody, Health, EnemyTarget, AttackCadence,
+and CollisionWorld
 authorities, an explicit caller-owned candidate array, perception radius,
-attack range, chase speed, and delta time. A null candidate pointer is valid
-only when the count is zero. All dependencies and finite nonnegative scalars
-are validated before Enemy iteration, so global validation failure produces
+attack range, chase speed, attack damage, interval, and delta time. A null
+candidate pointer is valid only when the count is zero. All dependencies and
+finite nonnegative scalars are validated before Enemy iteration, so global
+validation failure produces
 no mutation. Attack range is independent of perception radius and zero is
 valid.
 
@@ -23,14 +27,18 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHEnemyStore *enemies,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
+    HTHHealthStore *health,
     HTHEnemyTargetStore *targets,
+    HTHEnemyAttackCadenceStore *cadences,
     const HTHCollisionWorld *collision_world,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
     float perception_radius,
     float attack_range,
     float chase_speed,
-    float delta_seconds);
+    float attack_damage,
+    double attack_interval_seconds,
+    double delta_seconds);
 ```
 
 ## Deterministic Orchestration
@@ -40,6 +48,7 @@ index order without a Registry scan, temporary list, sorting, or retained
 iterator state. For each Enemy it performs:
 
 ```text
+require generation-safe cadence and advance exactly once
 require Spatial or skip
 query current semantic Target
 if missing: Target Selection over explicit candidates
@@ -49,7 +58,7 @@ attack-capable Decision using current Target and attack_range
 switch intent:
   IDLE: skip pursuit movement
   PURSUE: Seek; if DynamicBody is absent, skip; otherwise Chase
-  ATTACK: skip pursuit movement
+  ATTACK: readiness; build DamageIntent; commit cadence; resolve
   unknown: fail
 ```
 
@@ -71,9 +80,10 @@ Seek, Chase, or Dynamic Collision and performs no Spatial or velocity write in
 that branch. The current EnemyTarget is preserved and Decision is reevaluated
 next frame. Existing `DynamicBody.velocity` is retained and is not guaranteed
 to be zero; it is simply not integrated by Pursuit while `ATTACK` remains
-active. Returning to `PURSUE` runs Seek and Chase normally, replacing velocity
-from the current direction. No attack execution, DamageIntent, Health mutation,
-cooldown, stop primitive, or zero-direction Chase is implied.
+active. If cadence is ready, Runtime builds one DamageIntent, commits cadence,
+and resolves Health; otherwise ATTACK is a successful no-op. Returning to
+`PURSUE` runs Seek and Chase normally, replacing velocity from the current
+direction. No stop primitive or zero-direction Chase is implied.
 
 An Enemy without Spatial is skipped. An Enemy without DynamicBody may still
 acquire and preserve a Target and resolve Decision. `ATTACK` is valid without
@@ -104,8 +114,9 @@ evaluation for a valid perceptible Target and may perform at most two LOS
 traces on the blocked in-range path, which does not alter the asymptotic bound.
 Existing Targets or empty candidate sets may reduce actual work.
 
-Runtime has no scheduler, manager, brain, timing state, navigation, facing,
-gravity, attack execution, or combat policy. It neither migrates Player nor
+Runtime has no scheduler, manager, brain, navigation, facing, gravity, or
+general combat policy. Its attack cadence is caller-driven simulation state;
+it neither migrates Player nor
 creates a Player target bridge or Enemy population. Production contains zero Pursuit
 Runtime calls and performs zero such work per frame in v0.3.12. As of v0.3.13,
 caller-driven Enemy Runtime Population can supply canonical runtime Enemies;
@@ -120,9 +131,9 @@ As of v0.3.19, Enemy Attack Eligibility is reachable in production solely
 through attack-capable Decision. `ATTACK` now has the runtime movement semantics
 described above, while attack execution remains deferred.
 
-As of v0.3.21, the separate Enemy Attack Execution builder remains
-deliberately disconnected from this loop. An `ATTACK` frame still suppresses
-movement without creating or resolving DamageIntent. As of v0.3.22, the
-separate caller-owned Enemy Attack Cadence foundation is also disconnected:
-Pursuit Runtime neither owns nor advances it, and production integration is
-deferred.
+As of v0.3.23, a dedicated generation-safe Store owns cadence and this loop is
+the sole production attack dispatcher. Cadence advances once before early
+Spatial/Target/intent exits. Decision is still evaluated at most once; the
+ATTACK branch performs no direct Eligibility or LOS query. Ready attacks follow
+build -> commit -> resolve, emit at most once per Enemy/step, and never catch
+up. See `ENEMY-ATTACK-RUNTIME-INTEGRATION.md` and ADR-0047.

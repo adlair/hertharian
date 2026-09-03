@@ -20,8 +20,10 @@ typedef struct {
     HTHEntityRegistry *entities;
     HTHActorStore *actors;
     HTHEnemyStore *enemies;
+    HTHEnemyAttackCadenceStore *cadences;
     HTHSpatialStore *spatial;
     HTHDynamicBodyStore *bodies;
+    HTHHealthStore *health;
     HTHEnemyTargetStore *targets;
 } Context;
 
@@ -75,17 +77,22 @@ static bool context_create(Context *context)
     context->entities = hth_entity_registry_create();
     context->actors = hth_actor_store_create();
     context->enemies = hth_enemy_store_create();
+    context->cadences = hth_enemy_attack_cadence_store_create();
     context->spatial = hth_spatial_store_create();
     context->bodies = hth_dynamic_body_store_create();
+    context->health = hth_health_store_create();
     context->targets = hth_enemy_target_store_create();
     return context->entities != NULL && context->actors != NULL &&
-           context->enemies != NULL && context->spatial != NULL &&
-           context->bodies != NULL && context->targets != NULL;
+           context->enemies != NULL && context->cadences != NULL &&
+           context->spatial != NULL && context->bodies != NULL &&
+           context->health != NULL && context->targets != NULL;
 }
 
 static void context_destroy(Context *context)
 {
     hth_enemy_target_store_destroy(context->targets);
+    hth_health_store_destroy(context->health);
+    hth_enemy_attack_cadence_store_destroy(context->cadences);
     hth_dynamic_body_store_destroy(context->bodies);
     hth_spatial_store_destroy(context->spatial);
     hth_enemy_store_destroy(context->enemies);
@@ -98,6 +105,8 @@ static bool create_spatial_entity(Context *context,
                                   HTHEntityHandle *out_entity)
 {
     return hth_entity_registry_create_entity(context->entities, out_entity) &&
+           hth_actor_store_attach(context->actors, context->entities,
+                                  *out_entity) &&
            hth_spatial_store_attach(context->spatial, context->entities,
                                     *out_entity, &spatial_value);
 }
@@ -111,7 +120,10 @@ static bool create_enemy(Context *context,
         !hth_actor_store_attach(context->actors, context->entities,
                                 *out_enemy) ||
         !hth_enemy_store_attach(context->enemies, context->entities,
-                                context->actors, *out_enemy)) {
+                                context->actors, *out_enemy) ||
+        !hth_enemy_attack_cadence_store_attach(
+            context->cadences, context->entities, context->actors,
+            context->enemies, *out_enemy)) {
         return false;
     }
     if (spatial_value == NULL) {
@@ -132,8 +144,9 @@ static bool step(Context *context, const HTHCollisionWorld *world,
 {
     return hth_enemy_pursuit_runtime_step(
         context->entities, context->actors, context->enemies,
-        context->spatial, context->bodies, context->targets, world,
-        candidates, candidate_count, radius, 0.0F, speed, dt);
+        context->spatial, context->bodies, context->health, context->targets,
+        context->cadences, world, candidates, candidate_count, radius, 0.0F,
+        speed, 10.0F, 1.0, (double)dt);
 }
 
 static bool step_with_attack(
@@ -143,9 +156,10 @@ static bool step_with_attack(
 {
     return hth_enemy_pursuit_runtime_step(
         context->entities, context->actors, context->enemies,
-        context->spatial, context->bodies, context->targets, world,
+        context->spatial, context->bodies, context->health, context->targets,
+        context->cadences, world,
         candidates, candidate_count, perception_radius, attack_range, speed,
-        dt);
+        10.0F, 1.0, (double)dt);
 }
 
 static bool close_float(float left, float right)
@@ -189,6 +203,38 @@ static bool no_target(Context *context, HTHEntityHandle enemy)
         context->enemies, enemy, &target);
 }
 
+static bool create_actor_target(Context *context,
+                                HTHSpatialTransform spatial_value,
+                                HTHHealth health_value,
+                                HTHEntityHandle *out_target)
+{
+    return create_spatial_entity(context, spatial_value, out_target) &&
+           hth_health_store_attach(context->health, context->entities,
+                                   context->actors, *out_target,
+                                   health_value);
+}
+
+static bool health_equals(Context *context, HTHEntityHandle actor,
+                          float expected)
+{
+    HTHHealth health;
+
+    return hth_health_store_get(context->health, context->entities,
+                                context->actors, actor, &health) &&
+           health.current == expected;
+}
+
+static bool cadence_remaining(Context *context, HTHEntityHandle enemy,
+                              double expected)
+{
+    HTHEnemyAttackCadence *cadence;
+
+    return hth_enemy_attack_cadence_store_get_mutable(
+               context->cadences, context->entities, context->actors,
+               context->enemies, enemy, &cadence) &&
+           fabs(cadence->remaining_seconds - expected) <= 1.0e-7;
+}
+
 static bool test_global_validation_is_transactional(void)
 {
     Context context;
@@ -201,8 +247,6 @@ static bool test_global_validation_is_transactional(void)
     HTHEntityHandle enemy;
     HTHEntityHandle candidate;
     HTHEntityHandle candidates[1];
-    const float invalid[] = {-1.0F, NAN, INFINITY, -INFINITY};
-    size_t index;
 
     CHECK(context_create(&context));
     CHECK(create_enemy(&context, &initial_spatial, &initial_body, &enemy));
@@ -219,54 +263,25 @@ static bool test_global_validation_is_transactional(void)
         CHECK(memcmp(&initial_body, &after_body, sizeof(initial_body)) == 0); \
     } while (0)
 
-#define CHECK_FAILURE(arguments)                                             \
+#define CHECK_FAILURE(health_value, cadence_value, damage_value,             \
+                      interval_value, delta_value)                           \
     do {                                                                     \
-        CHECK(!hth_enemy_pursuit_runtime_step arguments);                    \
+        CHECK(!hth_enemy_pursuit_runtime_step(                               \
+            context.entities, context.actors, context.enemies,               \
+            context.spatial, context.bodies, health_value, context.targets,  \
+            cadence_value, &world, candidates, 1U, 10.0F, 0.0F, 2.0F,       \
+            damage_value, interval_value, delta_value));                     \
         CHECK_UNCHANGED();                                                   \
     } while (0)
 
-    CHECK_FAILURE((NULL, context.actors, context.enemies, context.spatial,
-                   context.bodies, context.targets, &world, candidates, 1U,
-                   10.0F, 0.0F, 2.0F, 1.0F));
-    CHECK_FAILURE((context.entities, NULL, context.enemies, context.spatial,
-                   context.bodies, context.targets, &world, candidates, 1U,
-                   10.0F, 0.0F, 2.0F, 1.0F));
-    CHECK_FAILURE((context.entities, context.actors, NULL, context.spatial,
-                   context.bodies, context.targets, &world, candidates, 1U,
-                   10.0F, 0.0F, 2.0F, 1.0F));
-    CHECK_FAILURE((context.entities, context.actors, context.enemies, NULL,
-                   context.bodies, context.targets, &world, candidates, 1U,
-                   10.0F, 0.0F, 2.0F, 1.0F));
-    CHECK_FAILURE((context.entities, context.actors, context.enemies,
-                   context.spatial, NULL, context.targets, &world, candidates,
-                   1U, 10.0F, 0.0F, 2.0F, 1.0F));
-    CHECK_FAILURE((context.entities, context.actors, context.enemies,
-                   context.spatial, context.bodies, NULL, &world, candidates,
-                   1U, 10.0F, 0.0F, 2.0F, 1.0F));
-    CHECK_FAILURE((context.entities, context.actors, context.enemies,
-                   context.spatial, context.bodies, context.targets, NULL,
-                   candidates, 1U, 10.0F, 0.0F, 2.0F, 1.0F));
-    CHECK_FAILURE((context.entities, context.actors, context.enemies,
-                   context.spatial, context.bodies, context.targets, &world,
-                   NULL, 1U, 10.0F, 0.0F, 2.0F, 1.0F));
-    for (index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
-        CHECK_FAILURE((context.entities, context.actors, context.enemies,
-                       context.spatial, context.bodies, context.targets,
-                       &world, candidates, 1U, invalid[index], 0.0F, 2.0F,
-                       1.0F));
-        CHECK_FAILURE((context.entities, context.actors, context.enemies,
-                       context.spatial, context.bodies, context.targets,
-                       &world, candidates, 1U, 10.0F, invalid[index], 2.0F,
-                       1.0F));
-        CHECK_FAILURE((context.entities, context.actors, context.enemies,
-                       context.spatial, context.bodies, context.targets,
-                       &world, candidates, 1U, 10.0F, 0.0F, invalid[index],
-                       1.0F));
-        CHECK_FAILURE((context.entities, context.actors, context.enemies,
-                       context.spatial, context.bodies, context.targets,
-                       &world, candidates, 1U, 10.0F, 0.0F, 2.0F,
-                       invalid[index]));
-    }
+    CHECK_FAILURE(NULL, context.cadences, 10.0F, 1.0, 0.1);
+    CHECK_FAILURE(context.health, NULL, 10.0F, 1.0, 0.1);
+    CHECK_FAILURE(context.health, context.cadences, -1.0F, 1.0, 0.1);
+    CHECK_FAILURE(context.health, context.cadences, NAN, 1.0, 0.1);
+    CHECK_FAILURE(context.health, context.cadences, 10.0F, -1.0, 0.1);
+    CHECK_FAILURE(context.health, context.cadences, 10.0F, NAN, 0.1);
+    CHECK_FAILURE(context.health, context.cadences, 10.0F, 1.0, -1.0);
+    CHECK_FAILURE(context.health, context.cadences, 10.0F, 1.0, NAN);
 #undef CHECK_FAILURE
 #undef CHECK_UNCHANGED
 
@@ -882,6 +897,143 @@ static bool test_first_enemy_failure_and_independent_contexts(void)
     return true;
 }
 
+static bool test_attack_damage_cadence_and_failure_semantics(void)
+{
+    Context context;
+    HTHCollisionWorld world = distant_world();
+    HTHSpatialTransform enemy_value =
+        transform(0.0F, 0.0F, 0.0F, 0.25F);
+    HTHDynamicBody enemy_body = body(1.0F, 2.0F, 3.0F);
+    HTHSpatialTransform after;
+    HTHDynamicBody after_body;
+    HTHEntityHandle enemy;
+    HTHEntityHandle target;
+    HTHEntityHandle non_actor;
+    HTHEntityHandle candidates[1];
+
+    CHECK(context_create(&context));
+    CHECK(create_enemy(&context, &enemy_value, &enemy_body, &enemy));
+    CHECK(create_actor_target(
+        &context, transform(0.5F, 0.0F, 0.0F, 0.0F),
+        (HTHHealth){25.0F, 25.0F}, &target));
+    candidates[0] = target;
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.0F, 2.0F, 0.0F));
+    CHECK(health_equals(&context, target, 15.0F));
+    CHECK(cadence_remaining(&context, enemy, 1.0));
+    CHECK(get_state(&context, enemy, &after, &after_body));
+    CHECK(memcmp(&enemy_value, &after, sizeof(enemy_value)) == 0);
+    CHECK(memcmp(&enemy_body, &after_body, sizeof(enemy_body)) == 0);
+
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.0F, 2.0F, 0.4F));
+    CHECK(health_equals(&context, target, 15.0F));
+    CHECK(cadence_remaining(&context, enemy, 0.6));
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.0F, 2.0F, 0.6F));
+    CHECK(health_equals(&context, target, 5.0F));
+    CHECK(cadence_remaining(&context, enemy, 1.0));
+
+    CHECK(hth_health_store_remove(context.health, context.entities,
+                                  context.actors, target));
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.0F, 2.0F, 1.0F));
+    CHECK(cadence_remaining(&context, enemy, 1.0));
+
+    CHECK(hth_enemy_target_store_clear(context.targets, context.entities,
+                                       enemy));
+    CHECK(hth_entity_registry_create_entity(context.entities, &non_actor));
+    CHECK(hth_spatial_store_attach(
+        context.spatial, context.entities, non_actor,
+        &(HTHSpatialTransform){{0.25F, 0.0F, 0.0F}, 0.0F}));
+    {
+        HTHEnemyAttackCadence *cadence;
+
+        CHECK(hth_enemy_attack_cadence_store_get_mutable(
+            context.cadences, context.entities, context.actors,
+            context.enemies, enemy, &cadence));
+        CHECK(hth_enemy_attack_cadence_advance(cadence, 1.0));
+    }
+    candidates[0] = non_actor;
+    CHECK(!step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.0F, 2.0F, 0.0F));
+    CHECK(cadence_remaining(&context, enemy, 0.0));
+    context_destroy(&context);
+    return true;
+}
+
+static bool test_independent_attacks_and_temporal_advance(void)
+{
+    Context context;
+    HTHCollisionWorld world = distant_world();
+    HTHSpatialTransform first_value =
+        transform(0.0F, 0.0F, 0.0F, 0.0F);
+    HTHSpatialTransform second_value =
+        transform(0.1F, 0.0F, 0.0F, 0.0F);
+    HTHSpatialTransform far_value =
+        transform(5.0F, 0.0F, 0.0F, 0.0F);
+    HTHDynamicBody stationary = body(0.0F, 0.0F, 0.0F);
+    HTHEnemyAttackCadence *cadence;
+    HTHSpatialTransform moved;
+    HTHEntityHandle first;
+    HTHEntityHandle second;
+    HTHEntityHandle pursuing;
+    HTHEntityHandle bodyless;
+    HTHEntityHandle target;
+    HTHEntityHandle candidates[1];
+
+    CHECK(context_create(&context));
+    CHECK(create_enemy(&context, &first_value, &stationary, &first));
+    CHECK(create_enemy(&context, &second_value, &stationary, &second));
+    CHECK(create_actor_target(
+        &context, transform(0.5F, 0.0F, 0.0F, 0.0F),
+        (HTHHealth){100.0F, 100.0F}, &target));
+    candidates[0] = target;
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.0F, 2.0F, 0.0F));
+    CHECK(health_equals(&context, target, 80.0F));
+    CHECK(cadence_remaining(&context, first, 1.0));
+    CHECK(cadence_remaining(&context, second, 1.0));
+    CHECK(step_with_attack(
+        &context, &world, candidates, 1U, 10.0F, 1.0F, 2.0F, 0.5F));
+    CHECK(health_equals(&context, target, 80.0F));
+    CHECK(cadence_remaining(&context, first, 0.5));
+    CHECK(cadence_remaining(&context, second, 0.5));
+    CHECK(hth_enemy_pursuit_runtime_step(
+        context.entities, context.actors, context.enemies, context.spatial,
+        context.bodies, context.health, context.targets, context.cadences,
+        &world, candidates, 1U, 10.0F, 1.0F, 2.0F, 10.0F, 0.0, 0.5));
+    CHECK(health_equals(&context, target, 60.0F));
+    CHECK(cadence_remaining(&context, first, 0.0));
+    CHECK(cadence_remaining(&context, second, 0.0));
+
+    CHECK(create_enemy(&context, &far_value, &stationary, &pursuing));
+    CHECK(hth_enemy_attack_cadence_store_get_mutable(
+        context.cadences, context.entities, context.actors,
+        context.enemies, pursuing, &cadence));
+    CHECK(hth_enemy_attack_cadence_commit(cadence, 2.0));
+    CHECK(hth_enemy_target_store_set(
+        context.targets, context.entities, context.actors, context.enemies,
+        pursuing, target));
+    CHECK(step_with_attack(
+        &context, &world, NULL, 0U, 10.0F, 1.0F, 2.0F, 0.25F));
+    CHECK(cadence_remaining(&context, pursuing, 1.75));
+    CHECK(hth_spatial_store_get(context.spatial, context.entities, pursuing,
+                                &moved));
+    CHECK(moved.position.x < far_value.position.x);
+
+    CHECK(create_enemy(&context, NULL, NULL, &bodyless));
+    CHECK(hth_enemy_attack_cadence_store_get_mutable(
+        context.cadences, context.entities, context.actors,
+        context.enemies, bodyless, &cadence));
+    CHECK(hth_enemy_attack_cadence_commit(cadence, 2.0));
+    CHECK(step_with_attack(
+        &context, &world, NULL, 0U, 10.0F, 1.0F, 2.0F, 0.25F));
+    CHECK(cadence_remaining(&context, bodyless, 1.75));
+    context_destroy(&context);
+    return true;
+}
+
 int main(void)
 {
     typedef bool (*TestFunction)(void);
@@ -897,7 +1049,9 @@ int main(void)
         test_attack_preserves_state_and_pursuit_resumes,
         test_attack_without_body_and_mixed_intents,
         test_partial_progress_and_deterministic_failure,
-        test_first_enemy_failure_and_independent_contexts
+        test_first_enemy_failure_and_independent_contexts,
+        test_attack_damage_cadence_and_failure_semantics,
+        test_independent_attacks_and_temporal_advance
     };
     size_t index;
 

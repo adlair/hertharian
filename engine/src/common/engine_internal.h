@@ -6,6 +6,7 @@
 #include "bootstrap_enemy_pursuit.h"
 #include "dynamic_body.h"
 #include "enemy.h"
+#include "enemy_attack_cadence_store.h"
 #include "enemy_target.h"
 #include "entity.h"
 #include "health.h"
@@ -21,6 +22,7 @@ struct HTHEngineWorldState {
     HTHDynamicBodyStore *dynamic_body_store;
     HTHActorStore *actor_store;
     HTHEnemyStore *enemy_store;
+    HTHEnemyAttackCadenceStore *enemy_attack_cadence_store;
     HTHHealthStore *health_store;
     HTHEnemyTargetStore *enemy_target_store;
     HTHBootstrapEnemyPursuit bootstrap_enemy_pursuit;

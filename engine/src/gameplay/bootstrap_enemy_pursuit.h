@@ -5,6 +5,7 @@
 #include "collision_world.h"
 #include "dynamic_body.h"
 #include "enemy.h"
+#include "enemy_attack_cadence_store.h"
 #include "enemy_target.h"
 #include "entity.h"
 #include "health.h"
@@ -48,6 +49,7 @@ HTHBootstrapEnemyPursuitCreateResult hth_bootstrap_enemy_pursuit_create(
     HTHEntityRegistry *entities,
     HTHActorStore *actors,
     HTHEnemyStore *enemies,
+    HTHEnemyAttackCadenceStore *cadences,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
     HTHHealthStore *health,
@@ -60,15 +62,18 @@ HTHBootstrapEnemyPursuitStepResult hth_bootstrap_enemy_pursuit_step(
     const HTHEnemyStore *enemies,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
+    HTHHealthStore *health,
     HTHEnemyTargetStore *targets,
+    HTHEnemyAttackCadenceStore *cadences,
     const HTHCollisionWorld *collision_world,
     const HTHPlayerBody *player,
-    float delta_seconds);
+    double delta_seconds);
 HTHBootstrapEnemyPursuitCleanupResult hth_bootstrap_enemy_pursuit_cleanup(
     HTHBootstrapEnemyPursuit *integration,
     HTHEntityRegistry *entities,
     HTHActorStore *actors,
     HTHEnemyStore *enemies,
+    HTHEnemyAttackCadenceStore *cadences,
     HTHSpatialStore *spatial,
     HTHDynamicBodyStore *bodies,
     HTHHealthStore *health,

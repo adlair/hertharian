@@ -129,3 +129,9 @@ As of v0.3.22, `ENEMY-ATTACK-CADENCE.md` adds an independent caller-owned
 one-double countdown. It adds no field to this Store, contains no Enemy handle,
 and remains disconnected from production pending explicit generation-safe
 ownership and runtime integration.
+
+As of v0.3.23, `ENEMY-ATTACK-RUNTIME-INTEGRATION.md` supplies that ownership
+through a separate generation-safe cadence Store. Canonical Runtime Enemies
+receive one cadence association without adding payload to this role marker;
+Pursuit Runtime now gates ATTACK DamageIntent construction and resolution with
+that state.
