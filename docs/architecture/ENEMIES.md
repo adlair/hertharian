@@ -105,3 +105,9 @@ see `RUNTIME-BODY-VISUALIZATION.md` and ADR-0040.
 As of v0.3.17, the separate `ENEMY-ATTACK-ELIGIBILITY.md` query may validate an
 explicit Enemy through this Store before composing Perception and LOS. It adds
 no Enemy state and has no production call site.
+
+As of v0.3.18, `ENEMY-INTENT-DECISION.md` adds an `ATTACK` intent and a
+disconnected attack-capable Decision variant that composes Perception, Attack
+Eligibility, and fallback LOS. The historical IDLE/PURSUE evaluator remains
+the sole production Pursuit path; runtime ATTACK handling and movement policy
+are deferred to v0.3.19.

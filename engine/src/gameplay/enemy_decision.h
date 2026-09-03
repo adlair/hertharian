@@ -12,7 +12,8 @@
 
 typedef enum HTHEnemyIntentKind {
     HTH_ENEMY_INTENT_IDLE = 0,
-    HTH_ENEMY_INTENT_PURSUE
+    HTH_ENEMY_INTENT_PURSUE,
+    HTH_ENEMY_INTENT_ATTACK
 } HTHEnemyIntentKind;
 
 typedef struct HTHEnemyIntent {
@@ -29,6 +30,18 @@ bool hth_enemy_decision_evaluate(
     const HTHCollisionWorld *collision_world,
     HTHEntityHandle enemy,
     float perception_radius,
+    HTHEnemyIntent *out_intent);
+
+bool hth_enemy_decision_evaluate_with_attack(
+    const HTHEntityRegistry *entities,
+    const HTHActorStore *actors,
+    const HTHEnemyStore *enemies,
+    const HTHEnemyTargetStore *targets,
+    const HTHSpatialStore *spatial,
+    const HTHCollisionWorld *collision_world,
+    HTHEntityHandle enemy,
+    float perception_radius,
+    float attack_range,
     HTHEnemyIntent *out_intent);
 
 #endif

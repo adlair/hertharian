@@ -1,10 +1,12 @@
 # Enemy Intent / Decision Foundation
 
 Hertharian v0.3.9 introduces an internal, explicit representation of what an
-Enemy currently wants to do. `HTHEnemyIntent` is an ephemeral value with two
-states: canonical `IDLE`, whose target is the canonical invalid Entity handle,
-and `PURSUE`, whose target is the current semantically valid Enemy Target used
-by Decision. Intent is neither retained nor stored; there is no Intent Store,
+Enemy currently wants to do. Hertharian v0.3.18 extends that representation
+with `ATTACK`. `HTHEnemyIntent` is an ephemeral value with three states:
+canonical `IDLE`, whose target is the canonical invalid Entity handle, and
+`PURSUE` or `ATTACK`, whose target is the current semantically valid Enemy
+Target used by Decision. Intent contains only its kind and generation-sensitive
+Entity handle. It is neither retained nor stored; there is no Intent Store,
 Decision Store, brain, manager, cache, lifecycle, or automatic update.
 
 `hth_enemy_decision_evaluate()` is a synchronous, observationally pure query.
@@ -14,6 +16,12 @@ locomotion, movement state, yaw, and facing are irrelevant. Structural or
 argument failure returns false with canonical `IDLE`; a valid negative gameplay
 result returns true with canonical `IDLE`; and a valid positive result returns
 true with `PURSUE(current_target)`.
+
+The historical function remains the sole production Decision path in v0.3.18
+and can still return only `IDLE` or `PURSUE`. The new internal
+`hth_enemy_decision_evaluate_with_attack()` accepts an additional caller-owned
+`attack_range` and can return all three intent kinds. It is a disconnected
+foundation capability with zero production call sites.
 
 ## Current Target Policy
 
@@ -40,6 +48,40 @@ out-of-radius Target avoids a static CollisionWorld trace. Decision delegates
 all radius geometry to Enemy Perception and all occlusion semantics to Enemy
 LOS; it never calculates distance or calls Collision/Trace directly.
 
+## Attack-Capable Policy
+
+The new evaluator preserves Current Target as its only target authority. Both
+`perception_radius` and `attack_range` are independent, finite, nonnegative,
+caller-owned scalars; neither is clamped or derived from the other. Perception
+is the outer awareness gate, so an attack range larger than the perception
+radius cannot produce `ATTACK` outside perception.
+
+```text
+obtain current Target
+self Target -> IDLE
+Enemy Perception at perception_radius
+Enemy Attack Eligibility at attack_range
+    eligible -> ATTACK(current Target)
+    ineligible -> Enemy LOS
+        clear -> PURSUE(current Target)
+        blocked -> IDLE
+```
+
+Attack Eligibility remains the authority for inclusive 3D attack range and
+attack LOS. Because it returns no ineligibility reason, the blocked in-range
+path can perform one LOS inside Eligibility and a second fallback LOS to
+distinguish `PURSUE` from `IDLE`. The maximum is therefore two LOS evaluations,
+an accepted constant factor. A technical Eligibility failure propagates as a
+Decision failure with canonical `IDLE`; a successful ineligible result proceeds
+to fallback LOS. After the perception gate, `ATTACK` has priority over
+`PURSUE`.
+
+A missing, dead, stale-generation, or non-Spatial Target produces canonical
+`IDLE` under the existing negative-result policy. In the attack-capable API,
+self Target also produces `IDLE`. Neither path clears or replaces the stored
+relationship. Exact range boundaries remain inclusive and zero attack range
+can accept distinct colocated Entities.
+
 ## Purity, Cost, and Deferred Execution
 
 Decision mutates no Store or World, allocates nothing, retains no pointer, and
@@ -64,5 +106,8 @@ Chase. Decision still neither calls nor executes Chase.
 As of v0.3.12, Pursuit Runtime invokes Decision independently even immediately
 after Selection; `IDLE` skips Seek and Chase without clearing the Target.
 
-As of v0.3.17, Enemy Attack Eligibility remains a separate disconnected query.
-Decision still has no `ATTACK` intent and does not call eligibility.
+As of v0.3.18, the attack-capable variant composes the still-independent Enemy
+Attack Eligibility query but remains disconnected from production Pursuit.
+`ATTACK` is semantic output only: it does not imply execution, DamageIntent,
+Health mutation, cooldown, facing, movement, or velocity changes. Runtime
+handling and stop/velocity ownership are deferred to v0.3.19.

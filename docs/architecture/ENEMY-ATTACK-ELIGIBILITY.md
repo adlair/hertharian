@@ -96,8 +96,10 @@ originating Registry and associated Stores remains a caller contract, as in
 the rest of the Entity foundation.
 
 The query is headless-compatible because it depends only on gameplay and
-static collision data. v0.3.17 adds no production call site, so production
-attack-eligibility calls and per-frame work both remain zero. Cooldown, attack
-type, facing, factions, dynamic occlusion, attack intent, DamageIntent
-creation, Health mutation, animation, and integration with Decision or Pursuit
-are future boundaries.
+static collision data. v0.3.17 adds no production call site. As of v0.3.18,
+the disconnected `hth_enemy_decision_evaluate_with_attack()` variant consumes
+this query after its outer perception gate, while the historical Decision API
+remains the sole production path. Production eligibility calls and per-frame
+work therefore remain zero. Cooldown, attack type, facing, factions, dynamic
+occlusion, DamageIntent creation, Health mutation, animation, and integration
+with production Pursuit remain future boundaries.

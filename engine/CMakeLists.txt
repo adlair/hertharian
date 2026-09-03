@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.17 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.18 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -413,7 +413,9 @@ if(BUILD_TESTING)
 
     add_executable(enemy_decision_tests
         tests/enemy_decision_tests.c
+        src/gameplay/player_target_bridge.c
         src/gameplay/enemy_decision.c
+        src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_target_selection.c
         src/gameplay/enemy_los.c
         src/gameplay/enemy_perception.c
@@ -422,6 +424,7 @@ if(BUILD_TESTING)
         src/gameplay/health.c
         src/actor/actor.c
         src/physics/dynamic_body.c
+        src/player/player_body.c
         src/spatial/spatial.c
         src/entity/entity.c
         src/collision/aabb.c
@@ -432,7 +435,7 @@ if(BUILD_TESTING)
     )
     target_include_directories(enemy_decision_tests PRIVATE
         include src/actor src/collision src/entity src/gameplay
-        src/physics src/spatial src/world
+        src/physics src/player src/spatial src/world
     )
     target_compile_features(enemy_decision_tests PRIVATE c_std_11)
     set_target_properties(enemy_decision_tests PROPERTIES C_EXTENSIONS OFF)
@@ -441,6 +444,7 @@ if(BUILD_TESTING)
         tests/enemy_seek_tests.c
         src/gameplay/enemy_seek.c
         src/gameplay/enemy_decision.c
+        src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_target_selection.c
         src/gameplay/enemy_los.c
         src/gameplay/enemy_perception.c
@@ -469,6 +473,7 @@ if(BUILD_TESTING)
         src/gameplay/enemy_chase.c
         src/gameplay/enemy_seek.c
         src/gameplay/enemy_decision.c
+        src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_target_selection.c
         src/gameplay/enemy_los.c
         src/gameplay/enemy_perception.c
@@ -499,6 +504,7 @@ if(BUILD_TESTING)
         src/gameplay/enemy_chase.c
         src/gameplay/enemy_seek.c
         src/gameplay/enemy_decision.c
+        src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_target_selection.c
         src/gameplay/enemy_los.c
         src/gameplay/enemy_perception.c
@@ -532,6 +538,7 @@ if(BUILD_TESTING)
         src/gameplay/enemy_chase.c
         src/gameplay/enemy_seek.c
         src/gameplay/enemy_decision.c
+        src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_target_selection.c
         src/gameplay/enemy_los.c
         src/gameplay/enemy_perception.c
@@ -564,6 +571,7 @@ if(BUILD_TESTING)
         src/gameplay/actor_spawn.c
         src/gameplay/enemy_chase.c
         src/gameplay/enemy_decision.c
+        src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_los.c
         src/gameplay/enemy_perception.c
         src/gameplay/enemy_pursuit_runtime.c
@@ -602,6 +610,7 @@ if(BUILD_TESTING)
         src/gameplay/actor_spawn.c
         src/gameplay/enemy_chase.c
         src/gameplay/enemy_decision.c
+        src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_los.c
         src/gameplay/enemy_perception.c
         src/gameplay/enemy_pursuit_runtime.c
