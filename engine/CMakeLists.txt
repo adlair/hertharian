@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.19 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.20 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -414,6 +414,7 @@ if(BUILD_TESTING)
     add_executable(enemy_decision_tests
         tests/enemy_decision_tests.c
         src/gameplay/player_target_bridge.c
+        src/gameplay/actor_spawn.c
         src/gameplay/enemy_decision.c
         src/gameplay/enemy_attack_eligibility.c
         src/gameplay/enemy_target_selection.c
@@ -569,6 +570,7 @@ if(BUILD_TESTING)
         tests/player_target_bridge_tests.c
         src/gameplay/player_target_bridge.c
         src/gameplay/actor_spawn.c
+        src/gameplay/damage_intent.c
         src/gameplay/enemy_chase.c
         src/gameplay/enemy_decision.c
         src/gameplay/enemy_attack_eligibility.c
@@ -650,6 +652,9 @@ if(BUILD_TESTING)
         tests/runtime_body_visual_tests.c
         src/renderer/runtime_body_visual.c
         src/gameplay/player_target_bridge.c
+        src/gameplay/actor_spawn.c
+        src/gameplay/health.c
+        src/actor/actor.c
         src/physics/dynamic_body.c
         src/spatial/spatial.c
         src/entity/entity.c
@@ -657,8 +662,8 @@ if(BUILD_TESTING)
         src/common/math.c
     )
     target_include_directories(runtime_body_visual_tests PRIVATE
-        include src/collision src/entity src/gameplay src/geometry src/physics
-        src/player src/renderer src/spatial
+        include src/actor src/collision src/entity src/gameplay src/geometry
+        src/physics src/player src/renderer src/spatial
     )
     target_compile_features(runtime_body_visual_tests PRIVATE c_std_11)
     set_target_properties(runtime_body_visual_tests PROPERTIES

@@ -1,7 +1,10 @@
 #ifndef HTH_PLAYER_TARGET_BRIDGE_H
 #define HTH_PLAYER_TARGET_BRIDGE_H
 
+#include "actor.h"
+#include "dynamic_body.h"
 #include "entity.h"
+#include "health.h"
 #include "player_body.h"
 #include "spatial.h"
 
@@ -14,8 +17,12 @@ typedef struct {
 bool hth_player_target_bridge_create(
     HTHPlayerTargetBridge *bridge,
     HTHEntityRegistry *entities,
+    HTHActorStore *actors,
     HTHSpatialStore *spatial,
-    const HTHPlayerBody *player);
+    HTHDynamicBodyStore *bodies,
+    HTHHealthStore *health,
+    const HTHPlayerBody *player,
+    HTHHealth initial_health);
 bool hth_player_target_bridge_sync(
     HTHPlayerTargetBridge *bridge,
     const HTHEntityRegistry *entities,
@@ -29,6 +36,9 @@ bool hth_player_target_bridge_get_target(
 bool hth_player_target_bridge_destroy(
     HTHPlayerTargetBridge *bridge,
     HTHEntityRegistry *entities,
-    HTHSpatialStore *spatial);
+    HTHActorStore *actors,
+    HTHSpatialStore *spatial,
+    HTHDynamicBodyStore *bodies,
+    HTHHealthStore *health);
 
 #endif

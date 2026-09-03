@@ -165,6 +165,13 @@ white opaque draw is presentation-only, uses no persistent visual state, and is
 skipped entirely in headless mode; see `RUNTIME-BODY-VISUALIZATION.md` and
 ADR-0040.
 
+As of v0.3.20, the same stable Player target Entity also carries Actor and
+Health. The bootstrap supplies temporary `100/100` Player Health while
+PlayerBody remains the physical authority and Spatial remains its synchronized
+body-center mirror. No new frame phase, DamageIntent, Health mutation, death
+behavior, or Player rendering is introduced; see `PLAYER-DAMAGE-TARGET.md` and
+ADR-0044.
+
 ## Tests
 
 After configuring and building, run:

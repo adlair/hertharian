@@ -399,14 +399,18 @@ static bool test_enemy_target_and_player_proxy_composition(void)
     CHECK(hth_player_body_init(&player, (HTHVec3){2.0F, -1.0F, 0.0F}));
     player.height = 2.0F;
     CHECK(hth_player_target_bridge_create(&bridge, fixture.entities,
-                                          fixture.spatial, &player));
+                                          fixture.actors, fixture.spatial,
+                                          fixture.bodies, fixture.health,
+                                          &player,
+                                          (HTHHealth){100.0F, 100.0F}));
     CHECK(hth_player_target_bridge_get_target(
         &bridge, fixture.entities, fixture.spatial, &proxy));
-    CHECK(!hth_actor_store_has(fixture.actors, fixture.entities, proxy));
+    CHECK(hth_actor_store_has(fixture.actors, fixture.entities, proxy));
     CHECK(evaluate(&fixture, &world, enemy_a, proxy, 2.0F, &eligible));
     CHECK(eligible);
     CHECK(hth_player_target_bridge_destroy(&bridge, fixture.entities,
-                                           fixture.spatial));
+                                           fixture.actors, fixture.spatial,
+                                           fixture.bodies, fixture.health));
     CHECK(hth_enemy_runtime_despawn(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, enemy_a));

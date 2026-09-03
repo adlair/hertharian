@@ -103,6 +103,11 @@ lifecycle untouched.
 The current Engine is single-threaded. No lock or atomic claim is introduced
 around runtime validation and Health delegation.
 
+As of v0.3.20, the stable Player Target Bridge Entity also has Actor and
+Health, so the same handle used by Enemy targeting satisfies both validity and
+resolvability. This release proves that composition in tests but adds no
+production DamageIntent or resolution call.
+
 ## Complexity and Scope
 
 Validation and resolution are O(1); resolution delegates to the existing O(1)

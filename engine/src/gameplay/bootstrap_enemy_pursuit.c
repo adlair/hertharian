@@ -16,6 +16,7 @@ static const HTHDynamicBody bootstrap_enemy_body = {
     {0.0F, 0.0F, 0.0F}
 };
 static const HTHHealth bootstrap_enemy_health = {100.0F, 100.0F};
+static const HTHHealth bootstrap_player_health = {100.0F, 100.0F};
 static const float bootstrap_enemy_perception_radius = 8.0F;
 static const float bootstrap_enemy_attack_range = 1.25F;
 static const float bootstrap_enemy_chase_speed = 2.0F;
@@ -103,14 +104,16 @@ HTHBootstrapEnemyPursuitCreateResult hth_bootstrap_enemy_pursuit_create(
         return HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_START_SOLID;
     }
     if (!hth_player_target_bridge_create(
-            &integration->player_target_bridge, entities, spatial, player)) {
+            &integration->player_target_bridge, entities, actors, spatial,
+            bodies, health, player, bootstrap_player_health)) {
         return HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_BRIDGE_FAILED;
     }
     if (!hth_enemy_runtime_spawn(
             entities, actors, enemies, spatial, bodies, health, &spec,
             &integration->enemy)) {
         (void)hth_player_target_bridge_destroy(
-            &integration->player_target_bridge, entities, spatial);
+            &integration->player_target_bridge, entities, actors, spatial,
+            bodies, health);
         return HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_ENEMY_FAILED;
     }
     return HTH_BOOTSTRAP_ENEMY_PURSUIT_CREATE_OK;
@@ -182,7 +185,8 @@ HTHBootstrapEnemyPursuitCleanupResult hth_bootstrap_enemy_pursuit_cleanup(
     if (!handle_is_invalid(
             integration->player_target_bridge.target_entity)) {
         if (hth_player_target_bridge_destroy(
-                &integration->player_target_bridge, entities, spatial)) {
+                &integration->player_target_bridge, entities, actors,
+                spatial, bodies, health)) {
             integration->player_target_bridge.target_entity =
                 hth_entity_handle_invalid();
         } else {

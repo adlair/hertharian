@@ -1,6 +1,7 @@
 #include "player_target_bridge.h"
 
 #include "actor.h"
+#include "damage_intent.h"
 #include "dynamic_body.h"
 #include "enemy.h"
 #include "enemy_decision.h"
@@ -105,6 +106,32 @@ static HTHPlayerBody player_body(HTHVec3 position)
     return player;
 }
 
+static bool create_bridge(Fixture *fixture, HTHPlayerTargetBridge *bridge,
+                          const HTHPlayerBody *player)
+{
+    return hth_player_target_bridge_create(
+        bridge, fixture->entities, fixture->actors, fixture->spatial,
+        fixture->bodies, fixture->health, player,
+        (HTHHealth){100.0F, 100.0F});
+}
+
+static bool create_bridge_with_health(Fixture *fixture,
+                                      HTHPlayerTargetBridge *bridge,
+                                      const HTHPlayerBody *player,
+                                      HTHHealth initial_health)
+{
+    return hth_player_target_bridge_create(
+        bridge, fixture->entities, fixture->actors, fixture->spatial,
+        fixture->bodies, fixture->health, player, initial_health);
+}
+
+static bool destroy_bridge(Fixture *fixture, HTHPlayerTargetBridge *bridge)
+{
+    return hth_player_target_bridge_destroy(
+        bridge, fixture->entities, fixture->actors, fixture->spatial,
+        fixture->bodies, fixture->health);
+}
+
 static bool transform_matches_player(HTHSpatialTransform transform,
                                      const HTHPlayerBody *player)
 {
@@ -121,15 +148,15 @@ static bool bridge_has_exact_composition(const Fixture *fixture,
                                          HTHEntityHandle entity)
 {
     return hth_entity_registry_is_alive(fixture->entities, entity) &&
+           hth_actor_store_has(fixture->actors, fixture->entities, entity) &&
            hth_spatial_store_has(fixture->spatial, fixture->entities,
                                  entity) &&
-           !hth_actor_store_has(fixture->actors, fixture->entities, entity) &&
+           hth_health_store_has(fixture->health, fixture->entities,
+                                fixture->actors, entity) &&
            !hth_enemy_store_has(fixture->enemies, fixture->entities,
                                 fixture->actors, entity) &&
            !hth_dynamic_body_has(fixture->bodies, fixture->entities,
-                                 entity) &&
-           !hth_health_store_has(fixture->health, fixture->entities,
-                                 fixture->actors, entity);
+                                 entity);
 }
 
 static bool spawn_enemy(Fixture *fixture, HTHVec3 position,
@@ -162,17 +189,20 @@ static bool test_create_get_and_exact_composition(void)
     HTHPlayerBody player = player_body((HTHVec3){2.0F, 3.0F, -4.0F});
     HTHPlayerBody before = player;
     HTHSpatialTransform transform;
+    HTHHealth health;
     HTHEntityHandle target = {3U, 7U};
     size_t index;
 
     CHECK(fixture_create(&fixture));
-    CHECK(hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(create_bridge(&fixture, &bridge, &player));
     CHECK(player_equal(&player, &before));
     CHECK(hth_player_target_bridge_get_target(
         &bridge, fixture.entities, fixture.spatial, &target));
     CHECK(hth_entity_handle_equal(target, bridge.target_entity));
     CHECK(bridge_has_exact_composition(&fixture, target));
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, target, &health));
+    CHECK(health.current == 100.0F && health.maximum == 100.0F);
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, target,
                                 &transform));
     CHECK(transform_matches_player(transform, &player));
@@ -203,19 +233,16 @@ static bool test_create_get_and_exact_composition(void)
           transform.position.y == 0.0F &&
           transform.position.z == 7.0F);
 
-    CHECK(!hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(!create_bridge(&fixture, &bridge, &player));
     CHECK(hth_entity_handle_equal(bridge.target_entity, target));
     CHECK(hth_entity_registry_live_count(fixture.entities) == 1U);
 
-    CHECK(hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(destroy_bridge(&fixture, &bridge));
     CHECK(handle_invalid(bridge.target_entity));
     CHECK(!hth_entity_registry_is_alive(fixture.entities, target));
     CHECK(!hth_spatial_store_has(fixture.spatial, fixture.entities, target));
     CHECK(hth_entity_registry_live_count(fixture.entities) == 0U);
-    CHECK(!hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(!destroy_bridge(&fixture, &bridge));
     fixture_destroy(&fixture);
     return true;
 }
@@ -229,41 +256,84 @@ static bool test_create_validation_and_representability(void)
     HTHPlayerBody invalid;
     HTHSpatialTransform transform;
     const float nonfinite[] = {NAN, INFINITY, -INFINITY};
+    const HTHHealth invalid_health[] = {
+        {-1.0F, 100.0F},
+        {101.0F, 100.0F},
+        {0.0F, 0.0F},
+        {0.0F, -1.0F},
+        {NAN, 100.0F},
+        {0.0F, NAN},
+        {INFINITY, 100.0F},
+        {-INFINITY, 100.0F},
+        {0.0F, INFINITY},
+        {0.0F, -INFINITY}
+    };
+    HTHHealth stored_health;
     size_t index;
 
     CHECK(fixture_create(&fixture));
     CHECK(!hth_player_target_bridge_create(
-        NULL, fixture.entities, fixture.spatial, &player));
+        NULL, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health, &player,
+        (HTHHealth){100.0F, 100.0F}));
     CHECK(!hth_player_target_bridge_create(
-        &bridge, NULL, fixture.spatial, &player));
+        &bridge, NULL, fixture.actors, fixture.spatial, fixture.bodies,
+        fixture.health, &player, (HTHHealth){100.0F, 100.0F}));
     CHECK(handle_invalid(bridge.target_entity));
     CHECK(!hth_player_target_bridge_create(
-        &bridge, fixture.entities, NULL, &player));
+        &bridge, fixture.entities, NULL, fixture.spatial, fixture.bodies,
+        fixture.health, &player, (HTHHealth){100.0F, 100.0F}));
     CHECK(!hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, NULL));
+        &bridge, fixture.entities, fixture.actors, NULL, fixture.bodies,
+        fixture.health, &player, (HTHHealth){100.0F, 100.0F}));
     CHECK(!hth_player_target_bridge_create(
-        &stale, fixture.entities, fixture.spatial, &player));
+        &bridge, fixture.entities, fixture.actors, fixture.spatial, NULL,
+        fixture.health, &player, (HTHHealth){100.0F, 100.0F}));
+    CHECK(!hth_player_target_bridge_create(
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, NULL, &player, (HTHHealth){100.0F, 100.0F}));
+    CHECK(!hth_player_target_bridge_create(
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health, NULL,
+        (HTHHealth){100.0F, 100.0F}));
+    CHECK(!hth_player_target_bridge_create(
+        &stale, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health, &player,
+        (HTHHealth){100.0F, 100.0F}));
     CHECK(stale.target_entity.index == 4U &&
           stale.target_entity.generation == 9U);
 
+    for (index = 0U;
+         index < sizeof(invalid_health) / sizeof(invalid_health[0]);
+         ++index) {
+        CHECK(!create_bridge_with_health(
+            &fixture, &bridge, &player, invalid_health[index]));
+        CHECK(handle_invalid(bridge.target_entity));
+        CHECK(hth_entity_registry_live_count(fixture.entities) == 0U);
+    }
+    CHECK(create_bridge_with_health(
+        &fixture, &bridge, &player, (HTHHealth){0.0F, 100.0F}));
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, bridge.target_entity,
+                               &stored_health));
+    CHECK(stored_health.current == 0.0F &&
+          stored_health.maximum == 100.0F);
+    CHECK(destroy_bridge(&fixture, &bridge));
+
     invalid = player;
     invalid.height = 0.0F;
-    CHECK(!hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &invalid));
+    CHECK(!create_bridge(&fixture, &bridge, &invalid));
     invalid = player;
     invalid.eye_height = invalid.height;
-    CHECK(!hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &invalid));
+    CHECK(!create_bridge(&fixture, &bridge, &invalid));
     for (index = 0U; index < sizeof(nonfinite) / sizeof(nonfinite[0]);
          ++index) {
         invalid = player;
         invalid.position.x = nonfinite[index];
-        CHECK(!hth_player_target_bridge_create(
-            &bridge, fixture.entities, fixture.spatial, &invalid));
+        CHECK(!create_bridge(&fixture, &bridge, &invalid));
         invalid = player;
         invalid.height = nonfinite[index];
-        CHECK(!hth_player_target_bridge_create(
-            &bridge, fixture.entities, fixture.spatial, &invalid));
+        CHECK(!create_bridge(&fixture, &bridge, &invalid));
     }
 
     invalid = player;
@@ -271,20 +341,17 @@ static bool test_create_validation_and_representability(void)
     invalid.height = FLT_MAX;
     invalid.eye_height = 1.0F;
     CHECK(hth_player_body_is_valid(&invalid));
-    CHECK(!hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &invalid));
+    CHECK(!create_bridge(&fixture, &bridge, &invalid));
     CHECK(hth_entity_registry_live_count(fixture.entities) == 0U);
 
     player.position.y = FLT_MAX / 4.0F;
     player.height = FLT_MAX / 4.0F;
     player.eye_height = 1.0F;
-    CHECK(hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(create_bridge(&fixture, &bridge, &player));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
                                 bridge.target_entity, &transform));
     CHECK(transform_matches_player(transform, &player));
-    CHECK(hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(destroy_bridge(&fixture, &bridge));
     fixture_destroy(&fixture);
     return true;
 }
@@ -301,8 +368,7 @@ static bool test_sync_contract_and_churn(void)
     size_t index;
 
     CHECK(fixture_create(&fixture));
-    CHECK(hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(create_bridge(&fixture, &bridge, &player));
     target = bridge.target_entity;
     for (index = 0U; index < 256U; ++index) {
         player.position.x = (float)index * 0.25F;
@@ -357,8 +423,7 @@ static bool test_sync_contract_and_churn(void)
         &bridge, fixture.entities, NULL, &player));
     CHECK(!hth_player_target_bridge_sync(
         &bridge, fixture.entities, fixture.spatial, NULL));
-    CHECK(hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(destroy_bridge(&fixture, &bridge));
     fixture_destroy(&fixture);
     return true;
 }
@@ -377,8 +442,7 @@ static bool test_stale_handles_and_destroy_contract(void)
     HTHEntityHandle output = {2U, 3U};
 
     CHECK(fixture_create(&fixture));
-    CHECK(!hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(!destroy_bridge(&fixture, &bridge));
     CHECK(!hth_player_target_bridge_get_target(
         &bridge, fixture.entities, fixture.spatial, &output));
     CHECK(handle_invalid(output));
@@ -396,15 +460,26 @@ static bool test_stale_handles_and_destroy_contract(void)
     CHECK(handle_invalid(output));
     CHECK(!hth_player_target_bridge_get_target(
         &bridge, fixture.entities, fixture.spatial, NULL));
-    CHECK(hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(create_bridge(&fixture, &bridge, &player));
     stale = bridge.target_entity;
     CHECK(!hth_player_target_bridge_destroy(
-        NULL, fixture.entities, fixture.spatial));
+        NULL, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health));
     CHECK(!hth_player_target_bridge_destroy(
-        &bridge, NULL, fixture.spatial));
+        &bridge, NULL, fixture.actors, fixture.spatial, fixture.bodies,
+        fixture.health));
     CHECK(!hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, NULL));
+        &bridge, fixture.entities, NULL, fixture.spatial, fixture.bodies,
+        fixture.health));
+    CHECK(!hth_player_target_bridge_destroy(
+        &bridge, fixture.entities, fixture.actors, NULL, fixture.bodies,
+        fixture.health));
+    CHECK(!hth_player_target_bridge_destroy(
+        &bridge, fixture.entities, fixture.actors, fixture.spatial, NULL,
+        fixture.health));
+    CHECK(!hth_player_target_bridge_destroy(
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, NULL));
     CHECK(hth_entity_handle_equal(bridge.target_entity, stale));
 
     CHECK(hth_spatial_store_remove(fixture.spatial, fixture.entities, stale));
@@ -414,8 +489,7 @@ static bool test_stale_handles_and_destroy_contract(void)
     CHECK(!hth_player_target_bridge_get_target(
         &bridge, fixture.entities, fixture.spatial, &output));
     CHECK(handle_invalid(output));
-    CHECK(!hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(!destroy_bridge(&fixture, &bridge));
     CHECK(hth_entity_handle_equal(bridge.target_entity, stale));
     CHECK(hth_entity_registry_destroy_entity(fixture.entities, stale));
 
@@ -426,8 +500,7 @@ static bool test_stale_handles_and_destroy_contract(void)
                                    replacement, &replacement_transform));
     CHECK(!hth_player_target_bridge_sync(
         &bridge, fixture.entities, fixture.spatial, &player));
-    CHECK(!hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(!destroy_bridge(&fixture, &bridge));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
                                 replacement, &observed));
     CHECK(memcmp(&observed, &replacement_transform, sizeof(observed)) == 0);
@@ -436,8 +509,7 @@ static bool test_stale_handles_and_destroy_contract(void)
     CHECK(hth_entity_registry_destroy_entity(fixture.entities, replacement));
 
     bridge = inactive_bridge();
-    CHECK(hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(create_bridge(&fixture, &bridge, &player));
     stale = bridge.target_entity;
     CHECK(hth_entity_registry_destroy_entity(fixture.entities, stale));
     CHECK(!hth_player_target_bridge_sync(
@@ -450,8 +522,7 @@ static bool test_stale_handles_and_destroy_contract(void)
           replacement.generation != stale.generation);
     CHECK(hth_spatial_store_attach(fixture.spatial, fixture.entities,
                                    replacement, &replacement_transform));
-    CHECK(!hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(!destroy_bridge(&fixture, &bridge));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
                                 replacement, &observed));
     CHECK(memcmp(&observed, &replacement_transform, sizeof(observed)) == 0);
@@ -486,8 +557,7 @@ static bool test_ai_foundation_composition(void)
 
     CHECK(fixture_create(&fixture));
     CHECK(spawn_enemy(&fixture, (HTHVec3){0.0F, 1.0F, 0.0F}, &enemy));
-    CHECK(hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(create_bridge(&fixture, &bridge, &player));
     CHECK(hth_player_target_bridge_get_target(
         &bridge, fixture.entities, fixture.spatial, &target));
     CHECK(hth_enemy_perception_can_perceive(
@@ -587,8 +657,7 @@ static bool test_ai_foundation_composition(void)
     CHECK(hth_entity_handle_equal(selected, target));
 
     proxy_index = target.index;
-    CHECK(hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+    CHECK(destroy_bridge(&fixture, &bridge));
     CHECK(!hth_enemy_target_store_get(
         fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
         enemy, &target));
@@ -600,6 +669,200 @@ static bool test_ai_foundation_composition(void)
         enemy, &target));
     CHECK(handle_invalid(target));
     CHECK(hth_entity_registry_destroy_entity(fixture.entities, selected));
+    CHECK(destroy_enemy(&fixture, enemy));
+    fixture_destroy(&fixture);
+    return true;
+}
+
+static bool test_damage_target_identity_composition(void)
+{
+    Fixture fixture;
+    HTHPlayerTargetBridge bridge = inactive_bridge();
+    HTHPlayerBody player = player_body((HTHVec3){1.0F, 0.0F, 0.0F});
+    HTHPlayerBody player_before;
+    HTHCollisionWorld world = {
+        {{{100.0F, 100.0F, 100.0F}, {101.0F, 101.0F, 101.0F}}}, 1U
+    };
+    HTHEntityHandle enemy;
+    HTHEntityHandle player_target;
+    HTHEntityHandle selected;
+    HTHEntityHandle replacement;
+    HTHEnemyIntent enemy_intent;
+    HTHDamageIntent damage_intent;
+    HTHDamageResolution resolution;
+    HTHSpatialTransform player_spatial_before;
+    HTHSpatialTransform player_spatial_after;
+    HTHSpatialTransform enemy_spatial_before;
+    HTHSpatialTransform enemy_spatial_after;
+    HTHDynamicBody enemy_body_before;
+    HTHDynamicBody enemy_body_after;
+    HTHHealth player_health;
+    HTHHealth enemy_health_before;
+    HTHHealth enemy_health_after;
+    HTHHealingResult healing;
+
+    CHECK(fixture_create(&fixture));
+    CHECK(spawn_enemy(&fixture, (HTHVec3){0.0F, 1.0F, 0.0F}, &enemy));
+    CHECK(create_bridge_with_health(
+        &fixture, &bridge, &player, (HTHHealth){80.0F, 100.0F}));
+    CHECK(hth_player_target_bridge_get_target(
+        &bridge, fixture.entities, fixture.spatial, &player_target));
+    CHECK(bridge_has_exact_composition(&fixture, player_target));
+    CHECK(hth_enemy_target_select(
+        fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
+        &world, fixture.targets, enemy, &player_target, 1U, 10.0F,
+        &selected));
+    CHECK(hth_entity_handle_equal(selected, player_target));
+    CHECK(hth_enemy_decision_evaluate_with_attack(
+        fixture.entities, fixture.actors, fixture.enemies, fixture.targets,
+        fixture.spatial, &world, enemy, 10.0F, 2.0F, &enemy_intent));
+    CHECK(enemy_intent.kind == HTH_ENEMY_INTENT_ATTACK &&
+          hth_entity_handle_equal(enemy_intent.target, player_target));
+
+    damage_intent = (HTHDamageIntent){enemy, player_target, 25.0F};
+    CHECK(hth_damage_intent_is_valid(
+        &damage_intent, fixture.entities, fixture.actors));
+    player_before = player;
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                player_target, &player_spatial_before));
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
+                                &enemy_spatial_before));
+    CHECK(hth_dynamic_body_get(fixture.bodies, fixture.entities, enemy,
+                               &enemy_body_before));
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, enemy, &enemy_health_before));
+    CHECK(hth_damage_intent_resolve(
+        &damage_intent, fixture.entities, fixture.actors, fixture.health,
+        &resolution));
+    CHECK(resolution.applied && resolution.damage.previous == 80.0F &&
+          resolution.damage.current == 55.0F &&
+          resolution.damage.applied == 25.0F &&
+          !resolution.damage.became_zero);
+    CHECK(player_equal(&player, &player_before));
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                player_target, &player_spatial_after));
+    CHECK(memcmp(&player_spatial_before, &player_spatial_after,
+                 sizeof(player_spatial_before)) == 0);
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
+                                &enemy_spatial_after));
+    CHECK(hth_dynamic_body_get(fixture.bodies, fixture.entities, enemy,
+                               &enemy_body_after));
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, enemy, &enemy_health_after));
+    CHECK(memcmp(&enemy_spatial_before, &enemy_spatial_after,
+                 sizeof(enemy_spatial_before)) == 0);
+    CHECK(memcmp(&enemy_body_before, &enemy_body_after,
+                 sizeof(enemy_body_before)) == 0);
+    CHECK(memcmp(&enemy_health_before, &enemy_health_after,
+                 sizeof(enemy_health_before)) == 0);
+    CHECK(hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        enemy, &selected));
+    CHECK(hth_entity_handle_equal(selected, player_target));
+
+    player.position.x = 2.0F;
+    CHECK(hth_player_target_bridge_sync(
+        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
+                                player_target, &player_spatial_after));
+    CHECK(transform_matches_player(player_spatial_after, &player));
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, player_target,
+                               &player_health));
+    CHECK(player_health.current == 55.0F &&
+          player_health.maximum == 100.0F);
+    CHECK(hth_actor_store_has(fixture.actors, fixture.entities,
+                              player_target));
+    CHECK(hth_entity_handle_equal(bridge.target_entity, player_target));
+
+    damage_intent.amount = 0.0F;
+    CHECK(hth_damage_intent_resolve(
+        &damage_intent, fixture.entities, fixture.actors, fixture.health,
+        &resolution));
+    CHECK(resolution.applied && resolution.damage.current == 55.0F &&
+          resolution.damage.applied == 0.0F);
+    damage_intent.amount = 1000.0F;
+    CHECK(hth_damage_intent_resolve(
+        &damage_intent, fixture.entities, fixture.actors, fixture.health,
+        &resolution));
+    CHECK(resolution.applied && resolution.damage.current == 0.0F &&
+          resolution.damage.applied == 55.0F &&
+          resolution.damage.became_zero);
+    CHECK(bridge_has_exact_composition(&fixture, player_target));
+    CHECK(hth_health_store_apply_healing(
+        fixture.health, fixture.entities, fixture.actors, player_target,
+        40.0F, &healing));
+    CHECK(healing.previous == 0.0F && healing.current == 40.0F &&
+          healing.applied == 40.0F);
+
+    player.position = (HTHVec3){3.0F, 2.0F, -4.0F};
+    CHECK(hth_player_target_bridge_sync(
+        &bridge, fixture.entities, fixture.spatial, &player));
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, player_target,
+                               &player_health));
+    CHECK(player_health.current == 40.0F && player_health.maximum == 100.0F);
+    CHECK(hth_actor_store_has(fixture.actors, fixture.entities,
+                              player_target));
+    CHECK(hth_entity_handle_equal(bridge.target_entity, player_target));
+
+    CHECK(hth_health_store_remove(fixture.health, fixture.entities,
+                                  fixture.actors, player_target));
+    CHECK(hth_player_target_bridge_get_target(
+        &bridge, fixture.entities, fixture.spatial, &selected));
+    CHECK(hth_entity_handle_equal(selected, player_target));
+    CHECK(hth_damage_intent_is_valid(
+        &damage_intent, fixture.entities, fixture.actors));
+    CHECK(hth_damage_intent_resolve(
+        &damage_intent, fixture.entities, fixture.actors, fixture.health,
+        &resolution));
+    CHECK(!resolution.applied);
+    CHECK(hth_health_store_attach(
+        fixture.health, fixture.entities, fixture.actors, player_target,
+        (HTHHealth){40.0F, 100.0F}));
+    CHECK(hth_actor_store_remove(fixture.actors, fixture.entities,
+                                 player_target));
+    CHECK(hth_player_target_bridge_get_target(
+        &bridge, fixture.entities, fixture.spatial, &selected));
+    CHECK(hth_entity_handle_equal(selected, player_target));
+    CHECK(!hth_damage_intent_is_valid(
+        &damage_intent, fixture.entities, fixture.actors));
+    CHECK(hth_actor_store_attach(fixture.actors, fixture.entities,
+                                 player_target));
+    CHECK(hth_damage_intent_is_valid(
+        &damage_intent, fixture.entities, fixture.actors));
+
+    CHECK(destroy_bridge(&fixture, &bridge));
+    CHECK(!hth_damage_intent_is_valid(
+        &damage_intent, fixture.entities, fixture.actors));
+    CHECK(!hth_entity_registry_is_alive(fixture.entities, player_target));
+    CHECK(!hth_actor_store_has(fixture.actors, fixture.entities,
+                               player_target));
+    CHECK(!hth_spatial_store_has(fixture.spatial, fixture.entities,
+                                 player_target));
+    CHECK(!hth_health_store_has(fixture.health, fixture.entities,
+                                fixture.actors, player_target));
+    CHECK(!hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        enemy, &selected));
+    CHECK(create_bridge(&fixture, &bridge, &player));
+    replacement = bridge.target_entity;
+    CHECK(replacement.index == player_target.index &&
+          replacement.generation != player_target.generation);
+    CHECK(!hth_damage_intent_is_valid(
+        &damage_intent, fixture.entities, fixture.actors));
+    CHECK(!hth_health_store_get(fixture.health, fixture.entities,
+                                fixture.actors, player_target,
+                                &player_health));
+    CHECK(!hth_enemy_target_store_get(
+        fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
+        enemy, &selected));
+    damage_intent.target = replacement;
+    damage_intent.amount = 10.0F;
+    CHECK(hth_damage_intent_is_valid(
+        &damage_intent, fixture.entities, fixture.actors));
+
+    CHECK(destroy_bridge(&fixture, &bridge));
     CHECK(destroy_enemy(&fixture, enemy));
     fixture_destroy(&fixture);
     return true;
@@ -617,10 +880,8 @@ static bool test_multiple_bridges_are_independent(void)
 
     CHECK(fixture_create(&fixture));
     CHECK(fixture_create(&other_fixture));
-    CHECK(hth_player_target_bridge_create(
-        &first, fixture.entities, fixture.spatial, &first_player));
-    CHECK(hth_player_target_bridge_create(
-        &second, fixture.entities, fixture.spatial, &second_player));
+    CHECK(create_bridge(&fixture, &first, &first_player));
+    CHECK(create_bridge(&fixture, &second, &second_player));
     CHECK(!hth_entity_handle_equal(first.target_entity,
                                    second.target_entity));
     CHECK(hth_entity_registry_live_count(fixture.entities) == 2U);
@@ -630,20 +891,15 @@ static bool test_multiple_bridges_are_independent(void)
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities,
                                 second.target_entity, &transform));
     CHECK(transform_matches_player(transform, &second_player));
-    CHECK(hth_player_target_bridge_destroy(
-        &first, fixture.entities, fixture.spatial));
+    CHECK(destroy_bridge(&fixture, &first));
     CHECK(hth_entity_registry_is_alive(fixture.entities,
                                        second.target_entity));
-    CHECK(hth_player_target_bridge_destroy(
-        &second, fixture.entities, fixture.spatial));
+    CHECK(destroy_bridge(&fixture, &second));
     first = inactive_bridge();
-    CHECK(hth_player_target_bridge_create(
-        &first, other_fixture.entities, other_fixture.spatial,
-        &first_player));
+    CHECK(create_bridge(&other_fixture, &first, &first_player));
     CHECK(hth_entity_registry_live_count(fixture.entities) == 0U);
     CHECK(hth_entity_registry_live_count(other_fixture.entities) == 1U);
-    CHECK(hth_player_target_bridge_destroy(
-        &first, other_fixture.entities, other_fixture.spatial));
+    CHECK(destroy_bridge(&other_fixture, &first));
     fixture_destroy(&other_fixture);
     fixture_destroy(&fixture);
     return true;
@@ -661,6 +917,8 @@ int main(void)
         {"sync contract/churn", test_sync_contract_and_churn},
         {"stale handles/destroy", test_stale_handles_and_destroy_contract},
         {"AI foundation composition", test_ai_foundation_composition},
+        {"damage target identity composition",
+         test_damage_target_identity_composition},
         {"multiple bridges", test_multiple_bridges_are_independent}
     };
     size_t index;

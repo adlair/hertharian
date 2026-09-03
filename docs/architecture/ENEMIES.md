@@ -114,3 +114,9 @@ As of v0.3.19, Pursuit Runtime consumes that attack-capable Decision. `ATTACK`
 suppresses pursuit movement for the frame while preserving the Target and
 stored velocity; no attack execution, damage, cooldown, or additional Enemy
 state is introduced.
+
+As of v0.3.20, the existing Player Target Bridge handle additionally carries
+Actor and Health, making it a valid future DamageIntent target without a
+second Player Entity or mapping layer. Production ATTACK remains movement-only
+and creates no DamageIntent. Enemy Attack Execution / DamageIntent Foundation
+is the next boundary.

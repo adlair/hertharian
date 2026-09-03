@@ -152,12 +152,13 @@ static bool test_create_composition_and_cleanup(void)
     CHECK(!hth_entity_handle_equal(target, integration.enemy));
     CHECK(hth_entity_registry_is_alive(fixture.entities, target));
     CHECK(hth_spatial_store_has(fixture.spatial, fixture.entities, target));
-    CHECK(!hth_actor_store_has(fixture.actors, fixture.entities, target));
+    CHECK(hth_actor_store_has(fixture.actors, fixture.entities, target));
     CHECK(!hth_enemy_store_has(fixture.enemies, fixture.entities,
                                fixture.actors, target));
     CHECK(!hth_dynamic_body_has(fixture.bodies, fixture.entities, target));
-    CHECK(!hth_health_store_has(fixture.health, fixture.entities,
-                                fixture.actors, target));
+    CHECK(hth_health_store_get(fixture.health, fixture.entities,
+                               fixture.actors, target, &health));
+    CHECK(health.current == 100.0F && health.maximum == 100.0F);
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, target,
                                 &proxy_transform));
     CHECK(proxy_transform.position.x == 0.0F &&
@@ -181,6 +182,10 @@ static bool test_create_composition_and_cleanup(void)
           body.velocity.y == 0.0F && body.velocity.z == 0.0F);
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
                                fixture.actors, integration.enemy, &health));
+    CHECK(health.current == 100.0F && health.maximum == 100.0F);
+    CHECK(hth_health_store_get(
+        fixture.health, fixture.entities, fixture.actors,
+        integration.player_target_bridge.target_entity, &health));
     CHECK(health.current == 100.0F && health.maximum == 100.0F);
     CHECK(!hth_enemy_target_store_get(
         fixture.targets, fixture.entities, fixture.actors, fixture.enemies,
@@ -221,8 +226,9 @@ static bool test_create_failures_and_partial_cleanup(void)
     CHECK(hth_entity_registry_live_count(fixture.entities) == 0U);
 
     CHECK(hth_player_target_bridge_create(
-        &integration.player_target_bridge, fixture.entities, fixture.spatial,
-        &player));
+        &integration.player_target_bridge, fixture.entities, fixture.actors,
+        fixture.spatial, fixture.bodies, fixture.health, &player,
+        (HTHHealth){100.0F, 100.0F}));
     CHECK(hth_entity_registry_live_count(fixture.entities) == 1U);
     CHECK(cleanup_succeeded(cleanup_integration(&fixture, &integration)));
     CHECK(hth_entity_registry_live_count(fixture.entities) == 0U);
@@ -432,6 +438,10 @@ static bool test_attack_range_transitions(void)
     CHECK(player.position.x == authoritative_player_position.x &&
           player.position.y == authoritative_player_position.y &&
           player.position.z == authoritative_player_position.z);
+    CHECK(hth_health_store_get(
+        fixture.health, fixture.entities, fixture.actors,
+        integration.player_target_bridge.target_entity, &health));
+    CHECK(health.current == 100.0F && health.maximum == 100.0F);
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
                                fixture.actors, integration.enemy, &health));
     CHECK(health.current == 100.0F && health.maximum == 100.0F);
@@ -512,7 +522,7 @@ static bool test_failures_cleanup_order_and_restart(void)
           HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_PURSUIT_FAILED);
     CHECK(hth_player_target_bridge_destroy(
         &integration.player_target_bridge, fixture.entities,
-        fixture.spatial));
+        fixture.actors, fixture.spatial, fixture.bodies, fixture.health));
     CHECK(step_integration(&fixture, &integration, &player, 0.0F) ==
           HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_BRIDGE_SYNC_FAILED);
     CHECK(cleanup_succeeded(cleanup_integration(&fixture, &integration)));

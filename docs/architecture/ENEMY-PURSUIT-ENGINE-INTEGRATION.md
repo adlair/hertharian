@@ -7,7 +7,7 @@ Enemy:
 
 ```text
 HTHBootstrapEnemyPursuit
-  Player Target Bridge -> Entity + Spatial Player proxy
+  Player Target Bridge -> Entity + Actor + Spatial + Health Player target
   Enemy handle         -> Entity + Actor + Enemy + Spatial + DynamicBody + Health
 ```
 
@@ -39,11 +39,11 @@ not start-solid in the selected Level's CollisionWorld. The integration fails
 cleanly if Level variation makes this position invalid; it never searches for,
 slides to, or synthesizes a replacement spawn.
 
-The Player Target Bridge creates one stable Entity + Spatial proxy at the
-Player body center. Each frame obtains that handle through `GetTarget` and
-places it in a stack-local one-element candidate array. Pursuit retains neither
-the array nor its pointer. There is no Entity scan, candidate Store, cached
-duplicate Player handle, or Player-specific branch in Enemy AI.
+The Player Target Bridge creates one stable Entity + Actor + Spatial + Health
+target at the Player body center. Each frame obtains that handle through
+`GetTarget` and places it in a stack-local one-element candidate array. Pursuit
+retains neither the array nor its pointer. There is no Entity scan, candidate
+Store, cached duplicate Player handle, or Player-specific branch in Enemy AI.
 
 ## Initialization Transaction
 
@@ -162,3 +162,8 @@ As of v0.3.19, Pursuit passes the private bootstrap attack range to the
 attack-capable Decision API. Eligibility is reached only through Decision;
 there is no direct Eligibility call, separate attack phase, DamageIntent,
 Health mutation, cooldown, or execution work in the Engine loop.
+
+As of v0.3.20, the Player target's Actor and Health associations make that
+same handle structurally compatible with future DamageIntent resolution. Its
+initial `100/100` Health is private temporary bootstrap tuning. ATTACK still
+has no execution, production DamageIntent, damage application, or cadence.

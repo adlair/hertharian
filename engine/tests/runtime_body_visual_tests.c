@@ -19,8 +19,10 @@
 
 typedef struct {
     HTHEntityRegistry *entities;
+    HTHActorStore *actors;
     HTHSpatialStore *spatial;
     HTHDynamicBodyStore *bodies;
+    HTHHealthStore *health;
 } Fixture;
 
 static const float white[4] = {1.0F, 1.0F, 1.0F, 1.0F};
@@ -41,16 +43,21 @@ static bool fixture_create(Fixture *fixture)
 {
     *fixture = (Fixture){0};
     fixture->entities = hth_entity_registry_create();
+    fixture->actors = hth_actor_store_create();
     fixture->spatial = hth_spatial_store_create();
     fixture->bodies = hth_dynamic_body_store_create();
-    return fixture->entities != NULL && fixture->spatial != NULL &&
-           fixture->bodies != NULL;
+    fixture->health = hth_health_store_create();
+    return fixture->entities != NULL && fixture->actors != NULL &&
+           fixture->spatial != NULL && fixture->bodies != NULL &&
+           fixture->health != NULL;
 }
 
 static void fixture_destroy(Fixture *fixture)
 {
+    hth_health_store_destroy(fixture->health);
     hth_dynamic_body_store_destroy(fixture->bodies);
     hth_spatial_store_destroy(fixture->spatial);
+    hth_actor_store_destroy(fixture->actors);
     hth_entity_registry_destroy(fixture->entities);
 }
 
@@ -246,13 +253,16 @@ static bool test_generation_store_and_proxy_isolation(void)
     bridge.target_entity = hth_entity_handle_invalid();
     CHECK(hth_player_body_init(&player, hth_vec3(0.0F, 0.05F, 0.0F)));
     CHECK(hth_player_target_bridge_create(
-        &bridge, fixture.entities, fixture.spatial, &player));
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health, &player,
+        (HTHHealth){100.0F, 100.0F}));
     CHECK(hth_runtime_body_visual_build(
               fixture.entities, fixture.spatial, fixture.bodies,
               bridge.target_entity, white, &draw) ==
           HTH_RUNTIME_BODY_VISUAL_NOT_RENDERABLE);
     CHECK(hth_player_target_bridge_destroy(
-        &bridge, fixture.entities, fixture.spatial));
+        &bridge, fixture.entities, fixture.actors, fixture.spatial,
+        fixture.bodies, fixture.health));
     hth_dynamic_body_store_destroy(other_bodies);
     hth_spatial_store_destroy(other_spatial);
     fixture_destroy(&fixture);

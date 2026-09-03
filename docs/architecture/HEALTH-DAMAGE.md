@@ -91,6 +91,12 @@ existing damage operation after validating source and target Actor identity.
 Health remains unaware of the source and continues to own only Health
 arithmetic; Damage Intent adds no Health state or lifecycle coupling.
 
+As of v0.3.20, the Player Target Bridge attaches Health to its Actor target
+Entity. That Store entry is the sole Player Health authority; PlayerBody and
+the Bridge retain no Health copy. Production initializes temporary bootstrap
+Health at `100/100` but performs no damage, healing, Health iteration, or death
+behavior per frame.
+
 Deferred scope includes damage sources/types, armor, resistance,
 invulnerability, regeneration, death events or systems, Player migration,
 Enemy/Pickup/Projectile types, Level declarations, persistence, networking,

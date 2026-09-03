@@ -1,5 +1,7 @@
 #include "player_target_bridge.h"
 
+#include "actor_spawn.h"
+
 #include <float.h>
 #include <math.h>
 
@@ -50,9 +52,14 @@ static bool player_anchor_transform(const HTHPlayerBody *player,
 bool hth_player_target_bridge_create(
     HTHPlayerTargetBridge *bridge,
     HTHEntityRegistry *entities,
+    HTHActorStore *actors,
     HTHSpatialStore *spatial,
-    const HTHPlayerBody *player)
+    HTHDynamicBodyStore *bodies,
+    HTHHealthStore *health,
+    const HTHPlayerBody *player,
+    HTHHealth initial_health)
 {
+    HTHActorSpawnSpec spec = {0};
     HTHSpatialTransform transform;
     HTHEntityHandle entity;
 
@@ -60,13 +67,16 @@ bool hth_player_target_bridge_create(
         return false;
     }
     bridge->target_entity = hth_entity_handle_invalid();
-    if (entities == NULL || spatial == NULL ||
-        !player_anchor_transform(player, &transform) ||
-        !hth_entity_registry_create_entity(entities, &entity)) {
+    if (!player_anchor_transform(player, &transform)) {
         return false;
     }
-    if (!hth_spatial_store_attach(spatial, entities, entity, &transform)) {
-        (void)hth_entity_registry_destroy_entity(entities, entity);
+    spec.has_spatial = true;
+    spec.transform = transform;
+    spec.has_body = false;
+    spec.has_health = true;
+    spec.health = initial_health;
+    if (!hth_actor_spawn(entities, actors, spatial, bodies, health, &spec,
+                         &entity)) {
         return false;
     }
     bridge->target_entity = entity;
@@ -109,23 +119,19 @@ bool hth_player_target_bridge_get_target(
 bool hth_player_target_bridge_destroy(
     HTHPlayerTargetBridge *bridge,
     HTHEntityRegistry *entities,
-    HTHSpatialStore *spatial)
+    HTHActorStore *actors,
+    HTHSpatialStore *spatial,
+    HTHDynamicBodyStore *bodies,
+    HTHHealthStore *health)
 {
     HTHEntityHandle entity;
-    HTHSpatialTransform transform;
 
-    if (!bridge_is_current(bridge, entities, spatial) ||
-        !hth_spatial_store_get(spatial, entities, bridge->target_entity,
-                               &transform)) {
+    if (!bridge_is_current(bridge, entities, spatial)) {
         return false;
     }
     entity = bridge->target_entity;
-    if (!hth_spatial_store_remove(spatial, entities, entity)) {
-        return false;
-    }
-    if (!hth_entity_registry_destroy_entity(entities, entity)) {
-        (void)hth_spatial_store_attach(spatial, entities, entity,
-                                       &transform);
+    if (!hth_actor_despawn(entities, actors, spatial, bodies, health,
+                           entity)) {
         return false;
     }
     bridge->target_entity = hth_entity_handle_invalid();
