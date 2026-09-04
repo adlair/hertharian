@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.26 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.27 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -59,6 +59,7 @@ add_executable(hertharian-engine
     src/gameplay/enemy_target_selection.c
     src/gameplay/health.c
     src/gameplay/player_death.c
+    src/gameplay/player_defeat.c
     src/gameplay/player_target_bridge.c
     src/input/input.c
     src/geometry/geometry.c
@@ -755,6 +756,20 @@ if(BUILD_TESTING)
     target_compile_features(player_death_tests PRIVATE c_std_11)
     set_target_properties(player_death_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(player_defeat_tests
+        tests/player_defeat_tests.c
+        src/gameplay/player_defeat.c
+        src/gameplay/player_death.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/entity/entity.c
+    )
+    target_include_directories(player_defeat_tests PRIVATE
+        src/actor src/entity src/gameplay
+    )
+    target_compile_features(player_defeat_tests PRIVATE c_std_11)
+    set_target_properties(player_defeat_tests PROPERTIES C_EXTENSIONS OFF)
+
     add_executable(bootstrap_enemy_pursuit_tests
         tests/bootstrap_enemy_pursuit_tests.c
         src/renderer/runtime_body_visual.c
@@ -1133,6 +1148,7 @@ if(BUILD_TESTING)
         target_link_libraries(enemy_runtime_population_tests PRIVATE m)
         target_link_libraries(player_target_bridge_tests PRIVATE m)
         target_link_libraries(player_death_tests PRIVATE m)
+        target_link_libraries(player_defeat_tests PRIVATE m)
         target_link_libraries(bootstrap_enemy_pursuit_tests PRIVATE m)
         target_link_libraries(runtime_body_visual_tests PRIVATE m)
         target_link_libraries(renderer_frontend_tests PRIVATE m)
@@ -1215,6 +1231,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(player_death_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(player_defeat_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(bootstrap_enemy_pursuit_tests PRIVATE
@@ -1332,6 +1351,7 @@ if(BUILD_TESTING)
         COMMAND player_target_bridge_tests
     )
     add_test(NAME player_death_foundation COMMAND player_death_tests)
+    add_test(NAME player_defeat_foundation COMMAND player_defeat_tests)
     add_test(NAME bootstrap_enemy_pursuit_engine_integration
         COMMAND bootstrap_enemy_pursuit_tests
     )

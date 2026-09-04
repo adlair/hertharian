@@ -81,3 +81,8 @@ As of v0.3.26, the same once-per-frame result also drives the Player-specific
 targeting policy described in `DEAD-PLAYER-TARGETING-POLICY.md`. The Player
 identity persists, but matching EnemyTarget relations are cleared and the
 handle is excluded from acquisition beginning with the first dead snapshot.
+
+As of v0.3.27, the disconnected Player Defeat Foundation records a separate,
+caller-owned persistent fact. Death does not mark Defeat automatically;
+healing changes derived Death but never resets Defeat. See `PLAYER-DEFEAT.md`
+and ADR-0051.
