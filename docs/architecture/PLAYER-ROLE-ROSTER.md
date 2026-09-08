@@ -84,3 +84,7 @@ Reset, register, count, and find are `O(P)` for `P <= 4`; get and unregister
 are `O(1)`. Heap allocation is zero. v0.3.29 is deliberately disconnected:
 Engine and Bootstrap own no roster, make no calls, and perform no roster work
 per frame.
+
+As of v0.3.30, the disconnected Player Revive Eligibility query consumes two
+slots in one roster. Roster membership supplies Player identity and the
+same-roster cooperative domain; Eligibility does not mutate membership.

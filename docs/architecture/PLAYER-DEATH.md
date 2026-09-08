@@ -86,3 +86,7 @@ As of v0.3.27, the disconnected Player Defeat Foundation records a separate,
 caller-owned persistent fact. Death does not mark Defeat automatically;
 healing changes derived Death but never resets Defeat. See `PLAYER-DEFEAT.md`
 and ADR-0051.
+
+As of v0.3.30, the disconnected Player Revive Eligibility query reuses this
+authority for both reviver and target dead/alive predicates. It neither reads
+Health directly nor changes this query's runtime integration.

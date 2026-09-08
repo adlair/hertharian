@@ -77,3 +77,7 @@ window is active.
 As of v0.3.29, Player Roster provides the future membership and slot domain for
 Revive Eligibility. The roster does not own, reset, begin, or advance this
 caller-owned window.
+
+As of v0.3.30, Player Revive Eligibility queries the target window's
+authoritative active state after complete dependency validation. It never
+begins, advances, resets, expires, or otherwise consumes the window.

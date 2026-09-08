@@ -72,3 +72,7 @@ a future lifecycle adapter will own that policy composition.
 As of v0.3.29, Player Roster supplies a future per-Player slot identity but
 does not own or reset Defeat. Lifecycle state remains externally associated
 and caller-owned.
+
+As of v0.3.30, Player Revive Eligibility queries caller-bound reviver and
+target Defeat states read-only. Eligibility never marks or resets Defeat, and
+the caller remains responsible for associating each state with its slot.
