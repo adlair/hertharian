@@ -81,3 +81,7 @@ caller-owned window.
 As of v0.3.30, Player Revive Eligibility queries the target window's
 authoritative active state after complete dependency validation. It never
 begins, advances, resets, expires, or otherwise consumes the window.
+
+As of v0.3.31, successful Player Revive Execution cancels the target Window
+with `reset()` only after Health healing succeeds. Failure or valid
+ineligibility leaves the Window unchanged.

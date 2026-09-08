@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.30 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.31 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -60,6 +60,7 @@ add_executable(hertharian-engine
     src/gameplay/health.c
     src/gameplay/player_death.c
     src/gameplay/player_defeat.c
+    src/gameplay/player_revive_execution.c
     src/gameplay/player_revive_eligibility.c
     src/gameplay/player_roster.c
     src/gameplay/player_revive_window.c
@@ -816,6 +817,26 @@ if(BUILD_TESTING)
         C_EXTENSIONS OFF
     )
 
+    add_executable(player_revive_execution_tests
+        tests/player_revive_execution_tests.c
+        src/gameplay/player_revive_execution.c
+        src/gameplay/player_revive_eligibility.c
+        src/gameplay/player_revive_window.c
+        src/gameplay/player_roster.c
+        src/gameplay/player_death.c
+        src/gameplay/player_defeat.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/entity/entity.c
+    )
+    target_include_directories(player_revive_execution_tests PRIVATE
+        src/actor src/entity src/gameplay
+    )
+    target_compile_features(player_revive_execution_tests PRIVATE c_std_11)
+    set_target_properties(player_revive_execution_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
     add_executable(bootstrap_enemy_pursuit_tests
         tests/bootstrap_enemy_pursuit_tests.c
         src/renderer/runtime_body_visual.c
@@ -1292,6 +1313,9 @@ if(BUILD_TESTING)
         target_compile_options(player_revive_eligibility_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(player_revive_execution_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
         target_compile_options(bootstrap_enemy_pursuit_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
@@ -1414,6 +1438,9 @@ if(BUILD_TESTING)
     add_test(NAME player_role_roster_foundation COMMAND player_roster_tests)
     add_test(NAME player_revive_eligibility_foundation
         COMMAND player_revive_eligibility_tests
+    )
+    add_test(NAME player_revive_execution_foundation
+        COMMAND player_revive_execution_tests
     )
     add_test(NAME bootstrap_enemy_pursuit_engine_integration
         COMMAND bootstrap_enemy_pursuit_tests

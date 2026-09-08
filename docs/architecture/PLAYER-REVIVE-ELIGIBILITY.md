@@ -91,9 +91,13 @@ and performs zero heap allocations. v0.3.30 is disconnected: Engine and
 Bootstrap own no eligibility state, make no call, and perform no related work
 per frame.
 
-Future Revive Execution may consume an eligible pair and caller-owned revive
+Player Revive Execution consumes an eligible pair and caller-owned revive
 Health policy, while future Interaction may add distance, Input, hold progress,
 interruption, and presentation. Lifecycle/Defeat Runtime Integration and
 Session Outcome remain later boundaries. Self-revive items and other
 capabilities belong to separate policy systems and do not alter this base
 foundation.
+
+As of v0.3.31, Player Revive Execution revalidates this query internally at
+mutation time. It neither caches nor accepts an earlier Eligibility result as
+authorization, and this pure policy remains unchanged.

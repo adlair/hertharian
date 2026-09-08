@@ -102,6 +102,10 @@ current Health of an explicit valid Player Actor identity. Exactly zero means
 dead and any positive value means alive, so existing healing above zero restores
 the derived alive state. Health gains no death flag, lifecycle, or dependency.
 
+As of v0.3.31, Player Revive Execution restores the eligible target by calling
+the existing healing authority with a finite positive delta. Execution neither
+writes `Health.current` nor duplicates maximum clamping.
+
 Deferred scope includes damage sources/types, armor, resistance,
 invulnerability, regeneration, death events or systems, Player migration,
 Enemy/Pickup/Projectile types, Level declarations, persistence, networking,

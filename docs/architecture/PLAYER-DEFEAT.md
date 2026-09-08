@@ -76,3 +76,7 @@ and caller-owned.
 As of v0.3.30, Player Revive Eligibility queries caller-bound reviver and
 target Defeat states read-only. Eligibility never marks or resets Defeat, and
 the caller remains responsible for associating each state with its slot.
+
+As of v0.3.31, ordinary Player Revive Execution revalidates both states
+read-only through Eligibility and never resets permanent Defeat. Successful
+execution changes only target Health and target ReviveWindow.
