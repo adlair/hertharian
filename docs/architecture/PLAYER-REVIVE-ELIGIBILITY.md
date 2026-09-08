@@ -101,3 +101,8 @@ foundation.
 As of v0.3.31, Player Revive Execution revalidates this query internally at
 mutation time. It neither caches nor accepts an earlier Eligibility result as
 authorization, and this pure policy remains unchanged.
+
+As of v0.3.33, the disconnected Player Revive Interaction foundation evaluates
+Eligibility on every relevant held step through a private Lifecycle Runtime
+binding adapter. Execution still performs final revalidation at mutation time;
+Interaction adds Spatial range and progress without duplicating this policy.

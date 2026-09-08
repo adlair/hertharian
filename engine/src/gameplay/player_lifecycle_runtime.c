@@ -227,3 +227,54 @@ bool hth_player_lifecycle_runtime_get_revive_window(
     *out_window = &runtime->revive_windows[slot];
     return true;
 }
+
+bool hth_player_lifecycle_runtime_can_revive(
+    const HTHPlayerLifecycleRuntime *runtime,
+    const HTHEntityRegistry *entities,
+    const HTHActorStore *actors,
+    const HTHHealthStore *health,
+    HTHPlayerSlot reviver_slot,
+    HTHPlayerSlot target_slot,
+    bool *out_eligible)
+{
+    if (out_eligible != NULL) {
+        *out_eligible = false;
+    }
+    if (runtime == NULL || entities == NULL || actors == NULL ||
+        health == NULL || out_eligible == NULL ||
+        reviver_slot >= HTH_MAX_PLAYERS ||
+        target_slot >= HTH_MAX_PLAYERS) {
+        return false;
+    }
+    return hth_player_revive_eligibility_evaluate(
+        &runtime->roster, entities, actors, health, reviver_slot,
+        &runtime->defeat[reviver_slot], target_slot,
+        &runtime->defeat[target_slot],
+        &runtime->revive_windows[target_slot], out_eligible);
+}
+
+bool hth_player_lifecycle_runtime_execute_revive(
+    HTHPlayerLifecycleRuntime *runtime,
+    const HTHEntityRegistry *entities,
+    const HTHActorStore *actors,
+    HTHHealthStore *health,
+    HTHPlayerSlot reviver_slot,
+    HTHPlayerSlot target_slot,
+    float revive_health,
+    bool *out_revived)
+{
+    if (out_revived != NULL) {
+        *out_revived = false;
+    }
+    if (runtime == NULL || entities == NULL || actors == NULL ||
+        health == NULL || out_revived == NULL ||
+        reviver_slot >= HTH_MAX_PLAYERS ||
+        target_slot >= HTH_MAX_PLAYERS) {
+        return false;
+    }
+    return hth_player_revive_execute(
+        &runtime->roster, entities, actors, health, reviver_slot,
+        &runtime->defeat[reviver_slot], target_slot,
+        &runtime->defeat[target_slot],
+        &runtime->revive_windows[target_slot], revive_health, out_revived);
+}

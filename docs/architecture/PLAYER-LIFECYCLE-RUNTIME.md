@@ -105,6 +105,12 @@ the snapshot observes alive, and lifecycle reconciliation preserves that
 result before potential expiry. Interaction, range, LOS, Input hold/progress,
 presentation, Session Outcome, Game Over, and respawn are outside v0.3.32.
 
+As of v0.3.33, two private adapters bind runtime-owned Roster, Defeat, and
+Window state to released Eligibility and Execution without exposing a mutable
+Window or changing lifecycle ownership. The disconnected Revive Interaction
+module consumes those adapters, but only tests invoke that module; Engine still
+owns no interaction state and makes no runtime revive call.
+
 Runtime storage is fixed `O(HTH_MAX_PLAYERS)`. Registration is bounded `O(P)`
 for `P <= 4`; one slot step performs bounded work over at most four roster
 slots and is `O(1)` for the frozen capacity. Current production invokes only

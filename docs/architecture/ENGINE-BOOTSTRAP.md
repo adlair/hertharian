@@ -240,5 +240,11 @@ by movement and dead-target exclusion. Current solo death marks persistent
 Defeat immediately; no cooperative duration is invented and Revive Execution
 remains disconnected. See `PLAYER-LIFECYCLE-RUNTIME.md` and ADR-0056.
 
+As of v0.3.33, Player Revive Interaction is a disconnected foundation. Engine
+owns no interaction state, maps no interaction input, and performs no
+interaction or Revive Execution work. Future coop integration must run such
+work before the existing authoritative Death snapshot; current frame order is
+unchanged. See `PLAYER-REVIVE-INTERACTION.md` and ADR-0057.
+
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.

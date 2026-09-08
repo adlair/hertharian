@@ -2,6 +2,7 @@
 #define HTH_PLAYER_LIFECYCLE_RUNTIME_H
 
 #include "player_defeat.h"
+#include "player_revive_execution.h"
 #include "player_revive_window.h"
 #include "player_roster.h"
 
@@ -48,5 +49,22 @@ bool hth_player_lifecycle_runtime_get_revive_window(
     const HTHActorStore *actors,
     HTHPlayerSlot slot,
     const HTHPlayerReviveWindow **out_window);
+bool hth_player_lifecycle_runtime_can_revive(
+    const HTHPlayerLifecycleRuntime *runtime,
+    const HTHEntityRegistry *entities,
+    const HTHActorStore *actors,
+    const HTHHealthStore *health,
+    HTHPlayerSlot reviver_slot,
+    HTHPlayerSlot target_slot,
+    bool *out_eligible);
+bool hth_player_lifecycle_runtime_execute_revive(
+    HTHPlayerLifecycleRuntime *runtime,
+    const HTHEntityRegistry *entities,
+    const HTHActorStore *actors,
+    HTHHealthStore *health,
+    HTHPlayerSlot reviver_slot,
+    HTHPlayerSlot target_slot,
+    float revive_health,
+    bool *out_revived);
 
 #endif

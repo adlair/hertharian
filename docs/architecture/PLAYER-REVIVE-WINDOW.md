@@ -91,3 +91,8 @@ PlayerSlot. Solo fresh death marks Defeat without a Window. Cooperative fresh
 death begins a caller/config-owned duration without advancing it that step;
 continuing Downed steps advance once, and expiry marks Defeat immediately.
 Alive or defeated reconciliation cancels a remaining active Window.
+
+As of v0.3.33, disconnected Player Revive Interaction reads Window semantics
+only through Eligibility and delegates successful cancellation to Execution
+through a private Lifecycle Runtime adapter. Interaction never mutates or
+receives a mutable Window directly.

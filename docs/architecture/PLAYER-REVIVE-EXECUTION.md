@@ -116,3 +116,8 @@ binding, but Execution retains zero production callers. Future Interaction
 must provide a controlled mutable Window binding and complete authorized
 Execution before Engine's authoritative Death snapshot so successful recovery
 wins before lifecycle expiry.
+
+As of v0.3.33, disconnected Player Revive Interaction completion reaches this
+operation through a private Lifecycle Runtime binding adapter. The adapter
+exposes no mutable Window and preserves this operation's final revalidation.
+Engine and Bootstrap remain non-callers, so production execution work is zero.
