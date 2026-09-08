@@ -64,3 +64,7 @@ v0.3.27 is disconnected: production has no state instance, caller, or per-frame
 work. Reset, mark, and query are deterministic O(1) operations, use O(1)
 auxiliary memory, and perform zero heap allocations. The module is private and
 adds no public API.
+
+As of v0.3.28, the separate Player Revive Window timer is also a disconnected
+foundation. Its expiry result does not call or otherwise mutate Player Defeat;
+a future lifecycle adapter will own that policy composition.

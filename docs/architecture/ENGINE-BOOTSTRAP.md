@@ -222,5 +222,9 @@ As of v0.3.27, the private Player Defeat Foundation exists as a disconnected
 caller-owned primitive. Engine and Bootstrap own no Defeat state, make zero
 Defeat calls, and perform zero related per-frame work.
 
+As of v0.3.28, the private Player Revive Window Foundation is likewise
+disconnected. Engine and Bootstrap own no window, never begin or advance one,
+and perform zero related per-frame work.
+
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.
