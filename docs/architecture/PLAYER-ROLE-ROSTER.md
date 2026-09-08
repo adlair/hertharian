@@ -88,3 +88,9 @@ per frame.
 As of v0.3.30, the disconnected Player Revive Eligibility query consumes two
 slots in one roster. Roster membership supplies Player identity and the
 same-roster cooperative domain; Eligibility does not mutate membership.
+
+As of v0.3.32, Engine's private Player Lifecycle Runtime embeds the unchanged
+identity-only roster, registers the existing Bridge Player, and binds Defeat,
+ReviveWindow, and historical Death-edge memory externally by stable slot.
+Current valid membership count selects solo immediate Defeat versus a
+cooperative Window; stale membership is a technical lifecycle failure.

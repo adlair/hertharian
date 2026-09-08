@@ -80,3 +80,9 @@ the caller remains responsible for associating each state with its slot.
 As of v0.3.31, ordinary Player Revive Execution revalidates both states
 read-only through Eligibility and never resets permanent Defeat. Successful
 execution changes only target Health and target ReviveWindow.
+
+As of v0.3.32, Engine's private Player Lifecycle Runtime owns one Defeat state
+per stable PlayerSlot. It marks solo fresh death immediately and cooperative
+Window expiry or inactive continuation exactly once, resets Defeat only when
+lifecycle membership is reset/removed, and never clears it because Health
+became positive. Session Outcome remains deferred.

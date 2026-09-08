@@ -85,3 +85,9 @@ begins, advances, resets, expires, or otherwise consumes the window.
 As of v0.3.31, successful Player Revive Execution cancels the target Window
 with `reset()` only after Health healing succeeds. Failure or valid
 ineligibility leaves the Window unchanged.
+
+As of v0.3.32, Engine's private Player Lifecycle Runtime owns one Window per
+PlayerSlot. Solo fresh death marks Defeat without a Window. Cooperative fresh
+death begins a caller/config-owned duration without advancing it that step;
+continuing Downed steps advance once, and expiry marks Defeat immediately.
+Alive or defeated reconciliation cancels a remaining active Window.

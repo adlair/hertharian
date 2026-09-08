@@ -79,6 +79,19 @@ static void destroy_view_state(HTHEngine *engine)
 static void destroy_world(HTHEngine *engine)
 {
     if (engine->world_state != NULL) {
+        if (engine->world_state->local_player_slot !=
+            HTH_PLAYER_SLOT_INVALID) {
+            if (!hth_player_lifecycle_runtime_unregister(
+                    &engine->world_state->player_lifecycle_runtime,
+                    engine->world_state->local_player_slot)) {
+                fputs("Player Lifecycle unregister failed during cleanup.\n",
+                      stderr);
+            }
+            engine->world_state->local_player_slot =
+                HTH_PLAYER_SLOT_INVALID;
+        }
+        hth_player_lifecycle_runtime_reset(
+            &engine->world_state->player_lifecycle_runtime);
         HTHBootstrapEnemyPursuitCleanupResult cleanup =
             hth_bootstrap_enemy_pursuit_cleanup(
                 &engine->world_state->bootstrap_enemy_pursuit,
@@ -366,6 +379,9 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
         destroy_storage(engine);
         return false;
     }
+    engine->world_state->local_player_slot = HTH_PLAYER_SLOT_INVALID;
+    hth_player_lifecycle_runtime_reset(
+        &engine->world_state->player_lifecycle_runtime);
     hth_bootstrap_enemy_pursuit_initialize(
         &engine->world_state->bootstrap_enemy_pursuit);
     if (!load_selected_world(
@@ -612,6 +628,16 @@ bool hth_engine_init_with_level_id(HTHEngine *engine,
         fputs("Invalid bootstrap Enemy pursuit integration state.\n", stderr);
         goto bootstrap_integration_failed;
     }
+    if (!hth_player_lifecycle_runtime_register(
+            &engine->world_state->player_lifecycle_runtime,
+            engine->world_state->entity_registry,
+            engine->world_state->actor_store,
+            engine->world_state->bootstrap_enemy_pursuit
+                .player_target_bridge.target_entity,
+            &engine->world_state->local_player_slot)) {
+        fputs("Failed to register Player Lifecycle runtime.\n", stderr);
+        goto bootstrap_integration_failed;
+    }
 
     engine->window_width = window_width;
     engine->window_height = window_height;
@@ -800,6 +826,16 @@ void hth_engine_frame(HTHEngine *engine)
             engine->world_state->actor_store,
             engine->world_state->health_store, player_target, &player_dead)) {
         fputs("Player Death query failed.\n", stderr);
+        engine->running = false;
+        return;
+    }
+    if (!hth_player_lifecycle_runtime_step_player(
+            &engine->world_state->player_lifecycle_runtime,
+            engine->world_state->entity_registry,
+            engine->world_state->actor_store,
+            engine->world_state->local_player_slot, player_dead,
+            simulation_delta, NULL)) {
+        fputs("Player Lifecycle update failed.\n", stderr);
         engine->running = false;
         return;
     }

@@ -110,3 +110,9 @@ The source-consistent future sequence is Player Lifecycle / Defeat Runtime
 Integration, Revive Interaction, and Session Outcome. Interaction may later
 gate a completed attempt with distance, Input, hold progress, interruption,
 and presentation without redefining this execution boundary.
+
+As of v0.3.32, the Player Lifecycle Runtime owns the target Window and Defeat
+binding, but Execution retains zero production callers. Future Interaction
+must provide a controlled mutable Window binding and complete authorized
+Execution before Engine's authoritative Death snapshot so successful recovery
+wins before lifecycle expiry.

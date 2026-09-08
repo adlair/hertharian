@@ -10,6 +10,7 @@
 #include "enemy_target.h"
 #include "entity.h"
 #include "health.h"
+#include "player_lifecycle_runtime.h"
 #include "spatial.h"
 #include "world.h"
 
@@ -26,6 +27,8 @@ struct HTHEngineWorldState {
     HTHHealthStore *health_store;
     HTHEnemyTargetStore *enemy_target_store;
     HTHBootstrapEnemyPursuit bootstrap_enemy_pursuit;
+    HTHPlayerLifecycleRuntime player_lifecycle_runtime;
+    HTHPlayerSlot local_player_slot;
 };
 
 bool hth_engine_init_with_level_id(HTHEngine *engine,

@@ -59,7 +59,8 @@ The current frame order is:
 ```text
 Timing begin → Input begin → Platform events → Input state
 → capture coordination → FPS orientation → effective simulation delta
-→ Player Death query → alive/capture movement gate → movement intent
+→ Player Death query → Player Lifecycle → alive/capture movement gate
+→ movement intent
 → locomotion friction/acceleration/jump/gravity
 → swept slide/step movement → ground probe
 → resolved Player Body + MovementResult → physical eye
@@ -229,6 +230,15 @@ and perform zero related per-frame work.
 As of v0.3.29, the private Player Role / Roster Foundation is also
 disconnected. Engine and Bootstrap own no roster, register no Player, and
 perform zero roster work per frame.
+
+As of v0.3.32, Engine owns one private fixed Player Lifecycle Runtime. After
+bootstrap creates the stable Player Target Bridge Entity + Actor, Engine
+registers it in the runtime's identity-only roster and stores the returned
+local PlayerSlot. The existing once-per-frame Death snapshot then drives one
+local lifecycle step before movement while remaining the same value consumed
+by movement and dead-target exclusion. Current solo death marks persistent
+Defeat immediately; no cooperative duration is invented and Revive Execution
+remains disconnected. See `PLAYER-LIFECYCLE-RUNTIME.md` and ADR-0056.
 
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.

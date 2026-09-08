@@ -93,3 +93,10 @@ targetability; no second death query is added. See
 As of v0.3.27, movement suppression still consumes only Player Death. The
 separate persistent Player Defeat primitive has no production integration or
 effect on this frame policy.
+
+As of v0.3.32, Engine passes this same single snapshot to its private Player
+Lifecycle Runtime immediately before movement. Lifecycle never queries Death
+again. Current solo death marks persistent Defeat on the first observed dead
+snapshot, but movement and dead-target exclusion continue to consume Death
+only and preserve their established frame timing. See
+`PLAYER-LIFECYCLE-RUNTIME.md` and ADR-0056.
