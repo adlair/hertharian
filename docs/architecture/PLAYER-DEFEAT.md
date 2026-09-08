@@ -68,3 +68,7 @@ adds no public API.
 As of v0.3.28, the separate Player Revive Window timer is also a disconnected
 foundation. Its expiry result does not call or otherwise mutate Player Defeat;
 a future lifecycle adapter will own that policy composition.
+
+As of v0.3.29, Player Roster supplies a future per-Player slot identity but
+does not own or reset Defeat. Lifecycle state remains externally associated
+and caller-owned.

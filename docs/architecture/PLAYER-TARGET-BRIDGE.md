@@ -140,3 +140,7 @@ persistence, networking, and Level Health declarations.
 As of v0.3.26, Bootstrap uses the same stable handle as a generation-safe
 excluded target while the Player Death snapshot is true. The Bridge itself
 remains alive, synchronized, and unaware of targetability.
+
+As of v0.3.29, explicit Player Roster membership—not the Bridge alone—defines
+the Player role. A future caller may register the Bridge's gameplay Entity;
+the roster neither owns nor references the Bridge itself.

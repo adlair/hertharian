@@ -73,3 +73,7 @@ Base lifecycle policy is also not integrated here: solo will eventually mark
 permanent Defeat on its first authoritative dead snapshot, while cooperative
 play will begin a window and derive Downed while dead, not defeated, and the
 window is active.
+
+As of v0.3.29, Player Roster provides the future membership and slot domain for
+Revive Eligibility. The roster does not own, reset, begin, or advance this
+caller-owned window.
