@@ -135,3 +135,9 @@ identities only in disconnected callers and tests. Production revive remains
 blocked on a multi-Player Death-snapshot architecture, Revive Target Selection,
 a semantic Interact action, and product-owned range, duration, and restored
 Health values.
+
+As of v0.3.36, disconnected Player Revive Target Selection can supply a valid
+candidate PlayerSlot but defines normal no-target as true plus INVALID. Future
+orchestration must not pass that INVALID result blindly into a held Interaction
+step under this unchanged contract. Engine still has no selection or
+Interaction caller.

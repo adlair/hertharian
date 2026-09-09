@@ -254,5 +254,11 @@ array, and perform no population work per frame. Current production still has
 exactly one Bridge-owned Player. See
 `PLAYER-RUNTIME-POPULATION.md` and ADR-0058.
 
+As of v0.3.36, Player Revive Target Selection is also disconnected. Engine and
+Bootstrap make no selection call and perform no selection work per frame;
+production remains one Player. Tests alone compose multiple population Players
+to validate the private Lifecycle-bound query. See
+`PLAYER-REVIVE-TARGET-SELECTION.md` and ADR-0060.
+
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.

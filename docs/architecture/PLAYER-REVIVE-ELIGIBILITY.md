@@ -106,3 +106,8 @@ As of v0.3.33, the disconnected Player Revive Interaction foundation evaluates
 Eligibility on every relevant held step through a private Lifecycle Runtime
 binding adapter. Execution still performs final revalidation at mutation time;
 Interaction adds Spatial range and progress without duplicating this policy.
+
+As of v0.3.36, disconnected Player Revive Target Selection calls that same
+Lifecycle Runtime adapter for every current non-self candidate before any
+candidate Spatial lookup. Eligibility remains the sole revive-policy authority;
+Selection adds only range and deterministic nearest-PlayerSlot ranking.

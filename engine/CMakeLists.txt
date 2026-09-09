@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.35 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.36 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -62,6 +62,7 @@ add_executable(hertharian-engine
     src/gameplay/player_defeat.c
     src/gameplay/player_lifecycle_runtime.c
     src/gameplay/player_revive_interaction.c
+    src/gameplay/player_revive_target_selection.c
     src/gameplay/player_revive_execution.c
     src/gameplay/player_revive_eligibility.c
     src/gameplay/player_roster.c
@@ -885,6 +886,37 @@ if(BUILD_TESTING)
         C_EXTENSIONS OFF
     )
 
+    add_executable(player_revive_target_selection_tests
+        tests/player_revive_target_selection_tests.c
+        src/gameplay/player_revive_target_selection.c
+        src/gameplay/player_lifecycle_runtime.c
+        src/gameplay/player_revive_execution.c
+        src/gameplay/player_revive_eligibility.c
+        src/gameplay/player_revive_window.c
+        src/gameplay/player_roster.c
+        src/gameplay/player_death.c
+        src/gameplay/player_defeat.c
+        src/gameplay/player_runtime_population.c
+        src/gameplay/actor_spawn.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/physics/dynamic_body.c
+        src/spatial/spatial.c
+        src/entity/entity.c
+        src/player/player_body.c
+        src/common/math.c
+    )
+    target_include_directories(player_revive_target_selection_tests PRIVATE
+        include src/actor src/collision src/entity src/gameplay src/physics
+        src/player src/spatial
+    )
+    target_compile_features(player_revive_target_selection_tests PRIVATE
+        c_std_11
+    )
+    set_target_properties(player_revive_target_selection_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
     add_executable(player_runtime_population_tests
         tests/player_runtime_population_tests.c
         src/gameplay/player_runtime_population.c
@@ -1345,6 +1377,7 @@ if(BUILD_TESTING)
         target_link_libraries(player_revive_window_tests PRIVATE m)
         target_link_libraries(player_lifecycle_runtime_tests PRIVATE m)
         target_link_libraries(player_revive_interaction_tests PRIVATE m)
+        target_link_libraries(player_revive_target_selection_tests PRIVATE m)
         target_link_libraries(player_runtime_population_tests PRIVATE m)
         target_link_libraries(multi_player_dead_target_exclusion_tests PRIVATE m)
         target_link_libraries(bootstrap_enemy_pursuit_tests PRIVATE m)
@@ -1450,6 +1483,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(player_revive_interaction_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(player_revive_target_selection_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(player_runtime_population_tests PRIVATE
@@ -1589,6 +1625,9 @@ if(BUILD_TESTING)
     )
     add_test(NAME player_revive_interaction_foundation
         COMMAND player_revive_interaction_tests
+    )
+    add_test(NAME player_revive_target_selection_foundation
+        COMMAND player_revive_target_selection_tests
     )
     add_test(NAME player_runtime_population_foundation
         COMMAND player_runtime_population_tests

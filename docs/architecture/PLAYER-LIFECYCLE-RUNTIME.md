@@ -120,3 +120,9 @@ As of v0.3.34, disconnected Player Runtime Population uses the existing
 register/unregister boundary transactionally. Lifecycle Runtime remains the
 owner of Roster, Defeat, Window, and `was_dead`; Population stores no duplicate
 membership or lifecycle state.
+
+As of v0.3.36, disconnected Player Revive Target Selection uses the existing
+`can_revive` adapter as its sole policy authority while ranking current roster
+slots spatially. Lifecycle Runtime gains no selection state, adapter, or
+accessor, and Engine adds no selection caller. See
+`PLAYER-REVIVE-TARGET-SELECTION.md` and ADR-0060.
