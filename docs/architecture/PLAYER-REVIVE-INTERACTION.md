@@ -141,3 +141,9 @@ candidate PlayerSlot but defines normal no-target as true plus INVALID. Future
 orchestration must not pass that INVALID result blindly into a held Interaction
 step under this unchanged contract. Engine still has no selection or
 Interaction caller.
+
+As of v0.3.37, disconnected Semantic Interact Input can supply a general
+gameplay `down` value from one caller-owned key. It is not Revive-specific and
+does not call this module. Future contextual orchestration must still handle
+the selector's INVALID no-target result before stepping held Interaction; no
+Revive contract or production caller changes here.

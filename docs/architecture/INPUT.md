@@ -105,5 +105,11 @@ numerical contract without XWayland source filtering.
 These physical controls are not a semantic binding system. Rebinding, action
 maps, menus, attack semantics, and final gameplay bindings remain excluded.
 
+As of v0.3.37, a private disconnected gameplay query can project one
+caller-owned `HTHKey` into the semantic Interact state `down`, `pressed`, and
+`released`. It consumes these final Input values without changing or
+duplicating Input semantics; no product binding or runtime consumer is added.
+See `SEMANTIC-INTERACT-INPUT.md` and ADR-0061.
+
 Quit, focus, and resize remain engine-control events rather than gameplay
 actions. Application close continues to come from the window/QUIT event.

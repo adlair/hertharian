@@ -85,3 +85,9 @@ Interaction. It must not blindly feed the normal no-target result
 v0.3.33 Interaction contract treats that held candidate as invalid input. That
 boundary and the snapshot-aware ordering must be designed before production
 integration; v0.3.36 changes neither Interaction nor Execution.
+
+The disconnected v0.3.37 Semantic Interact Input foundation may later provide
+the general Interact held state to such orchestration, but it does not invoke
+selection or Revive. A future router must cancel/reset when Interact is not
+down and must handle this query's successful INVALID result instead of passing
+it blindly to held Interaction.

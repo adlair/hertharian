@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.36 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.37 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -57,6 +57,7 @@ add_executable(hertharian-engine
     src/gameplay/enemy_seek.c
     src/gameplay/enemy_target.c
     src/gameplay/enemy_target_selection.c
+    src/gameplay/gameplay_interact_action.c
     src/gameplay/health.c
     src/gameplay/player_death.c
     src/gameplay/player_defeat.c
@@ -162,6 +163,24 @@ if(BUILD_TESTING)
     )
     target_compile_features(input_tests PRIVATE c_std_11)
     set_target_properties(input_tests PROPERTIES C_EXTENSIONS OFF)
+
+    add_executable(gameplay_interact_action_tests
+        tests/gameplay_interact_action_tests.c
+        src/gameplay/gameplay_interact_action.c
+        src/input/input.c
+        src/platform/keyboard_reconciliation.c
+    )
+    target_include_directories(gameplay_interact_action_tests PRIVATE
+        include
+        src/common
+        src/gameplay
+        src/input
+        src/platform
+    )
+    target_compile_features(gameplay_interact_action_tests PRIVATE c_std_11)
+    set_target_properties(gameplay_interact_action_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
 
     add_executable(entity_tests
         tests/entity_tests.c
@@ -1389,6 +1408,9 @@ if(BUILD_TESTING)
         target_compile_options(input_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(gameplay_interact_action_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
         target_compile_options(entity_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
@@ -1568,6 +1590,9 @@ if(BUILD_TESTING)
     endif()
 
     add_test(NAME input_state COMMAND input_tests)
+    add_test(NAME semantic_interact_input_foundation
+        COMMAND gameplay_interact_action_tests
+    )
     add_test(NAME entity_foundation COMMAND entity_tests)
     add_test(NAME timing_state COMMAND timing_tests)
     add_test(NAME spatial_entity_foundation COMMAND spatial_tests)

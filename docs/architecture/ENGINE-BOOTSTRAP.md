@@ -260,5 +260,11 @@ production remains one Player. Tests alone compose multiple population Players
 to validate the private Lifecycle-bound query. See
 `PLAYER-REVIVE-TARGET-SELECTION.md` and ADR-0060.
 
+As of v0.3.37, Semantic Interact Input is another disconnected private
+foundation. Engine and Bootstrap own no semantic action state, freeze no
+product key, make no Interact query, and perform no semantic Interact work per
+frame. The current frame order and production Player count remain unchanged.
+See `SEMANTIC-INTERACT-INPUT.md` and ADR-0061.
+
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.
