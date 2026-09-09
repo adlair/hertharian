@@ -126,3 +126,10 @@ As of v0.3.38, disconnected Player Revive Configuration supplies a prototype
 `25.0F` healing amount for future callers. It is not final Health or a
 percentage. Execution retains its scalar API and defensive validation, and
 Health remains responsible for maximum clamping.
+
+As of v0.3.40, snapshot-aware revive read-side paths deliberately terminate at
+this unchanged live-authoritative boundary. A same-frame ordinary heal or
+reviver death can make sampled Death differ from current Health; this operation
+still performs its two live Death queries before mutation, preventing an
+invalid or duplicate revive. Multiple independent revivers therefore retain
+first-valid-commit-wins behavior.

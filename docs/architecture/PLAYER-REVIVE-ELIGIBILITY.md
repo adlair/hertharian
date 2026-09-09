@@ -111,3 +111,11 @@ As of v0.3.36, disconnected Player Revive Target Selection calls that same
 Lifecycle Runtime adapter for every current non-self candidate before any
 candidate Spatial lookup. Eligibility remains the sole revive-policy authority;
 Selection adds only range and deterministic nearest-PlayerSlot ranking.
+
+As of v0.3.40, Death acquisition is separated from the single semantic policy
+helper. The legacy query retains its live reviver-then-target Death queries. A
+private snapshot-aware sibling resolves both current Roster identities and
+queries `HTHPlayerDeathSnapshot` with slot plus complete Entity handle, then
+uses the same policy. A current identity absent or mismatched in the supplied
+snapshot is a technical coherence failure, not ordinary ineligibility. Defeat
+and the target ReviveWindow remain live on every evaluation.

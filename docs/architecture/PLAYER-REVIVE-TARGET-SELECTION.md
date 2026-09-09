@@ -95,3 +95,10 @@ it blindly to held Interaction.
 As of v0.3.38, disconnected Player Revive Configuration supplies one prototype
 range value for future Selection and Interaction callers. Selection retains
 its scalar range API, current-value semantics, and defensive validation.
+
+As of v0.3.40, a private snapshot-aware sibling uses the current exact Roster
+identities and snapshot-aware Eligibility without performing live Death
+queries. Legacy and snapshot paths share one candidate loop and therefore one
+range, distance, nearest-target, and lower-PlayerSlot tie authority. Spatial
+remains live. A snapshot mismatch for any current identity is a technical
+failure, not a skipped candidate. This path remains disconnected from Engine.

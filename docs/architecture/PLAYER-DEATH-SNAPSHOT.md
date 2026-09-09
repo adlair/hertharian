@@ -140,10 +140,11 @@ ordinary healing after sampling, reviver death, identity changes, window
 expiry/cancellation, and first-reviver-wins behavior. Correct mutation safety
 overrides universal once-per-frame query purity.
 
-v0.3.39 does not change Eligibility, Target Selection, Interaction, Execution,
-Lifecycle, or Engine. Snapshot-aware read paths require a later focused audit
-that factors one Eligibility policy authority while preserving live Execution
-commit validation.
+Hertharian v0.3.40 adds disconnected snapshot-aware Eligibility, Target
+Selection, and Interaction siblings. They consume this value without further
+live Death queries, while Defeat, ReviveWindow, and Spatial remain live.
+Revive Execution is unchanged and retains live commit-time validation. Engine
+still has no snapshot-aware revive caller.
 
 ## Ownership and Dependencies
 

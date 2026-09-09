@@ -2,6 +2,7 @@
 #define HTH_PLAYER_REVIVE_ELIGIBILITY_H
 
 #include "health.h"
+#include "player_death_snapshot.h"
 #include "player_defeat.h"
 #include "player_revive_window.h"
 #include "player_roster.h"
@@ -13,6 +14,17 @@ bool hth_player_revive_eligibility_evaluate(
     const HTHEntityRegistry *entities,
     const HTHActorStore *actors,
     const HTHHealthStore *health,
+    HTHPlayerSlot reviver_slot,
+    const HTHPlayerDefeatState *reviver_defeat,
+    HTHPlayerSlot target_slot,
+    const HTHPlayerDefeatState *target_defeat,
+    const HTHPlayerReviveWindow *target_window,
+    bool *out_eligible);
+bool hth_player_revive_eligibility_evaluate_snapshot(
+    const HTHPlayerRoster *roster,
+    const HTHEntityRegistry *entities,
+    const HTHActorStore *actors,
+    const HTHPlayerDeathSnapshot *death_snapshot,
     HTHPlayerSlot reviver_slot,
     const HTHPlayerDefeatState *reviver_defeat,
     HTHPlayerSlot target_slot,

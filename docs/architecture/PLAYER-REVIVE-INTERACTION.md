@@ -13,26 +13,32 @@ attempt:
 
 ```c
 typedef struct HTHPlayerReviveInteraction {
+    HTHPlayerSlot reviver_slot;
+    HTHEntityHandle reviver_entity;
     HTHPlayerSlot target_slot;
+    HTHEntityHandle target_entity;
     double elapsed_seconds;
     double required_seconds;
     bool active;
 } HTHPlayerReviveInteraction;
 ```
 
-The identity of an active attempt is reviver PlayerSlot plus target PlayerSlot.
-The reviver remains an explicit step input; the target is stored only while the
-attempt is active. Entity handles and positions are never cached. The caller
-supplies the candidate target slot, and Interaction performs no scan, nearest
-query, ranking, camera ray, or automatic target switching.
+The identity of an active attempt is reviver PlayerSlot plus complete reviver
+Entity handle plus target PlayerSlot plus complete target Entity handle. Both
+index and generation participate. The reviver remains an explicit step input;
+the participant identities are captured only while the attempt is active.
+Positions are never cached. The caller supplies the candidate target slot, and
+Interaction performs no scan, nearest query, ranking, camera ray, or automatic
+target switching.
 
-Zero initialization is canonical inactive state. Stored `target_slot == 0` has
+Zero initialization is canonical inactive state. Stored identity fields have
 no meaning while inactive. Reset is null-safe and zeroes the value. Query
 canonicalizes every output before validation and reports inactive target as
 `HTH_PLAYER_SLOT_INVALID`, never as semantic slot zero. An active state requires
-a valid target slot, finite positive required duration, and finite elapsed time
-in `[0, required)`. Completion is never persisted as `elapsed == required`.
-The value has no pointer ownership and copies independently.
+valid reviver and target slots, structurally valid complete handles, finite
+positive required duration, and finite elapsed time in `[0, required)`.
+Completion is never persisted as `elapsed == required`. The value has no pointer
+ownership and copies independently.
 
 ## Input and Hold Progress
 
@@ -44,11 +50,13 @@ nonnegative simulation delta. Delta is not wall-clock time.
 
 Hold duration is a finite positive caller/config value captured when a new
 attempt starts. A later valid duration argument does not rewrite the active
-attempt. Target change discards old progress, captures the current duration,
-and applies only the current step's delta to the new target. An inactive or
-retargeted attempt may complete immediately when delta covers its complete
-duration. Exact completion and overshoot use the same inclusive comparison;
-there is no epsilon, arbitrary minimum, pause, decay, or catch-up loop.
+attempt. A change to either participant slot or complete handle discards old
+progress, captures the current duration, and applies only the current step's
+delta to the new attempt. Same-slot generation reuse therefore cannot inherit
+progress. An inactive or retargeted attempt may complete immediately when delta
+covers its complete duration. Exact completion and overshoot use the same
+inclusive comparison; there is no epsilon, arbitrary minimum, pause, decay, or
+catch-up loop.
 
 ## Spatial Range
 
@@ -152,3 +160,12 @@ As of v0.3.38, disconnected Player Revive Configuration groups prototype
 range, hold-duration, and healing values for a future caller. Interaction
 continues to accept scalars, capture hold duration only on start/retarget, use
 current range and completion-frame healing, and validate each defensively.
+
+As of v0.3.40, a private snapshot-aware step sibling receives the current
+frame's `HTHPlayerDeathSnapshot` on every call and shares the single existing
+progress/reset/completion implementation with the legacy path. It stores no
+snapshot. Snapshot mismatch for a current Roster identity is a technical
+failure that preserves the complete attempt; valid ineligibility resets it.
+Defeat, ReviveWindow, Spatial, range, and completion-frame revive Health remain
+live. Held read-side steps perform no live Death queries. Completion still
+delegates to unchanged, live-authoritative Revive Execution.

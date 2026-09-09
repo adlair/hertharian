@@ -115,12 +115,37 @@ static bool interaction_query(
 static bool same_interaction(HTHPlayerReviveInteraction left,
                              HTHPlayerReviveInteraction right)
 {
-    return left.target_slot == right.target_slot &&
+    return left.reviver_slot == right.reviver_slot &&
+           hth_entity_handle_equal(left.reviver_entity,
+                                   right.reviver_entity) &&
+           left.target_slot == right.target_slot &&
+           hth_entity_handle_equal(left.target_entity,
+                                   right.target_entity) &&
            (left.elapsed_seconds == right.elapsed_seconds ||
             (isnan(left.elapsed_seconds) && isnan(right.elapsed_seconds))) &&
            (left.required_seconds == right.required_seconds ||
             (isnan(left.required_seconds) && isnan(right.required_seconds))) &&
            left.active == right.active;
+}
+
+static HTHPlayerReviveInteraction active_interaction(
+    HTHPlayerSlot reviver_slot,
+    HTHEntityHandle reviver_entity,
+    HTHPlayerSlot target_slot,
+    HTHEntityHandle target_entity,
+    double elapsed_seconds,
+    double required_seconds)
+{
+    HTHPlayerReviveInteraction interaction = {0};
+
+    interaction.reviver_slot = reviver_slot;
+    interaction.reviver_entity = reviver_entity;
+    interaction.target_slot = target_slot;
+    interaction.target_entity = target_entity;
+    interaction.elapsed_seconds = elapsed_seconds;
+    interaction.required_seconds = required_seconds;
+    interaction.active = true;
+    return interaction;
 }
 
 static bool step(Fixture *fixture, HTHPlayerReviveInteraction *interaction,
@@ -181,7 +206,9 @@ static bool test_zero_reset_query_and_copy(void)
         &interaction, &active, &target, &elapsed, NULL));
     CHECK(!active && target == HTH_PLAYER_SLOT_INVALID && elapsed == 0.0);
 
-    interaction = (HTHPlayerReviveInteraction){1U, 0.25, 1.0, true};
+    interaction = active_interaction(
+        0U, (HTHEntityHandle){0U, 1U},
+        1U, (HTHEntityHandle){1U, 1U}, 0.25, 1.0);
     copy = interaction;
     CHECK(interaction_query(&copy, true, 1U, 0.25, 1.0));
     hth_player_revive_interaction_reset(&copy);
@@ -212,19 +239,50 @@ static bool expect_malformed(HTHPlayerReviveInteraction interaction)
 
 static bool test_malformed_active_states(void)
 {
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){
-        HTH_PLAYER_SLOT_INVALID, 0.0, 1.0, true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, 0.0, 0.0, true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, 0.0, -1.0, true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, 0.0, NAN, true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, 0.0, INFINITY,
-                                                        true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, -1.0, 1.0, true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, NAN, 1.0, true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, INFINITY, 1.0,
-                                                        true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, 1.0, 1.0, true}));
-    CHECK(expect_malformed((HTHPlayerReviveInteraction){0U, 2.0, 1.0, true}));
+    HTHPlayerReviveInteraction malformed;
+    const HTHPlayerReviveInteraction valid = active_interaction(
+        0U, (HTHEntityHandle){0U, 1U},
+        1U, (HTHEntityHandle){1U, 1U}, 0.0, 1.0);
+
+    malformed = valid;
+    malformed.reviver_slot = HTH_PLAYER_SLOT_INVALID;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.reviver_entity.generation = 0U;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.target_slot = HTH_PLAYER_SLOT_INVALID;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.target_entity.generation = 0U;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.required_seconds = 0.0;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.required_seconds = -1.0;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.required_seconds = NAN;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.required_seconds = INFINITY;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.elapsed_seconds = -1.0;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.elapsed_seconds = NAN;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.elapsed_seconds = INFINITY;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.elapsed_seconds = 1.0;
+    CHECK(expect_malformed(malformed));
+    malformed = valid;
+    malformed.elapsed_seconds = 2.0;
+    CHECK(expect_malformed(malformed));
     return true;
 }
 
@@ -361,7 +419,9 @@ static bool test_step_pointers_idle_and_release(void)
                &revived));
     CHECK(!revived && interaction_query(
         &interaction, false, HTH_PLAYER_SLOT_INVALID, 0.0, 0.0));
-    active = (HTHPlayerReviveInteraction){target, 0.25, 1.0, true};
+    active = active_interaction(
+        reviver, fixture.players[reviver], target, fixture.players[target],
+        0.25, 1.0);
     interaction = active;
     CHECK(step(&fixture, &interaction, HTH_PLAYER_SLOT_INVALID,
                HTH_PLAYER_SLOT_INVALID, false, NAN, NAN, NAN, NAN,
@@ -425,7 +485,9 @@ static bool test_numeric_failures(void)
     size_t index;
 
     CHECK(create_eligible_pair(&fixture, &reviver, &target));
-    interaction = (HTHPlayerReviveInteraction){target, 0.25, 1.0, true};
+    interaction = active_interaction(
+        reviver, fixture.players[reviver], target, fixture.players[target],
+        0.25, 1.0);
     before = interaction;
     for (index = 0U;
          index < sizeof(invalid_double) / sizeof(invalid_double[0]); ++index) {
@@ -515,7 +577,9 @@ static bool test_spatial_range_and_policy(void)
     CHECK(step(&fixture, &interaction, reviver, reviver, true, 0.1, FLT_MIN,
                1.0, 10.0F, &revived));
     CHECK(!revived && !interaction.active);
-    before = (HTHPlayerReviveInteraction){target, 0.25, 1.0, true};
+    before = active_interaction(
+        reviver, fixture.players[reviver], target, fixture.players[target],
+        0.25, 1.0);
     interaction = before;
     CHECK(hth_spatial_store_remove(fixture.spatial, fixture.entities,
                                    fixture.players[target]));
@@ -561,7 +625,9 @@ static bool test_progress_duration_and_target_change(void)
     CHECK(!revived && !interaction.active);
 
     fixture.lifecycle.defeat[target_a].defeated = false;
-    interaction = (HTHPlayerReviveInteraction){target_a, 0.4, 1.0, true};
+    interaction = active_interaction(
+        reviver, fixture.players[reviver], target_a,
+        fixture.players[target_a], 0.4, 1.0);
     before = interaction;
     CHECK(hth_spatial_store_remove(fixture.spatial, fixture.entities,
                                    fixture.players[target_b]));
@@ -744,7 +810,9 @@ static bool test_stale_player_preserves_attempt(void)
     bool revived = true;
 
     CHECK(create_eligible_pair(&fixture, &reviver, &target));
-    interaction = (HTHPlayerReviveInteraction){target, 0.25, 1.0, true};
+    interaction = active_interaction(
+        reviver, fixture.players[reviver], target, fixture.players[target],
+        0.25, 1.0);
     before = interaction;
     CHECK(hth_actor_store_remove(fixture.actors, fixture.entities,
                                  fixture.players[target]));
