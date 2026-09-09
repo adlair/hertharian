@@ -91,3 +91,7 @@ the general Interact held state to such orchestration, but it does not invoke
 selection or Revive. A future router must cancel/reset when Interact is not
 down and must handle this query's successful INVALID result instead of passing
 it blindly to held Interaction.
+
+As of v0.3.38, disconnected Player Revive Configuration supplies one prototype
+range value for future Selection and Interaction callers. Selection retains
+its scalar range API, current-value semantics, and defensive validation.

@@ -126,3 +126,8 @@ As of v0.3.36, disconnected Player Revive Target Selection uses the existing
 slots spatially. Lifecycle Runtime gains no selection state, adapter, or
 accessor, and Engine adds no selection caller. See
 `PLAYER-REVIVE-TARGET-SELECTION.md` and ADR-0060.
+
+As of v0.3.38, disconnected Player Revive Configuration groups the future
+cooperative-window duration with the other Revive tuning. Lifecycle keeps its
+scalar pointer contract and defensive validation; no config instance or
+runtime consumer is added.

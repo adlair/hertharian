@@ -266,5 +266,11 @@ product key, make no Interact query, and perform no semantic Interact work per
 frame. The current frame order and production Player count remain unchanged.
 See `SEMANTIC-INTERACT-INPUT.md` and ADR-0061.
 
+As of v0.3.38, Player Revive Configuration is likewise a disconnected private
+value foundation. Engine and Bootstrap own no config instance, make no config
+call, and perform no related per-frame work. Its prototype defaults are not
+wired into Lifecycle, Selection, Interaction, or Execution; production still
+has exactly one Player. See `PLAYER-REVIVE-CONFIGURATION.md` and ADR-0062.
+
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.

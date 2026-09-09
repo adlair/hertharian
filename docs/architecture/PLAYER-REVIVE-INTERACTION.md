@@ -147,3 +147,8 @@ gameplay `down` value from one caller-owned key. It is not Revive-specific and
 does not call this module. Future contextual orchestration must still handle
 the selector's INVALID no-target result before stepping held Interaction; no
 Revive contract or production caller changes here.
+
+As of v0.3.38, disconnected Player Revive Configuration groups prototype
+range, hold-duration, and healing values for a future caller. Interaction
+continues to accept scalars, capture hold duration only on start/retarget, use
+current range and completion-frame healing, and validate each defensively.

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.37 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.38 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -62,6 +62,7 @@ add_executable(hertharian-engine
     src/gameplay/player_death.c
     src/gameplay/player_defeat.c
     src/gameplay/player_lifecycle_runtime.c
+    src/gameplay/player_revive_config.c
     src/gameplay/player_revive_interaction.c
     src/gameplay/player_revive_target_selection.c
     src/gameplay/player_revive_execution.c
@@ -860,6 +861,18 @@ if(BUILD_TESTING)
         C_EXTENSIONS OFF
     )
 
+    add_executable(player_revive_config_tests
+        tests/player_revive_config_tests.c
+        src/gameplay/player_revive_config.c
+    )
+    target_include_directories(player_revive_config_tests PRIVATE
+        src/gameplay
+    )
+    target_compile_features(player_revive_config_tests PRIVATE c_std_11)
+    set_target_properties(player_revive_config_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
     add_executable(player_lifecycle_runtime_tests
         tests/player_lifecycle_runtime_tests.c
         src/gameplay/player_lifecycle_runtime.c
@@ -1501,6 +1514,9 @@ if(BUILD_TESTING)
         target_compile_options(player_revive_execution_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
+        target_compile_options(player_revive_config_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
         target_compile_options(player_lifecycle_runtime_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
@@ -1644,6 +1660,9 @@ if(BUILD_TESTING)
     )
     add_test(NAME player_revive_execution_foundation
         COMMAND player_revive_execution_tests
+    )
+    add_test(NAME player_revive_config_foundation
+        COMMAND player_revive_config_tests
     )
     add_test(NAME player_lifecycle_runtime_integration
         COMMAND player_lifecycle_runtime_tests

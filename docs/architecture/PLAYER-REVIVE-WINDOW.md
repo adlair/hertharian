@@ -96,3 +96,8 @@ As of v0.3.33, disconnected Player Revive Interaction reads Window semantics
 only through Eligibility and delegates successful cancellation to Execution
 through a private Lifecycle Runtime adapter. Interaction never mutates or
 receives a mutable Window directly.
+
+As of v0.3.38, the disconnected Player Revive Configuration foundation owns a
+prototype default duration for future callers. Window mechanics still accept
+and validate a scalar duration, and an active window retains its captured
+remainder.

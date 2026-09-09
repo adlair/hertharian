@@ -88,3 +88,8 @@ Interaction step with that invalid candidate. A valid selected target may be
 passed onward under the released Revive contracts. Context choice, target
 selection, consumption/arbitration, product binding, multiplayer ordering, and
 production integration remain explicit readiness gaps outside v0.3.37.
+
+Player Revive Configuration, introduced as a disconnected private foundation
+in v0.3.38, deliberately contains no `HTHKey` and chooses no product Interact
+binding. Controls configuration and Revive gameplay tuning remain separate
+inputs to future contextual orchestration.

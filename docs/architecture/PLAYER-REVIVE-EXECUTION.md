@@ -121,3 +121,8 @@ As of v0.3.33, disconnected Player Revive Interaction completion reaches this
 operation through a private Lifecycle Runtime binding adapter. The adapter
 exposes no mutable Window and preserves this operation's final revalidation.
 Engine and Bootstrap remain non-callers, so production execution work is zero.
+
+As of v0.3.38, disconnected Player Revive Configuration supplies a prototype
+`25.0F` healing amount for future callers. It is not final Health or a
+percentage. Execution retains its scalar API and defensive validation, and
+Health remains responsible for maximum clamping.
