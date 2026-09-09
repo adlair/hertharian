@@ -90,3 +90,8 @@ and ADR-0051.
 As of v0.3.30, the disconnected Player Revive Eligibility query reuses this
 authority for both reviver and target dead/alive predicates. It neither reads
 Health directly nor changes this query's runtime integration.
+
+As of v0.3.39, the disconnected `PLAYER-DEATH-SNAPSHOT.md` foundation can
+sample this authority once per current Roster Player into a caller-owned,
+generation-safe frame observation. The snapshot is not a new authority and has
+no Engine or revive-pipeline consumer in v0.3.39.

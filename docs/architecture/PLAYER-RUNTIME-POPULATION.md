@@ -77,13 +77,14 @@ Spawn/Despawn retain their amortized constant Store behavior; roster
 registration is bounded `O(P)` for `P <= HTH_MAX_PLAYERS`, and slot resolution
 and teardown are bounded `O(1)` for the frozen capacity.
 
-Engine and Bootstrap make zero population calls in v0.3.34. Real cooperative
-integration still requires a multi-Player authoritative Death-snapshot
-architecture; current Engine carries one local boolean snapshot and one local
-PlayerBody. Hertharian v0.3.35 supplies the disconnected generic Enemy
+Engine and Bootstrap make zero population calls in v0.3.34. Current Engine
+carries one local boolean Death observation and one local PlayerBody.
+Hertharian v0.3.39 adds the disconnected, generation-safe Player Death
+Snapshot foundation described in `PLAYER-DEATH-SNAPSHOT.md`, but does not yet
+integrate it into Engine or the revive pipeline. Hertharian v0.3.35 supplies
+the disconnected generic Enemy
 exclusion-list boundary and proves it with four population-created Players in
 tests, but adds no production Population consumer. Hertharian v0.3.36 uses
 Population only in tests to prove disconnected Revive Target Selection across
-four real gameplay Players. A multi-Player Death-snapshot architecture,
-semantic Interact action, and product-owned revive range, duration, and
-restored-Health values remain prerequisites for a real coop runtime.
+four real gameplay Players. Snapshot-aware revive read paths and contextual
+runtime orchestration remain prerequisites for a real coop runtime.

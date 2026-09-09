@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(hertharian-engine VERSION 0.3.38 LANGUAGES C)
+project(hertharian-engine VERSION 0.3.39 LANGUAGES C)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 find_package(OpenGL REQUIRED)
@@ -60,6 +60,7 @@ add_executable(hertharian-engine
     src/gameplay/gameplay_interact_action.c
     src/gameplay/health.c
     src/gameplay/player_death.c
+    src/gameplay/player_death_snapshot.c
     src/gameplay/player_defeat.c
     src/gameplay/player_lifecycle_runtime.c
     src/gameplay/player_revive_config.c
@@ -798,6 +799,26 @@ if(BUILD_TESTING)
     target_compile_features(player_defeat_tests PRIVATE c_std_11)
     set_target_properties(player_defeat_tests PROPERTIES C_EXTENSIONS OFF)
 
+    add_executable(player_death_snapshot_tests
+        tests/player_death_snapshot_tests.c
+        src/gameplay/player_death_snapshot.c
+        src/gameplay/player_roster.c
+        src/gameplay/player_death.c
+        src/gameplay/health.c
+        src/actor/actor.c
+        src/entity/entity.c
+    )
+    target_include_directories(player_death_snapshot_tests PRIVATE
+        src/actor src/entity src/gameplay
+    )
+    target_compile_features(player_death_snapshot_tests PRIVATE c_std_11)
+    target_link_options(player_death_snapshot_tests PRIVATE
+        -Wl,--wrap=hth_player_death_is_dead
+    )
+    set_target_properties(player_death_snapshot_tests PROPERTIES
+        C_EXTENSIONS OFF
+    )
+
     add_executable(player_revive_window_tests
         tests/player_revive_window_tests.c
         src/gameplay/player_revive_window.c
@@ -1406,6 +1427,7 @@ if(BUILD_TESTING)
         target_link_libraries(player_target_bridge_tests PRIVATE m)
         target_link_libraries(player_death_tests PRIVATE m)
         target_link_libraries(player_defeat_tests PRIVATE m)
+        target_link_libraries(player_death_snapshot_tests PRIVATE m)
         target_link_libraries(player_revive_window_tests PRIVATE m)
         target_link_libraries(player_lifecycle_runtime_tests PRIVATE m)
         target_link_libraries(player_revive_interaction_tests PRIVATE m)
@@ -1500,6 +1522,9 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(player_defeat_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+        )
+        target_compile_options(player_death_snapshot_tests PRIVATE
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow
         )
         target_compile_options(player_revive_window_tests PRIVATE
@@ -1651,6 +1676,9 @@ if(BUILD_TESTING)
     )
     add_test(NAME player_death_foundation COMMAND player_death_tests)
     add_test(NAME player_defeat_foundation COMMAND player_defeat_tests)
+    add_test(NAME player_death_snapshot_foundation
+        COMMAND player_death_snapshot_tests
+    )
     add_test(NAME player_revive_window_foundation
         COMMAND player_revive_window_tests
     )
