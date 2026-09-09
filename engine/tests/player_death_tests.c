@@ -435,7 +435,7 @@ static bool test_enemy_attack_runtime_composition(void)
             fixture.entities, fixture.actors, fixture.enemies,
             fixture.spatial, fixture.bodies, fixture.health, fixture.targets,
             fixture.cadences, &world, &candidate, 1U,
-            hth_entity_handle_invalid(), 8.0F, 1.25F, 2.0F, 10.0F, 1.0,
+            NULL, 0U, 8.0F, 1.25F, 2.0F, 10.0F, 1.0,
             delta_seconds));
     }
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
@@ -451,7 +451,7 @@ static bool test_enemy_attack_runtime_composition(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, &candidate, 1U, hth_entity_handle_invalid(), 8.0F, 1.25F,
+        &world, &candidate, 1U, NULL, 0U, 8.0F, 1.25F,
         2.0F, 10.0F, 1.0, 1.0));
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
                                fixture.actors, candidate, &health));
@@ -721,7 +721,7 @@ static bool test_same_frame_lethal_damage_and_next_frame_suppression(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, &candidate, 1U, hth_entity_handle_invalid(), 8.0F, 1.25F,
+        &world, &candidate, 1U, NULL, 0U, 8.0F, 1.25F,
         2.0F, 10.0F, 1.0, 0.0));
     CHECK(hth_health_store_get(fixture.health, fixture.entities,
                                fixture.actors, candidate, &health));
@@ -746,7 +746,7 @@ static bool test_same_frame_lethal_damage_and_next_frame_suppression(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, &candidate, 1U, hth_entity_handle_invalid(), 8.0F, 1.25F,
+        &world, &candidate, 1U, NULL, 0U, 8.0F, 1.25F,
         2.0F, 10.0F, 1.0, 1.0));
 
     hth_input_end_frame(input);
