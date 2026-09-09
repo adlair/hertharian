@@ -21,9 +21,17 @@ For a structurally valid operation, candidate `C` is eligible exactly when:
 
 ```text
 C != Enemy
+AND C is not an exact member of excluded_targets[0..excluded_target_count)
 AND EnemyPerception(Enemy, C, radius)
 AND EnemyLOS(Enemy, C)
 ```
+
+The optional exclusion array is `const`, caller-owned, and generation-safe.
+Zero exclusions accept either a null or non-null pointer; a positive count
+requires a non-null pointer. Membership uses complete Entity handle equality.
+Invalid or stale entries are harmless keys, duplicates are idempotent, and
+exclusion order is irrelevant. Exclusion is checked before candidate Spatial,
+Perception, LOS, or ranking work.
 
 The caller-supplied radius must be finite and nonnegative. Selection first
 performs cheap handle, Spatial, and self checks, then calls the released radius
@@ -58,9 +66,10 @@ current Target, while selecting the already-current winner is idempotent.
 
 ## Cost and Deferred Scope
 
-For `M` supplied candidates, `K` candidates passing Perception, and `N` static
-CollisionWorld obstacles, candidate filtering and ranking cost is
-`O(M + K*N)`, worst-case `O(M*N)`, with `O(1)` auxiliary memory and no
+For `M` supplied candidates, `E` exclusions, `K` candidates passing
+Perception, and `N` static CollisionWorld obstacles, candidate filtering and
+ranking cost is `O(M*E + M + K*N)`, worst-case `O(M*E + M*N)`, with `O(1)`
+auxiliary memory and no
 candidate-list allocation. The final released EnemyTarget set operation may
 grow its Store storage and therefore retains its existing allocation and
 capacity-growth cost. Selection owns no Store, Engine state, cache,
@@ -79,8 +88,9 @@ As of v0.3.12, caller-driven Pursuit Runtime invokes Selection only when the
 Enemy lacks a semantically valid Target, using the caller's explicit candidate
 array unchanged.
 
-As of v0.3.26, Selection receives one optional generation-safe excluded handle.
-The canonical invalid handle means no exclusion. Exact matches are skipped
-before Spatial, Perception, LOS, and ranking; all other candidate and
-transactional semantics remain unchanged. Selection still does not clear an
-existing relation when no winner exists.
+As of v0.3.35, Selection receives zero or more generation-safe exclusions by
+pointer and count. This generalizes the v0.3.26 singleton policy without
+changing zero- or one-exclusion behavior. Exact matches are skipped before
+Spatial, Perception, LOS, and ranking; all other candidate and transactional
+semantics remain unchanged. Selection still does not clear an existing
+relation when no winner exists.

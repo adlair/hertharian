@@ -21,7 +21,8 @@ bool hth_enemy_target_select(
     HTHEntityHandle enemy,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
-    HTHEntityHandle excluded_target,
+    const HTHEntityHandle *excluded_targets,
+    size_t excluded_target_count,
     float perception_radius,
     HTHEntityHandle *out_selected);
 

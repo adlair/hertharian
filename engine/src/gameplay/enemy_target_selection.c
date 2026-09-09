@@ -14,6 +14,21 @@ static double distance_squared(HTHVec3 left, HTHVec3 right)
     return dx * dx + dy * dy + dz * dz;
 }
 
+static bool target_is_excluded(
+    HTHEntityHandle target,
+    const HTHEntityHandle *excluded_targets,
+    size_t excluded_target_count)
+{
+    size_t index;
+
+    for (index = 0U; index < excluded_target_count; ++index) {
+        if (hth_entity_handle_equal(target, excluded_targets[index])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool hth_enemy_target_select(
     const HTHEntityRegistry *entities,
     const HTHActorStore *actors,
@@ -24,7 +39,8 @@ bool hth_enemy_target_select(
     HTHEntityHandle enemy,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
-    HTHEntityHandle excluded_target,
+    const HTHEntityHandle *excluded_targets,
+    size_t excluded_target_count,
     float perception_radius,
     HTHEntityHandle *out_selected)
 {
@@ -41,6 +57,7 @@ bool hth_enemy_target_select(
         spatial == NULL || collision_world == NULL || targets == NULL ||
         out_selected == NULL ||
         (candidate_count > 0U && candidates == NULL) ||
+        (excluded_target_count > 0U && excluded_targets == NULL) ||
         !isfinite(perception_radius) || perception_radius < 0.0F ||
         !hth_enemy_store_has(enemies, entities, actors, enemy) ||
         !hth_spatial_store_get(spatial, entities, enemy, &enemy_transform)) {
@@ -53,7 +70,8 @@ bool hth_enemy_target_select(
         double candidate_distance_squared;
 
         if (hth_entity_handle_equal(candidate, enemy) ||
-            hth_entity_handle_equal(candidate, excluded_target) ||
+            target_is_excluded(candidate, excluded_targets,
+                               excluded_target_count) ||
             !hth_spatial_store_get(spatial, entities, candidate,
                                    &candidate_transform) ||
             !hth_enemy_perception_can_perceive(

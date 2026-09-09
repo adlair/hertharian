@@ -57,3 +57,10 @@ The Player remains structurally present but semantically untargetable while the
 snapshot is dead. Every Enemy clears that exact relation during its existing
 iteration; alternatives remain selectable. Cadence remains Enemy-owned and
 continuous. The policy adds no allocation or scan and requires no public API.
+
+## v0.3.35 Amendment
+
+ADR-0059 generalizes the private singleton value to a caller-owned pointer and
+count of generic Entity handles. The original zero/one Bootstrap behavior and
+Death authority remain unchanged; Selection and Pursuit can now apply the same
+policy to multiple handles without importing Player lifecycle state.

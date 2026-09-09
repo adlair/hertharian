@@ -146,7 +146,7 @@ static bool step(Context *context, const HTHCollisionWorld *world,
         context->entities, context->actors, context->enemies,
         context->spatial, context->bodies, context->health, context->targets,
         context->cadences, world, candidates, candidate_count,
-        hth_entity_handle_invalid(), radius, 0.0F, speed, 10.0F, 1.0,
+        NULL, 0U, radius, 0.0F, speed, 10.0F, 1.0,
         (double)dt);
 }
 
@@ -159,7 +159,7 @@ static bool step_with_attack(
         context->entities, context->actors, context->enemies,
         context->spatial, context->bodies, context->health, context->targets,
         context->cadences, world,
-        candidates, candidate_count, hth_entity_handle_invalid(),
+        candidates, candidate_count, NULL, 0U,
         perception_radius, attack_range, speed, 10.0F, 1.0, (double)dt);
 }
 
@@ -173,9 +173,25 @@ static bool step_excluding(
     return hth_enemy_pursuit_runtime_step(
         context->entities, context->actors, context->enemies,
         context->spatial, context->bodies, context->health, context->targets,
-        context->cadences, world, candidates, candidate_count, excluded_target,
+        context->cadences, world, candidates, candidate_count, &excluded_target,
+        1U,
         perception_radius, attack_range, speed, damage, interval,
         delta_seconds);
+}
+
+static bool step_excluding_list(
+    Context *context, const HTHCollisionWorld *world,
+    const HTHEntityHandle *candidates, size_t candidate_count,
+    const HTHEntityHandle *excluded_targets, size_t excluded_target_count,
+    float perception_radius, float attack_range, float speed, float damage,
+    double interval, double delta_seconds)
+{
+    return hth_enemy_pursuit_runtime_step(
+        context->entities, context->actors, context->enemies,
+        context->spatial, context->bodies, context->health, context->targets,
+        context->cadences, world, candidates, candidate_count,
+        excluded_targets, excluded_target_count, perception_radius,
+        attack_range, speed, damage, interval, delta_seconds);
 }
 
 static bool close_float(float left, float right)
@@ -286,7 +302,7 @@ static bool test_global_validation_is_transactional(void)
             context.entities, context.actors, context.enemies,               \
             context.spatial, context.bodies, health_value, context.targets,  \
             cadence_value, &world, candidates, 1U,                          \
-            hth_entity_handle_invalid(), 10.0F, 0.0F, 2.0F,                 \
+            NULL, 0U, 10.0F, 0.0F, 2.0F,                                  \
             damage_value, interval_value, delta_value));                     \
         CHECK_UNCHANGED();                                                   \
     } while (0)
@@ -301,6 +317,13 @@ static bool test_global_validation_is_transactional(void)
     CHECK_FAILURE(context.health, context.cadences, 10.0F, 1.0, NAN);
 #undef CHECK_FAILURE
 #undef CHECK_UNCHANGED
+
+    CHECK(!hth_enemy_pursuit_runtime_step(
+        context.entities, context.actors, context.enemies, context.spatial,
+        context.bodies, context.health, context.targets, context.cadences,
+        &world, candidates, 1U, NULL, 1U, 10.0F, 0.0F, 2.0F, 10.0F,
+        1.0, 0.1));
+    CHECK(no_target(&context, enemy));
 
     CHECK(step(&context, &world, NULL, 0U, 10.0F, 2.0F, 1.0F));
     CHECK(no_target(&context, enemy));
@@ -1019,7 +1042,7 @@ static bool test_multi_enemy_alive_snapshot_and_temporal_advance(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         context.entities, context.actors, context.enemies, context.spatial,
         context.bodies, context.health, context.targets, context.cadences,
-        &world, candidates, 1U, hth_entity_handle_invalid(), 10.0F, 1.0F,
+        &world, candidates, 1U, NULL, 0U, 10.0F, 1.0F,
         2.0F, 10.0F, 0.0, 0.5));
     CHECK(health_equals(&context, target, 0.0F));
     CHECK(cadence_remaining(&context, first, 0.0));
@@ -1064,6 +1087,7 @@ static bool test_excluded_target_runtime_policy(void)
     HTHEntityHandle excluded;
     HTHEntityHandle alternative;
     HTHEntityHandle candidates[2];
+    HTHEntityHandle exclusions[4];
 
     CHECK(context_create(&context));
     CHECK(create_enemy(&context, &origin, &stationary, &spatial_enemy));
@@ -1088,8 +1112,13 @@ static bool test_excluded_target_runtime_policy(void)
     CHECK(hth_enemy_attack_cadence_commit(cadence, 1.0));
 
     candidates[0] = excluded;
-    CHECK(step_excluding(&context, &world, candidates, 1U, excluded, 10.0F,
-                         1.0F, 1.0F, 10.0F, 1.0, 0.25));
+    exclusions[0] = alternative;
+    exclusions[1] = excluded;
+    exclusions[2] = excluded;
+    exclusions[3] = hth_entity_handle_invalid();
+    CHECK(step_excluding_list(
+        &context, &world, candidates, 1U, exclusions, 4U, 10.0F, 1.0F,
+        1.0F, 10.0F, 1.0, 0.25));
     CHECK(no_target(&context, spatial_enemy));
     CHECK(no_target(&context, no_spatial_enemy));
     CHECK(cadence_remaining(&context, spatial_enemy, 0.75));
@@ -1106,8 +1135,20 @@ static bool test_excluded_target_runtime_policy(void)
     CHECK(cadence_remaining(&context, spatial_enemy, 0.5));
     CHECK(cadence_remaining(&context, no_spatial_enemy, 0.5));
 
+    CHECK(step_excluding_list(
+        &context, &world, candidates, 2U, &excluded, 0U, 10.0F, 0.0F,
+        0.0F, 10.0F, 1.0, 0.0));
+    CHECK(target_equals(&context, spatial_enemy, alternative));
+
     CHECK(hth_enemy_target_store_clear(
         context.targets, context.entities, spatial_enemy));
+    exclusions[0] = excluded;
+    exclusions[1] = alternative;
+    CHECK(step_excluding_list(
+        &context, &world, candidates, 2U, exclusions, 2U, 10.0F, 0.0F,
+        0.0F, 10.0F, 1.0, 0.0));
+    CHECK(no_target(&context, spatial_enemy));
+
     CHECK(step_excluding(
         &context, &world, candidates, 1U, hth_entity_handle_invalid(),
         10.0F, 0.0F, 0.0F, 10.0F, 1.0, 0.0));

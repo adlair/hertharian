@@ -9,6 +9,21 @@
 #include <float.h>
 #include <math.h>
 
+static bool target_is_excluded(
+    HTHEntityHandle target,
+    const HTHEntityHandle *excluded_targets,
+    size_t excluded_target_count)
+{
+    size_t index;
+
+    for (index = 0U; index < excluded_target_count; ++index) {
+        if (hth_entity_handle_equal(target, excluded_targets[index])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool hth_enemy_pursuit_runtime_step(
     const HTHEntityRegistry *entities,
     const HTHActorStore *actors,
@@ -21,7 +36,8 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHCollisionWorld *collision_world,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
-    HTHEntityHandle excluded_target,
+    const HTHEntityHandle *excluded_targets,
+    size_t excluded_target_count,
     float perception_radius,
     float attack_range,
     float chase_speed,
@@ -37,6 +53,7 @@ bool hth_enemy_pursuit_runtime_step(
         targets == NULL || cadences == NULL ||
         !hth_collision_world_is_valid(collision_world) ||
         (candidate_count > 0U && candidates == NULL) ||
+        (excluded_target_count > 0U && excluded_targets == NULL) ||
         !isfinite(perception_radius) || perception_radius < 0.0F ||
         !isfinite(attack_range) || attack_range < 0.0F ||
         !isfinite(chase_speed) || chase_speed < 0.0F ||
@@ -66,8 +83,8 @@ bool hth_enemy_pursuit_runtime_step(
 
         has_target = hth_enemy_target_store_get(
             targets, entities, actors, enemies, enemy, &target);
-        if (has_target &&
-            hth_entity_handle_equal(target, excluded_target)) {
+        if (has_target && target_is_excluded(
+                target, excluded_targets, excluded_target_count)) {
             if (!hth_enemy_target_store_clear(targets, entities, enemy)) {
                 return false;
             }
@@ -82,7 +99,8 @@ bool hth_enemy_pursuit_runtime_step(
             if (!hth_enemy_target_select(
                     entities, actors, enemies, spatial, collision_world,
                     targets, enemy, candidates, candidate_count,
-                    excluded_target, perception_radius, &selected)) {
+                    excluded_targets, excluded_target_count,
+                    perception_radius, &selected)) {
                 return false;
             }
         }

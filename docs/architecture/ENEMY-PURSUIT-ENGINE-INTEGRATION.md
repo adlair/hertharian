@@ -158,6 +158,12 @@ For each successful Engine lifecycle:
 No public API, Level or Material format revision, Player migration, AI manager,
 Renderer expansion, or SDL/Platform/Input change is part of this milestone.
 
+As of v0.3.35, Bootstrap mechanically translates the same single local
+`player_dead` snapshot into a generic exclusion list containing zero or one
+handle. The Enemy foundations accept larger caller-owned lists, but production
+still supplies exactly one Player candidate and adds no multi-Player loop,
+snapshot batch, fake Player, or per-frame population work.
+
 As of v0.3.19, Pursuit passes the private bootstrap attack range to the
 attack-capable Decision API. Eligibility is reached only through Decision;
 there is no direct Eligibility call, separate attack phase, DamageIntent,

@@ -140,7 +140,9 @@ HTHBootstrapEnemyPursuitStepResult hth_bootstrap_enemy_pursuit_step(
     double delta_seconds)
 {
     HTHEntityHandle player_target;
-    HTHEntityHandle excluded_target;
+    const HTHEntityHandle *excluded_targets = NULL;
+    size_t excluded_target_count = 0U;
+    HTHEntityHandle dead_player[1];
     HTHEntityHandle candidates[1];
 
     if (integration == NULL || entities == NULL ||
@@ -157,13 +159,16 @@ HTHBootstrapEnemyPursuitStepResult hth_bootstrap_enemy_pursuit_step(
         return HTH_BOOTSTRAP_ENEMY_PURSUIT_STEP_GET_TARGET_FAILED;
     }
     candidates[0] = player_target;
-    excluded_target = player_dead
-        ? player_target
-        : hth_entity_handle_invalid();
+    if (player_dead) {
+        dead_player[0] = player_target;
+        excluded_targets = dead_player;
+        excluded_target_count = 1U;
+    }
     if (!hth_enemy_pursuit_runtime_step(
             entities, actors, enemies, spatial, bodies, health, targets,
             cadences,
-            collision_world, candidates, 1U, excluded_target,
+            collision_world, candidates, 1U, excluded_targets,
+            excluded_target_count,
             bootstrap_enemy_perception_radius, bootstrap_enemy_attack_range,
             bootstrap_enemy_chase_speed, bootstrap_enemy_attack_damage,
             bootstrap_enemy_attack_interval_seconds, delta_seconds)) {

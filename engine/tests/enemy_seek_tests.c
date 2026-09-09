@@ -528,7 +528,7 @@ static bool test_decision_and_selection_composition(void)
     CHECK(hth_enemy_target_select(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         &world, fixture.targets, enemy, candidates, 2U,
-        hth_entity_handle_invalid(), 10.0F, &selected));
+        NULL, 0U, 10.0F, &selected));
     CHECK(hth_entity_handle_equal(selected, candidate_a));
     CHECK(hth_enemy_target_store_get(
         fixture.targets, fixture.entities, fixture.actors, fixture.enemies,

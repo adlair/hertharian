@@ -33,7 +33,8 @@ bool hth_enemy_pursuit_runtime_step(
     const HTHCollisionWorld *collision_world,
     const HTHEntityHandle *candidates,
     size_t candidate_count,
-    HTHEntityHandle excluded_target,
+    const HTHEntityHandle *excluded_targets,
+    size_t excluded_target_count,
     float perception_radius,
     float attack_range,
     float chase_speed,
@@ -50,8 +51,9 @@ iterator state. For each Enemy it performs:
 
 ```text
 require generation-safe cadence and advance exactly once
-require Spatial or skip
 query current semantic Target
+if current Target matches any exclusion: clear it
+require Spatial or skip
 if missing: Target Selection over explicit candidates
 query current Target again
 if still missing: skip
@@ -96,10 +98,12 @@ remains authoritative only on `PURSUE` frames.
 
 ## Ownership, Failure, and Cost
 
-The candidate array is caller-owned. Runtime does not allocate, copy, sort,
-mutate, or retain it. The orchestrator performs no direct heap allocation and
-uses `O(1)` auxiliary storage, while delegated existing Store operations retain
-their own allocation and growth semantics.
+The candidate and exclusion arrays are caller-owned. Runtime does not allocate,
+copy, sort, mutate, or retain either one. A null exclusion pointer is valid
+exactly when its count is zero; a non-null pointer with zero count is also
+valid. The orchestrator performs no direct heap allocation and uses `O(1)`
+auxiliary storage, while delegated existing Store operations retain their own
+allocation and growth semantics.
 
 The step is not globally transactional. Global precondition failure occurs
 before iteration and causes no mutation. A delegated technical failure stops
@@ -107,10 +111,12 @@ at that deterministic Enemy; effects already committed for lower-index
 Enemies remain, and later Enemies are untouched. Chase retains its own
 per-Enemy rollback contract.
 
-For Enemy Store capacity `C`, `E` Enemies, `M` candidates, and `N` static
-obstacles, worst-case composed work is `O(C + E*(M*N + N))`: iteration scans
-the Store capacity, Selection is `O(M*N)`, attack-capable Decision and Chase
-are `O(N)`, and Seek is `O(1)`. Decision performs one Attack Eligibility
+For Enemy Store capacity `C`, `P` Enemies, `M` candidates, `X` exclusions,
+and `N` static obstacles, worst-case composed work is
+`O(C + P*(X + M*X + M*N + N))`: iteration scans the Store capacity,
+Current Target membership is `O(X)`, Selection is `O(M*X + M*N)`,
+attack-capable Decision and Chase are `O(N)`, and Seek is `O(1)`. Decision
+performs one Attack Eligibility
 evaluation for a valid perceptible Target and may perform at most two LOS
 traces on the blocked in-range path, which does not alter the asymptotic bound.
 Existing Targets or empty candidate sets may reduce actual work.
@@ -139,8 +145,11 @@ ATTACK branch performs no direct Eligibility or LOS query. Ready attacks follow
 build -> commit -> resolve, emit at most once per Enemy/step, and never catch
 up. See `ENEMY-ATTACK-RUNTIME-INTEGRATION.md` and ADR-0047.
 
-As of v0.3.26, Runtime accepts one generic excluded target. After cadence
-advance and before the Spatial early-out it clears an exact matching Current
-Target, then passes the exclusion to Selection. Invalid exclusion preserves the
-historical path. Runtime does not query Health or Player Death, and target
-clearing never resets cadence.
+As of v0.3.35, Runtime accepts zero or more generic excluded targets. After
+cadence advance and before the Spatial early-out it clears a Current Target
+matching any exclusion, then passes the same list to Selection. Membership uses
+full Entity handle equality; invalid, stale, repeated, and reordered exclusion
+keys are harmless. Runtime does not query Health or Player Death, and target
+clearing never resets cadence. With `E` exclusions, Current Target membership
+is `O(E)` and Selection exclusion filtering is `O(M*E)` for `M` candidates;
+auxiliary memory remains `O(1)` with zero direct heap allocations.

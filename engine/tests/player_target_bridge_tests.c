@@ -578,7 +578,7 @@ static bool test_ai_foundation_composition(void)
     CHECK(hth_enemy_target_select(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         &world, fixture.targets, enemy, &target, 1U,
-        hth_entity_handle_invalid(), 10.0F, &selected));
+        NULL, 0U, 10.0F, &selected));
     CHECK(hth_entity_handle_equal(selected, target));
     CHECK(hth_enemy_decision_evaluate(
         fixture.entities, fixture.actors, fixture.enemies, fixture.targets,
@@ -608,7 +608,7 @@ static bool test_ai_foundation_composition(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, candidates, 1U, hth_entity_handle_invalid(), 10.0F, 0.0F,
+        &world, candidates, 1U, NULL, 0U, 10.0F, 0.0F,
         2.0F, 0.0F, 1.0, 0.5));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
                                 &enemy_transform));
@@ -637,7 +637,7 @@ static bool test_ai_foundation_composition(void)
     CHECK(hth_enemy_pursuit_runtime_step(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         fixture.bodies, fixture.health, fixture.targets, fixture.cadences,
-        &world, candidates, 1U, hth_entity_handle_invalid(), 10.0F, 0.0F,
+        &world, candidates, 1U, NULL, 0U, 10.0F, 0.0F,
         2.0F, 0.0F, 1.0, 0.5));
     CHECK(hth_spatial_store_get(fixture.spatial, fixture.entities, enemy,
                                 &enemy_transform));
@@ -720,7 +720,7 @@ static bool test_damage_target_identity_composition(void)
     CHECK(hth_enemy_target_select(
         fixture.entities, fixture.actors, fixture.enemies, fixture.spatial,
         &world, fixture.targets, enemy, &player_target, 1U,
-        hth_entity_handle_invalid(), 10.0F, &selected));
+        NULL, 0U, 10.0F, &selected));
     CHECK(hth_entity_handle_equal(selected, player_target));
     CHECK(hth_enemy_decision_evaluate_with_attack(
         fixture.entities, fixture.actors, fixture.enemies, fixture.targets,

@@ -216,8 +216,10 @@ remain architectural targets.
 
 As of v0.3.26, Engine passes its single Player Death snapshot to Bootstrap.
 Bootstrap maps the dead Player's stable Bridge handle to the generic
-`excluded_target` used by Pursuit and Selection; no Health/death dependency
-crosses into those Enemy foundations.
+zero-or-one exclusion list used by Pursuit and Selection; no Health/death
+dependency crosses into those Enemy foundations. As of v0.3.35 the private
+Enemy APIs accept a caller-owned pointer/count for multiple exclusions, while
+this production bootstrap remains one candidate and zero or one exclusion.
 
 As of v0.3.27, the private Player Defeat Foundation exists as a disconnected
 caller-owned primitive. Engine and Bootstrap own no Defeat state, make zero

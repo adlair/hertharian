@@ -80,7 +80,9 @@ and teardown are bounded `O(1)` for the frozen capacity.
 Engine and Bootstrap make zero population calls in v0.3.34. Real cooperative
 integration still requires a multi-Player authoritative Death-snapshot
 architecture; current Engine carries one local boolean snapshot and one local
-PlayerBody. It also requires a policy for Enemy dead-target exclusion across
-multiple Players, Revive Target Selection, a semantic Interact action, and
-product-owned revive range, duration, and restored-Health values. Those are
-prerequisites for a real coop runtime, not work hidden in this foundation.
+PlayerBody. Hertharian v0.3.35 supplies the disconnected generic Enemy
+exclusion-list boundary and proves it with four population-created Players in
+tests, but adds no production Population consumer. Revive Target Selection, a
+semantic Interact action, and product-owned revive range, duration, and
+restored-Health values remain prerequisites for a real coop runtime, not work
+hidden in this foundation.
