@@ -246,5 +246,11 @@ interaction or Revive Execution work. Future coop integration must run such
 work before the existing authoritative Death snapshot; current frame order is
 unchanged. See `PLAYER-REVIVE-INTERACTION.md` and ADR-0057.
 
+As of v0.3.34, Player Runtime Population is likewise disconnected. Engine and
+Bootstrap make no population calls, create no second Player, own no PlayerBody
+array, and perform no population work per frame. Current production still has
+exactly one Bridge-owned Player. See
+`PLAYER-RUNTIME-POPULATION.md` and ADR-0058.
+
 All bootstrap code is original project code. No source, license text, or file
 header was copied from the read-only Quake III Arena or ioquake3 references.

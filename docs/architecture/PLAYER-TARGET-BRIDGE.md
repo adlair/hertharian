@@ -144,3 +144,8 @@ remains alive, synchronized, and unaware of targetability.
 As of v0.3.29, explicit Player Roster membership—not the Bridge alone—defines
 the Player role. A future caller may register the Bridge's gameplay Entity;
 the roster neither owns nor references the Bridge itself.
+
+As of v0.3.34, generic population-created Players may coexist with this local
+Bridge Player in one roster. The Bridge remains the local PlayerBody adapter
+and retains its own create, synchronize, and destroy lifecycle; generic
+Population despawn is not its destruction API.

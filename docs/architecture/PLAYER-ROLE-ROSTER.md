@@ -94,3 +94,8 @@ identity-only roster, registers the existing Bridge Player, and binds Defeat,
 ReviveWindow, and historical Death-edge memory externally by stable slot.
 Current valid membership count selects solo immediate Defeat versus a
 cooperative Window; stale membership is a technical lifecycle failure.
+
+As of v0.3.34, the disconnected Player Runtime Population boundary can create
+an Entity + Actor + Spatial + Health composition and register it through that
+Lifecycle Runtime. It adds no slot map: this roster remains the sole
+PlayerSlot-to-Entity authority.

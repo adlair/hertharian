@@ -115,3 +115,8 @@ Runtime storage is fixed `O(HTH_MAX_PLAYERS)`. Registration is bounded `O(P)`
 for `P <= 4`; one slot step performs bounded work over at most four roster
 slots and is `O(1)` for the frozen capacity. Current production invokes only
 the local slot, so lifecycle adds fixed `O(1)` work per frame.
+
+As of v0.3.34, disconnected Player Runtime Population uses the existing
+register/unregister boundary transactionally. Lifecycle Runtime remains the
+owner of Roster, Defeat, Window, and `was_dead`; Population stores no duplicate
+membership or lifecycle state.

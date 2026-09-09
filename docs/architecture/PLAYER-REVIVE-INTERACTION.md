@@ -129,3 +129,9 @@ and before the existing authoritative Death snapshot. Lifecycle, movement,
 dead-target policy, and Enemy runtime follow that one snapshot, so a same-frame
 successful revive wins before Window expiry without adding another Death
 query.
+
+As of v0.3.34, Player Runtime Population can compose multiple gameplay Player
+identities only in disconnected callers and tests. Production revive remains
+blocked on a multi-Player Death-snapshot architecture, Revive Target Selection,
+a semantic Interact action, and product-owned range, duration, and restored
+Health values.
